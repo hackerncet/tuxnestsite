@@ -1,4 +1,4 @@
-name: NCET VerifyFlow CI
+name: NCMS VerifyFlow CI
 on:
   push:
   pull_request:

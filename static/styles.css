@@ -171,3 +171,15 @@ select:focus-visible,textarea:focus-visible,[role="button"]:focus-visible{
 @media(prefers-reduced-motion:reduce){
   .nav-item,.btn,.role-option{transition:none!important}
 }
+
+
+/* NCMS identity: source artwork is preserved in cropped WebP files. */
+.ncet-crest,.ncms-crest{display:flex;align-items:center;justify-content:center;overflow:hidden;
+background:#fff;border-radius:12px;border:1px solid #e5e8ee;padding:3px}
+.ncet-crest img,.ncms-crest img{display:block;max-width:100%;width:100%;height:100%;object-fit:contain;min-width:0}
+.brandline .ncms-crest{width:66px;height:66px;flex:0 0 66px}
+.sidebar-brand .ncms-crest{width:49px;height:49px;flex:0 0 49px}
+.sidebar-brand .brand-name{font-size:16px;letter-spacing:-.025em;white-space:nowrap}
+.footer-ngi{object-fit:contain}
+@media(max-width:420px){.brandline .ncms-crest{width:56px;height:56px;flex-basis:56px}
+.sidebar-brand .brand-name{font-size:15px}}

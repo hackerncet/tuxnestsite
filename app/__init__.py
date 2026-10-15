@@ -1,1 +1,1 @@
-"""NCET VerifyFlow institutional verification platform."""
+"""NCMS VerifyFlow institutional verification platform."""

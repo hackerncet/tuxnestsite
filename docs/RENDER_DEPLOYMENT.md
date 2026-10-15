@@ -1,4 +1,4 @@
-# NCET VerifyFlow — Render deployment and recovery
+# NCMS VerifyFlow — Render deployment and recovery
 
 This repository uses an existing PostgreSQL database and a **single Docker web service** for non-sensitive pilot use. The worker runs alongside FastAPI in the web container. It does not provision another database.
 

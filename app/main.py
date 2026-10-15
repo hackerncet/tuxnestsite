@@ -1,4 +1,4 @@
-"""NCET VerifyFlow: server-authorized AI-assisted document verification and approval."""
+"""NCMS VerifyFlow: server-authorized AI-assisted document verification and approval."""
 import csv
 import io
 import os
@@ -28,7 +28,7 @@ ROOT = Path(__file__).resolve().parent.parent
 STATIC = ROOT / 'static'
 PUBLIC_ORIGIN = os.getenv('PUBLIC_ORIGIN', '').rstrip('/')
 ENV = os.getenv('APP_ENV', 'development')
-app = FastAPI(title='NCET VerifyFlow', docs_url=None if ENV == 'production' else '/api/docs',
+app = FastAPI(title='NCMS VerifyFlow', docs_url=None if ENV == 'production' else '/api/docs',
               redoc_url=None, openapi_url=None if ENV == 'production' else '/api/openapi.json')
 app.mount('/static', StaticFiles(directory=STATIC), name='static')
 app.add_middleware(GZipMiddleware, minimum_size=1024)
@@ -243,7 +243,7 @@ async def upload(title:str=Form(...),category:str=Form(...),year:str=Form(...),d
     key,content=await run_in_threadpool(store,data,mime)
     try:
         policy=db.query(RulePolicy).filter(RulePolicy.department==user.department).order_by(RulePolicy.version.desc()).first()
-        doc=Document(public_id='NCET-'+str(utcnow().year)+'-'+secrets.token_hex(5).upper(),
+        doc=Document(public_id='NCMS-'+str(utcnow().year)+'-'+secrets.token_hex(5).upper(),
                      title=title,category=category, academic_year=year, description=description,
                      department=user.department,submitter_id=user.id,status='verifying')
         db.add(doc);db.flush()

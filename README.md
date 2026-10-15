@@ -1,6 +1,6 @@
-# NCET VerifyFlow — AI-Powered Document Verification and Approval
+# NCMS VerifyFlow — AI-Powered Document Verification and Approval
 
-A database-backed, role-enforced, AI-assisted college document-verification application prepared for **Nagarjuna College of Engineering and Technology (NCET), Bengaluru**. The interface uses the two institution logos supplied for this project. This is an **independent, deployment-ready implementation**, not a claim of official college endorsement, finished security accreditation, or a currently live Render service.
+A database-backed, role-enforced, AI-assisted college document-verification application prepared for **Nagarjuna College of Management Studies (NCMS)**. The interface uses the supplied NCMS emblem and NGI wordmark. The current deployment hostname and legacy NCET_BOOTSTRAP environment variables remain unchanged to preserve operational compatibility. This is an **independent, deployment-ready implementation**, not a claim of official college endorsement or finished security accreditation.
 
 ## Architecture
 
@@ -139,3 +139,8 @@ The API suite tests permissions, cross-department separation, CSRF, password res
 - `render.yaml`: Render Blueprint (Postgres + web + worker)
 - `compose.yaml`: standalone server deployment
 - `tests/`: API and UI test suites
+
+
+## NCMS branding transition (October 2026)
+
+The public-facing platform and new document references use **NCMS VerifyFlow** and **Nagarjuna College of Management Studies**. The supplied NCMS tree/book artwork is preserved as cropped WebP raster assets; no auto-traced or claimed original vector logo has been created. Existing NCET-prefixed document IDs remain unchanged, as do database tables, authentication accounts, secret names, Render service URLs, and audit histories. Confirm organizational publication authority before using the platform for real institutional records.

@@ -1,4 +1,4 @@
-"""NCET VerifyFlow entrypoint for a single Render web service.
+"""NCMS VerifyFlow entrypoint for a single Render web service.
 
 The API and document verifier share one container for low-traffic trials.
 For institution-wide deployments use separate always-on web and worker instances.
