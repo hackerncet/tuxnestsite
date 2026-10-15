@@ -60,6 +60,9 @@ python -m app.worker
 
 ## Deploy to Render (existing database, one web service)
 
+**Setup and recovery guide:** [Render Deployment Guide](docs/RENDER_DEPLOYMENT.md)
+
+
 The project now ships a **single-web-service** Render Blueprint using an **existing**
 PostgreSQL database, so it will not create another paid database. The selected free
 Oregon plan is suitable only for a low-traffic pilot, because idle web services sleep,
