@@ -123,7 +123,7 @@
         <form id="login-form" autocomplete="off"><div class="field"><label for="login-user" class="form-label">User ID</label><div class="input-wrap">${icon('user','leading')}<input class="with-icon" id="login-user" name="username" placeholder="Enter your user ID" aria-required="true" required autocapitalize="none" spellcheck="false" maxlength="40" /></div></div>
         <div class="field"><label for="login-pass" class="form-label">Password</label><div class="input-wrap">${icon('lock','leading')}<input id="login-pass" name="password" type="${showPassword ? 'text' : 'password'}" placeholder="Enter your password" aria-required="true" required maxlength="80" /><button class="trail" aria-label="Toggle password visibility" data-action="toggle-password" type="button">${icon(showPassword ? 'eyeOff':'eye','sm')}</button></div></div>
         <button type="submit" class="btn btn-primary btn-lg btn-full">Sign in to workspace ${icon('arrow','sm')}</button></form>
-        <div class="demo-hint"><strong>Institutional account</strong><br>Access is granted only to users provisioned by the Super Administrator. Contact the NCET administrator if you need an account.</div>
+        <div class="demo-hint"><strong>Institutional account</strong><br>Access is provided by your department HOD or the institution administrator. Contact them if you need an account.</div>
         <p class="login-foot">Passwords are protected by server-side verification.<br>Authorized college personnel only. Sign out on shared devices.</p>
       </div></section>
     </div>`;
@@ -258,13 +258,13 @@
   }
   function integrationsHTML() {
     if(role!=='admin')return overviewHTML();
-    return `${pageHeader('SUPER ADMIN / INTEGRATIONS','AI model configuration','Store your private API credential on the server. The key is encrypted and never sent back to this browser.')}
+    return `${pageHeader('SUPER ADMIN / INTEGRATIONS','AI model configuration','Manage the document-review integration securely.')}
     <div class="manage-grid"><section class="panel form-panel"><div class="model-name">${icon('sparkle','lg')} <div><strong>Gemma 4 · 31B Instruct</strong><span>OpenRouter · google/gemma-4-31b-it:free</span></div></div>
     <div class="notice"><strong>${integrations.openrouter_configured?'Integration configured':'API key not yet configured'}</strong>${integrations.openrouter_configured?'A credential is available for automated document verification.':'Uploads will be routed to manual review until you add a key.'}</div>
     <form id="integration-form" autocomplete="off"><div class="field"><label class="field-label" for="openrouter-key">New OpenRouter API key</label><input id="openrouter-key" type="password" name="api_key" class="form-control" minlength="15" required autocomplete="new-password" placeholder="sk-or-v1-••••••••" /></div>
     <button class="btn btn-primary" type="submit">${icon('lock','sm')} Save encrypted key</button></form><p class="small muted" style="margin-top:18px">Rotating this key never changes stored documents. Configure <code>SETTINGS_ENCRYPTION_KEY</code> on the server before saving.</p></section>
     <section class="panel info-panel"><h3>Data handling</h3><p>Extracted document text and active verification rules are sent to OpenRouter only when this integration is enabled. Do not upload sensitive documents without your institution's approval and a reviewed provider data-processing policy.</p>
-    <div class="info-list"><div class="info-row"><span class="info-mark">${icon('shield')}</span><div><b>Server-side key</b><p>Only the Python server calls OpenRouter.</p></div></div><div class="info-row"><span class="info-mark">${icon('file')}</span><div><b>Structured validation</b><p>All AI responses are parsed and validated; unsupported output triggers human review.</p></div></div><div class="info-row"><span class="info-mark">${icon('lock')}</span><div><b>Private document routes</b><p>No indexed uploads or public document URLs.</p></div></div></div></section></div>`;
+    <div class="info-list"><div class="info-row"><span class="info-mark">${icon('shield')}</span><div><b>Server-side key</b><p>Integration credentials are accessible only through authorized administration.</p></div></div><div class="info-row"><span class="info-mark">${icon('file')}</span><div><b>Structured validation</b><p>All AI responses are parsed and validated; unsupported output triggers human review.</p></div></div><div class="info-row"><span class="info-mark">${icon('lock')}</span><div><b>Private document routes</b><p>No indexed uploads or public document URLs.</p></div></div></div></section></div>`;
   }
   function reportHTML(){
     const v=verifyReport||{},r=v.report||{},rows=r.findings||[];
