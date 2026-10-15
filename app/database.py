@@ -13,7 +13,11 @@ def utcnow():
 
 
 def db_url():
-    url = os.getenv('DATABASE_URL', 'sqlite:///./ncet-dev.sqlite3')
+    url = os.getenv('DATABASE_URL')
+    if not url:
+        if os.getenv('APP_ENV', 'development') == 'production':
+            raise RuntimeError('DATABASE_URL must be configured for production; refusing ephemeral SQLite fallback.')
+        url = 'sqlite:///./ncet-dev.sqlite3'
     if url.startswith('postgres://'):
         url = 'postgresql+psycopg://' + url[len('postgres://'):]
     elif url.startswith('postgresql://'):
