@@ -66,3 +66,108 @@
 
 .field-error{color:#a23d36;font-size:12px;line-height:1.5;margin:7px 0 0;font-weight:600}
 .form-control[aria-invalid="true"]{border-color:#b5473e;box-shadow:0 0 0 2px rgba(181,71,62,.09)}
+
+
+/* Professional institutional theme. NCET/NGI original emblems are intentionally preserved;
+   NCMS imagery belongs to a different college and is not substituted. */
+:root {
+  --institution-navy:#0e2455;--institution-navy-hover:#183771;
+  --institution-orange:#f6872a;--institution-page:#f4f6f9;
+  --institution-text:#172033;--institution-muted:#64748b;
+  --institution-line:#dbe2ed;--institution-focus:#bb5f0c;
+  --ncet-green:#0e2455;--ncet-ink:#172033;--ncet-border:#dbe2ed;
+  color-scheme:light;
+}
+body{background:var(--institution-page);color:var(--institution-text)}
+input,textarea,select{color:var(--institution-text)}
+button:focus-visible,a:focus-visible,input:focus-visible,
+select:focus-visible,textarea:focus-visible,[role="button"]:focus-visible{
+  outline:3px solid var(--institution-focus);outline-offset:3px
+}
+::selection{background:#fce1c8;color:#122349}
+.muted{color:var(--institution-muted)}
+.login-art{background:linear-gradient(160deg,#0e2455 0%,#142e63 62%,#0b1c40 100%)}
+.login-art::before{opacity:.14}.login-art::after{opacity:.55}
+.login-art .brand-name{color:#fff}.login-art .brand-sub{color:#d3def0}
+.hero-copy .eyebrow,.eyebrow{color:#ffca99}
+.hero-copy h1 em{color:#ffc489}
+.hero-copy p,.art-bottom{color:#d8e1f2}
+.hero-copy h1{letter-spacing:-.045em}
+.art-bottom .beacon{background:#ffaf6a}
+.sidebar-brand .brand-sub{color:var(--institution-muted)}
+.login-right{background:#fff}
+.login-panel h2,.page-header h1,.panel-title,
+.sidebar-brand .brand-name{color:var(--institution-navy)}
+.auth-topline,.auth-topline .icon{color:var(--institution-navy)}
+.login-panel .intro,.page-header p,.panel-subtitle{color:var(--institution-muted)}
+.form-label,.field-label{color:#293f61}
+.input-wrap input:focus,.form-control:focus{
+  border-color:var(--institution-navy);box-shadow:0 0 0 3px #e4eaf6
+}
+.role-option:hover,.role-option:focus-visible{
+  border-color:#7f98c5;color:var(--institution-navy)
+}
+.role-option.active{
+  background:#eff3fa;color:var(--institution-navy);
+  border-color:#8fa5cd;box-shadow:inset 0 0 0 1px #8fa5cd
+}
+.btn{border-color:var(--institution-line);color:#263b5e}
+.btn-primary,.public-signin{
+  background:var(--institution-navy);border-color:var(--institution-navy);
+  color:#fff;box-shadow:0 5px 11px rgba(14,36,85,.11)
+}
+.btn-primary:hover:not(:disabled),.public-signin:hover{
+  background:var(--institution-navy-hover);
+  border-color:var(--institution-navy-hover);
+  color:#fff;box-shadow:0 6px 16px rgba(14,36,85,.16)
+}
+.btn-secondary{background:#f6f8fb}
+.sidebar{border-right-color:var(--institution-line)}
+.nav-heading{color:#677a9a}
+.nav-item{color:#445776;position:relative}
+.nav-item:hover{background:#f2f5fa;color:var(--institution-navy)}
+.nav-item.active{background:#eaf0fa;color:var(--institution-navy)}
+.nav-item.active::before{
+  content:'';position:absolute;inset:9px auto 9px 0;
+  width:3px;background:var(--institution-orange);border-radius:2px
+}
+.nav-item.active .icon{color:var(--institution-navy)}
+.nav-item.active .count{color:var(--institution-navy);background:#d9e4f7}
+.topbar{border-bottom-color:var(--institution-line)}
+.breadcrumb strong{color:var(--institution-navy)}
+.top-right .pill{background:#edf3fc;color:#24487e}
+.top-right .pill .dot{background:#34764a}
+.content{max-width:1500px}
+.overline{color:#8e490c}
+.avatar{background:#e9eef8;color:var(--institution-navy)}
+.help-box,.demo-hint{background:#f4f7fc;border-color:#dee6f4}
+.help-box .h-title,.demo-hint strong{color:var(--institution-navy)}
+.help-box p,.demo-hint{color:#536781}
+.version-chip,.model-name{background:#f1f5fc;border-color:#dbe5f4;color:var(--institution-navy)}
+.rule-required input{accent-color:var(--institution-navy)}
+.rule-n,.model-name strong{color:var(--institution-navy)}
+.footer a,.text-btn,.public-steps strong{color:var(--institution-navy)}
+.public-badge{color:#8e490c}
+.public-steps>div{background:#f8fafd;border-color:var(--institution-line)}
+.public-landing h1{color:var(--institution-navy)}
+.finding .correction{color:#254e85}
+.field-error{color:#a3342d}
+.form-control[aria-invalid="true"],.input-wrap input[aria-invalid="true"]{
+  border-color:#b13e37;box-shadow:0 0 0 2px #fae6e3
+}
+.form-control[aria-invalid="true"]:focus{outline-color:#b13e37}
+.panel,.metric,.rule-entry{border-color:var(--institution-line)}
+.doc-row:hover{background:#f5f8fc}
+.toast-container{z-index:110}
+@media(max-width:650px){
+  .content{padding:22px 16px 38px}
+  .page-header{gap:14px}
+  .page-header h1{font-size:clamp(23px,5vw,29px)}
+  .topbar{padding-inline:15px}
+  .btn{white-space:normal;text-align:center}
+  .sidebar{overscroll-behavior:contain}
+  .upload-file span{overflow-wrap:anywhere}
+}
+@media(prefers-reduced-motion:reduce){
+  .nav-item,.btn,.role-option{transition:none!important}
+}
