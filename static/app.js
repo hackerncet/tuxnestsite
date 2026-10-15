@@ -104,7 +104,7 @@
   const statusHTML = status => `<span class="status ${esc(status)}"><span class="s-dot"></span>${{verifying:'AI verifying…',pending:'Pending HOD',manual_review:'Manual review',needs_correction:'Needs correction',approved:'Approved',rejected:'Rejected'}[status] || esc(status)}</span>`;
   const fmtSize = bytes => !bytes ? '—' : bytes > 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
   const initials = str => String(str).split(/\s+/).slice(0,2).map(x=>x[0]).join('').toUpperCase();
-  const titleFor = p => ({ overview:'Dashboard',documents:role === 'hod' ? 'Review submissions' : role === 'staff' ? 'My documents' : 'Approved documents',upload:'Submit a document',activity:'Activity & history',insights:'Reports & insights',guide:'How it works',rules:'Verification rules',integrations:'OpenRouter configuration',users:'User management',audit:'Security audit',account:'My account' })[p] || 'Dashboard';
+  const titleFor = p => ({ overview:'Dashboard',documents:role === 'hod' ? 'Review submissions' : role === 'staff' ? 'My documents' : 'Approved documents',upload:'Submit a document',activity:'Activity & history',insights:'Reports & insights',guide:'How it works',rules:'Verification rules',integrations:'OpenRouter configuration',users:role==='hod'?'Department staff':'User management',audit:'Security audit',account:'My account' })[p] || 'Dashboard';
   const crest = `<div class="crest ncet-crest"><img src="/static/ncet-crest.webp" alt="NCET college crest" /></div>`;
   const campus = `<svg viewBox="0 0 560 195" xmlns="http://www.w3.org/2000/svg" fill="none"><path d="M70 165h426" stroke="#D6BE91" stroke-opacity=".42" stroke-width="1.5"/><path d="M124 161V87L280 30l156 57v74" stroke="#E3CEA6" stroke-width="1.7" fill="#D9BB8B" fill-opacity=".045"/><path d="m115 90 165-68 165 68" stroke="#F5D5A1" stroke-width="2.5"/><path d="M154 161V95h252v66M177 95V72m206 23V72" stroke="#E3CEA6" stroke-opacity=".7" stroke-width="1.5"/><path d="M256 161v-44h48v44" stroke="#E3CEA6" stroke-width="2"/><path d="M268 161v-33h24v33M149 115h82m98 0h82M149 133h82m98 0h82" stroke="#C7D8CF" stroke-opacity=".38"/><path d="M205 95v66m150-66v66" stroke="#E3CEA6" stroke-opacity=".6"/><circle cx="280" cy="82" r="14" stroke="#F0D6A8"/><path d="M280 75v14m-7-7h14" stroke="#F0D6A8"/><path d="M92 164V99m0 7c-36-10-31-45-3-55 31-9 53 29 22 52M468 164V99m0 7c-36-10-31-45-3-55 31-9 53 29 22 52" stroke="#7EADA3" stroke-opacity=".6" stroke-width="1.5"/><path d="M46 174h468" stroke="#A9CEBB" stroke-opacity=".33" stroke-width="1"/></svg>`;
   const txt = str => esc(str || '');
@@ -130,7 +130,7 @@
   }
   function sidebarHTML() {
     const count = role === 'hod' ? docs.filter(d=>['pending','manual_review'].includes(d.status)).length : 0;
-    const nav = role==='admin' ? [['overview','home','Overview'],['users','users','User management'],['integrations','sparkle','OpenRouter API'],['audit','shield','Security audit'],['account','user','My account']] : [['overview','home','Overview'],['documents',role==='hod'?'checkCircle':'folder',role==='hod'?'Review queue':role==='staff'?'My documents':'Approved records'],...(role==='staff'?[['upload','upload','Submit document']]:[]),...(role==='hod'?[['rules','shield','Verification rules']]:[]),['activity','clock','Activity log'],...(role==='principal'||role==='iqac'?[['insights','chart','Reports & insights']]:[]),['account','user','My account'],['guide','info','Help & process']];
+    const nav = role==='admin' ? [['overview','home','Overview'],['users','users','User management'],['integrations','sparkle','OpenRouter API'],['audit','shield','Security audit'],['account','user','My account']] : [['overview','home','Overview'],['documents',role==='hod'?'checkCircle':'folder',role==='hod'?'Review queue':role==='staff'?'My documents':'Approved records'],...(role==='staff'?[['upload','upload','Submit document']]:[]),...(role==='hod'?[['rules','shield','Verification rules'],['users','users','Department staff']]:[]),['activity','clock','Activity log'],...(role==='principal'||role==='iqac'?[['insights','chart','Reports & insights']]:[]),['account','user','My account'],['guide','info','Help & process']];
     return `<aside class="sidebar ${mobileOpen?'open':''}" id="sidebar"><div class="sidebar-brand">${crest}<div><div class="brand-name">NCET VerifyFlow</div><div class="brand-sub">Institutional workspace</div></div></div>
       <div class="nav-group"><div class="nav-heading">Workspace</div>${nav.map(([k,i,t])=>`<button class="nav-item ${page===k?'active':''}" data-page="${k}" aria-current="${page===k?'page':'false'}">${icon(i)}${t}${k==='documents'&&count ? `<span class="count">${count}</span>`:''}</button>`).join('')}</div>
       <div class="sidebar-spacer"></div><div class="help-box">${icon('shield','sm')}<div class="h-title">A clear approval pathway</div><p>Faculty submission → HOD review → Principal and IQAC visibility.</p><button class="text-btn" data-page="guide">View workflow ${icon('arrow','sm')}</button></div>
@@ -187,12 +187,12 @@
     if (role !== 'staff') return overviewHTML();
     return `${pageHeader('NEW SUBMISSION','Submit a document','Documents are checked against current HOD rules, then routed for approval or corrections.')}
       <div class="split-grid"><div class="panel form-panel"><div class="form-header"><div class="overline">DOCUMENT DETAILS</div><h3>Submission information</h3><p>Complete the required fields to start a new review.</p></div>
-      <form id="submit-document"><div class="field"><label class="field-label" for="doc-title">Document title <span style="color:#bf534b">*</span></label><input class="form-control" id="doc-title" name="title" maxlength="140" minlength="5" required placeholder="e.g. Academic audit report — Semester I" /></div>
+      <form id="submit-document" novalidate><div class="field"><label class="field-label" for="doc-title">Document title <span style="color:#bf534b">*</span></label><input class="form-control" id="doc-title" name="title" maxlength="140" minlength="5" required placeholder="e.g. Academic audit report — Semester I" /></div>
       <div class="form-grid"><div class="field"><label class="field-label" for="doc-category">Document category *</label><select class="form-control" id="doc-category" name="category" required><option value="">Select category</option>${['Academic Audit','NAAC / Accreditation','Faculty Development','Event / Workshop','Examination / Assessment','Student Support','Infrastructure / Resources','Department Activities','Other'].map(x=>`<option>${x}</option>`).join('')}</select></div><div class="field"><label class="field-label" for="doc-year">Academic year *</label><select class="form-control" id="doc-year" name="year">${[currentAY(),...Array.from({length:4},(_,i)=>{const y=new Date().getFullYear()-1-i;return `${y}–${String(y+1).slice(-2)}`;})].filter((x,i,a)=>a.indexOf(x)===i).map(x=>`<option>${esc(x)}</option>`).join('')}</select></div></div>
       <div class="field"><label class="field-label" for="doc-department">Department *</label><input class="form-control" id="doc-department" name="department" value="${txt(user?.department)}" readonly /></div>
-      <div class="field"><label class="field-label" for="doc-desc">Description / purpose *</label><textarea class="form-control textarea" id="doc-desc" name="description" minlength="20" maxlength="1800" placeholder="Explain what is included and why it is being submitted..." required></textarea></div>
+      <div class="field"><label class="field-label" for="doc-desc">Description / purpose *</label><textarea class="form-control textarea" id="doc-desc" name="description" minlength="10" maxlength="2000" placeholder="Explain what is included and why it is being submitted..." required></textarea></div>
       <div class="field"><label class="field-label">Supporting document *</label><div class="upload-zone" id="upload-zone" role="button" tabindex="0" aria-label="Choose or drop a document"> <div class="upload-icon">${icon('upload','lg')}</div><strong><em>Click to browse</em> or drag and drop a file</strong><p>PDF, DOCX, TXT, PNG, JPG · Maximum 10 MB</p>${pickedFile?`<div class="upload-file">${icon('file','sm')} <span>${txt(pickedFile.name)} · ${fmtSize(pickedFile.size)}</span> <button type="button" data-action="remove-file" class="icon-button" aria-label="Remove file">${icon('close','sm')}</button></div>`:''}</div><input id="file-input" name="file" type="file" accept=".pdf,.docx,.txt,.png,.jpg,.jpeg" hidden /></div>
-      <div class="notice"><strong>${icon('info','sm')} Before you submit</strong> Your document will be analyzed against HOD rules. When OpenRouter is enabled, extracted document text is sent to the external AI provider. Only upload files approved for such processing.</div>
+      <div class="notice"><strong>${icon('info','sm')} Before you submit</strong> Your document will be analyzed against HOD rules. For document verification, content may be processed by an approved external AI service. Upload only documents authorized for that processing.</div>
       <div class="submit-actions"><button type="reset" class="btn" data-action="clear-form">Clear form</button><button type="submit" id="submit-btn" class="btn btn-primary">${icon('upload','sm')} Verify and submit ${icon('arrow','sm')}</button></div></form></div>
       <aside class="panel info-panel"><h3>Where does your document go?</h3><p>Every record follows a clear departmental review journey. You can track the outcome from your dashboard.</p><div class="info-list">${[['upload','01 · Submission','Provide details and attach your document.'],['clock','02 · HOD review','The Head of Department reviews the submission.'],['checkCircle','03 · Final visibility','Approved files appear in Principal and IQAC dashboards.'],['rotate','If revision is requested','See the reason and submit an updated record.']].map(a=>`<div class="info-row"><span class="info-mark">${icon(a[0],'sm')}</span><div><b>${a[1]}</b><p>${a[2]}</p></div></div>`).join('')}</div></aside></div>`;
   }
@@ -212,9 +212,9 @@
   }
   function guideHTML() {
     return `${pageHeader('SUPPORT & GUIDANCE','How DocFlow works','An easy-to-follow approval journey built around the responsibilities of each institutional role.')}
-      <div class="panel" style="padding:26px"><div class="overline">THE PROCESS</div><div class="quick-actions" style="grid-template-columns:repeat(auto-fit,minmax(230px,1fr));margin-top:19px">${[['01','Staff submits','Upload a document and metadata. A Python verification worker first checks the active HOD rules.'],['02','Verification + HOD','AI generates a detailed report. HOD decides after checking flagged items.'],['03','Principal + IQAC','Approved records become available for institutional reference.']].map(([n,t,d])=>`<div style="background:#f7faf9;border:1px solid #e7efec;border-radius:12px;padding:21px"><div class="overline">STEP ${n}</div><h3 style="font-size:16px;margin:11px 0">${t}</h3><p class="muted" style="font-size:12px;line-height:1.7">${d}</p></div>`).join('')}</div></div>
+      <div class="panel" style="padding:26px"><div class="overline">THE PROCESS</div><div class="quick-actions" style="grid-template-columns:repeat(auto-fit,minmax(230px,1fr));margin-top:19px">${[['01','Staff submits','Upload the document and required details for review.'],['02','Verification + HOD','A review report highlights concerns for department review.'],['03','Principal + IQAC','Approved records become available for institutional reference.']].map(([n,t,d])=>`<div style="background:#f7faf9;border:1px solid #e7efec;border-radius:12px;padding:21px"><div class="overline">STEP ${n}</div><h3 style="font-size:16px;margin:11px 0">${t}</h3><p class="muted" style="font-size:12px;line-height:1.7">${d}</p></div>`).join('')}</div></div>
       <div class="split-grid" style="margin-top:22px"><section class="panel info-panel"><h3>Your permissions</h3><p>${role==='staff'?'You can submit, track and revise your own documents.':role==='hod'?'You can review submissions within your department.':role==='principal'?'You can inspect HOD-approved institutional documents.':'You can inspect and export HOD-approved institutional records.'}</p></section>
-      <section class="panel info-panel"><h3>Document confidentiality</h3><p>All document access is authorized by the Python backend, not by this browser. Sign out from shared computers, use strong passwords and do not disclose institutional credentials.</p><button class="btn btn-secondary btn-sm" data-page="account">${icon('lock','sm')} Manage password</button></section></div>`;
+      <section class="panel info-panel"><h3>Document confidentiality</h3><p>Only authorized members can view documents. Sign out on shared computers and keep your password private.</p><button class="btn btn-secondary btn-sm" data-page="account">${icon('lock','sm')} Manage password</button></section></div>`;
   }
   function detailHTML(d) {
     const approvable=role==='hod'&&['pending','manual_review'].includes(d.status);
@@ -223,7 +223,7 @@
       <div class="detail-title">${txt(d.title)}</div>${statusHTML(d.status)}${d.status==='verifying'&&role==='staff'?`<div class="staff-status-line">${icon('clock','sm')} Running document checks <span class="rotator">${icon('rotate','sm')}</span></div><div class="progress-track"><div class="progress-fill"></div></div>`:''}
       <div class="detail-grid">${[['Submitted by',d.author],['Category',d.category],['Department',d.department],['Academic year',d.year],['Submitted on',prettyDate(d.submitted,true)],['Current status',d.status==='pending'?'Awaiting department review':d.status==='approved'?'Approved by HOD':d.status==='verifying'?'Automated verification in progress':d.status==='manual_review'?'HOD must verify manually':d.status==='needs_correction'?'Corrections needed':'Returned for revision']].map(([k,v])=>`<div><div class="detail-label">${k}</div><div class="detail-value">${txt(v)}</div></div>`).join('')}</div>
       <div class="modal-section-title">About this document</div><p class="detail-text">${txt(d.description)}</p>
-      <div class="modal-section-title">Attachment</div><div class="file-attachment">${icon('file','lg')}<div style="min-width:0;flex:1"><b>${txt(d.fileName)}</b><span>${fmtSize(d.fileSize)} · ${d.hasLocalFile ? 'Stored in secure repository' : 'No attachment'}</span></div>${d.hasLocalFile ? `<button class="btn btn-sm" data-action="download" data-id="${esc(d.id)}">${icon('download','sm')} Download</button>` : `<span class="small muted">Preview data</span>`}</div>
+      <div class="modal-section-title">Attachment</div><div class="file-attachment">${icon('file','lg')}<div style="min-width:0;flex:1"><b>${txt(d.fileName)}</b><span>${fmtSize(d.fileSize)} · ${d.hasLocalFile ? 'Available to authorized reviewers' : 'Unavailable'}</span></div>${d.hasLocalFile ? `<button class="btn btn-sm" data-action="download" data-id="${esc(d.id)}">${icon('download','sm')} Download</button>` : `<span class="small muted">Unavailable</span>`}</div>
       <div class="modal-section-title">Verification report</div><button class="btn btn-secondary btn-sm" data-action="verification" data-id="${esc(d.id)}">${icon('sparkle','sm')} View detailed verification</button><div class="modal-section-title">Approval timeline</div><div class="timeline">${(d.history||[]).map(h=>`<div class="timeline-entry"><b>${h.kind==='approved'?'Approved by HOD':h.kind==='rejected'?'Returned for revision':h.kind==='resubmitted'?'Resubmitted':'Submitted for review'}</b><p>${txt(h.by)} · ${prettyTime(h.at)}</p>${h.note?`<p class="history-note">${txt(h.note)}</p>`:''}</div>`).join('')}</div></div>
       <div class="modal-actions">${approvable?`<button class="btn btn-danger" data-action="review" data-id="${esc(d.id)}" data-decision="rejected">${icon('close','sm')} Request changes</button><button class="btn btn-primary" data-action="review" data-id="${esc(d.id)}" data-decision="approved">${icon('check','sm')} Approve document</button>`:''}${rejected?`<button class="btn btn-primary" data-action="resubmit" data-id="${esc(d.id)}">${icon('rotate','sm')} Resubmit for review</button>`:''}<button class="btn" data-action="close-modal">Close</button></div></section></div>`;
   }
@@ -280,14 +280,14 @@
   }
 
   function usersHTML() {
-    if(role!=='admin') return overviewHTML();
-    return `${pageHeader('ACCESS MANAGEMENT','Institutional accounts','Create faculty, HOD and oversight accounts. Only the Super Administrator can manage account access.')}
+    if(role!=='admin'&&role!=='hod') return overviewHTML();
+    return `${pageHeader('ACCESS MANAGEMENT',role==='hod'?'Department staff':'Institutional accounts',role==='hod'?'Add faculty and manage access for your department.':'Manage institutional account access.')}
       <div class="manage-grid"><section class="panel form-panel"><h3 style="margin-bottom:20px">Create a new account</h3>
       <form id="create-user" autocomplete="off">
       <div class="field"><label class="field-label" for="acc-username">Username *</label><input class="form-control" id="acc-username" name="username" minlength="3" maxlength="80" required pattern="[a-zA-Z0-9._-]+" autocomplete="off" /></div>
       <div class="field"><label class="field-label" for="acc-name">Display name *</label><input class="form-control" id="acc-name" name="display_name" minlength="3" required/></div>
-      <div class="field"><label class="field-label" for="acc-role">Assigned role *</label><select class="form-control" id="acc-role" name="role">${Object.entries(ROLES).map(([k,v])=>`<option value="${k}">${txt(v.title)}</option>`).join('')}</select></div>
-      <div class="field"><label class="field-label" for="acc-dept">Department *</label><select class="form-control" id="acc-dept" name="department">${departments().map(d=>`<option>${txt(d)}</option>`).join('')}</select></div>
+      <div class="field"><label class="field-label" for="acc-role">Assigned role *</label>${role==='hod'?`<input type="hidden" name="role" value="staff"/><input class="form-control" id="acc-role" value="Faculty & Staff" readonly aria-label="Assigned role"/>`:`<select class="form-control" id="acc-role" name="role">${Object.entries(ROLES).map(([k,v])=>`<option value="${k}">${txt(v.title)}</option>`).join('')}</select>`}</div>
+      <div class="field"><label class="field-label" for="acc-dept">Department *</label>${role==='hod'?`<input type="hidden" name="department" value="${txt(user?.department)}"/><input class="form-control" id="acc-dept" value="${txt(user?.department)}" readonly aria-label="Department"/>`:`<select class="form-control" id="acc-dept" name="department">${departments().map(d=>`<option>${txt(d)}</option>`).join('')}</select>`}</div>
       <div class="field"><label class="field-label" for="acc-password">Temporary password *</label><input class="form-control" id="acc-password" name="password" type="password" minlength="12" maxlength="128" required autocomplete="new-password" placeholder="At least 12 characters"/></div>
       <button type="submit" class="btn btn-primary">${icon('users','sm')} Create account</button></form></section>
       <section class="panel"><div class="panel-header"><div><h3 class="panel-title">Provisioned accounts</h3><p class="panel-subtitle">Enable, disable and manage user access</p></div></div>
@@ -330,7 +330,7 @@
     const node=document.createElement('div');node.className='success-screen';node.innerHTML=`<div class="success-content"><span class="circle" style="${status==='rejected'?'background:#fef0e7;color:#b96843':''}">${icon(status==='rejected'?'rotate':'check','xl')}</span><strong>${txt(title)}</strong><span>${txt(subtitle)}</span></div>`;document.body.append(node);setTimeout(()=>node.remove(),1600);
   }
   function renderWithDraft(){const values=[...document.querySelectorAll('#submit-document [name]')].filter(x=>x.name!=='file').map(x=>[x.name,x.value]);render();for(const [name,value] of values){const el=document.querySelector(`#submit-document [name="${name}"]`);if(el)el.value=value;}}
-  function chooseFile(file){if(!file)return;const valid=/\.(pdf|doc|docx|jpe?g|png)$/i.test(file.name);if(!valid)return notify('Unsupported file type. Select PDF, Word, JPG or PNG.','error');if(file.size>10*1024*1024)return notify('File is larger than the 10 MB limit.','error');if(!file.size)return notify('The selected file is empty.','error');pickedFile=file;renderWithDraft();}
+  function chooseFile(file){if(!file)return;const valid=/\.(pdf|docx|txt|jpe?g|png)$/i.test(file.name);if(!valid)return notify('Unsupported file type. Select PDF, DOCX, TXT, JPG or PNG.','error');if(file.size>10*1024*1024)return notify('File is larger than the 10 MB limit.','error');if(!file.size)return notify('The selected file is empty.','error');pickedFile=file;renderWithDraft();}
   async function downloadDoc(id) {
     try {
       const item=docs.find(x=>x.id===id);
@@ -344,7 +344,7 @@
   function exportCsv() {const records=available();const headings=['ID','Title','Category','Department','Academic Year','Status','Submitted Date','Submitted By','Last Reviewer Note'];const wrap=v=>`"${String(v??'').replace(/^[=+\-@\t\r]/,'\u0027$&').replace(/"/g,'""')}"`;const rows=records.map(d=>[d.id,d.title,d.category,d.department,d.year,d.status,prettyDate(d.submitted),d.author,d.history?.at(-1)?.note||'']);const csv='\uFEFF'+[headings,...rows].map(r=>r.map(wrap).join(',')).join('\r\n');const obj=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=obj;a.download=`ncet-docflow-${role}-${new Date().toISOString().slice(0,10)}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(obj),1000);notify('CSV report exported.');}
   document.addEventListener('click',async e=>{
     const t=e.target.closest('[data-action],[data-page],[data-open],[data-filter]');if(!t)return;
-    if(t.hasAttribute('data-page')){page=t.dataset.page;filter='all';query='';mobileOpen=false;modal=null;try{if(page==='users'&&role==='admin')accounts=(await api('/api/users')).items;if(page==='audit'&&role==='admin')auditEntries=(await api('/api/audit')).items;if(page==='rules'&&role==='hod')rulebook=await api('/api/rules');if(page==='integrations'&&role==='admin')integrations=await api('/api/admin/integrations');}catch(err){notify(err.message,'error');}render();window.scrollTo(0,0);return;}
+    if(t.hasAttribute('data-page')){page=t.dataset.page;filter='all';query='';mobileOpen=false;modal=null;try{if(page==='users'&&(role==='admin'||role==='hod'))accounts=(await api('/api/users')).items;if(page==='audit'&&role==='admin')auditEntries=(await api('/api/audit')).items;if(page==='rules'&&role==='hod')rulebook=await api('/api/rules');if(page==='integrations'&&role==='admin')integrations=await api('/api/admin/integrations');}catch(err){notify(err.message,'error');}render();window.scrollTo(0,0);return;}
     if(t.hasAttribute('data-open')){const d=docs.find(x=>x.id===t.dataset.open);if(d&&canSee(d)){modal={type:'detail',id:d.id};render();}return;}
     if(t.hasAttribute('data-filter')){filter=t.dataset.filter;document.querySelectorAll('[data-filter]').forEach(x=>x.classList.toggle('active',x.dataset.filter===filter));const pane=document.getElementById('docs-results');if(pane)pane.innerHTML=tableHTML();return;}
     const a=t.dataset.action;
@@ -358,9 +358,9 @@
     if(a==='resubmit'){if(role!=='staff')return;const item=docs.find(d=>d.id===t.dataset.id);if(!item||!['rejected','needs_correction'].includes(item.status))return;modal={type:'resubmit',id:item.id};render();return;}
     if(a==='remove-file'){e.stopPropagation();pickedFile=null;renderWithDraft();return;}
     if(a==='export'){exportCsv();return;}
-    if(a==='reset-password'&&role==='admin'){modal={type:'resetpwd',id:Number(t.dataset.id)};render();return;}
+    if(a==='reset-password'&&(role==='admin'||role==='hod')){modal={type:'resetpwd',id:Number(t.dataset.id)};render();return;}
     if(a==='toggle-user'){
-      if(role!=='admin')return;
+      if(role!=='admin'&&role!=='hod')return;
       const desired=t.dataset.active!=='true';
       if(!confirm(`${desired?'Enable':'Disable'} this account?`)) return;
       try{await api(`/api/users/${Number(t.dataset.id)}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({active:desired})});
@@ -385,8 +385,26 @@
     }
     if(e.target.id==='submit-document'){
       e.preventDefault();if(role!=='staff')return;
-      if(!pickedFile)return notify('Please attach a document.','error');
-      const form=e.target,button=form.querySelector('button[type=submit]');button.disabled=true;
+      const form=e.target, title=String(form.elements.namedItem('title')?.value||'').trim(),
+            description=String(form.elements.namedItem('description')?.value||'').trim(),
+            category=String(form.elements.namedItem('category')?.value||'').trim(),
+            year=String(form.elements.namedItem('year')?.value||'').trim();
+      const fail=(field,message)=>{
+        form.querySelectorAll('.field-error').forEach(el=>el.remove());
+        form.querySelectorAll('[aria-invalid]').forEach(el=>el.removeAttribute('aria-invalid'));
+        const input=field?form.elements.namedItem(field):null;
+        if(input){input.setAttribute('aria-invalid','true');input.closest('.field')?.insertAdjacentHTML('beforeend','<p class="field-error" role="alert">'+txt(message)+'</p>');input.focus();}
+        else document.getElementById('upload-zone')?.focus();
+        notify(message,'error');
+      };
+      if(title.length<5)return fail('title','Document title must contain at least 5 characters.');
+      if(title.length>140)return fail('title','Document title cannot exceed 140 characters.');
+      if(!category||category.length<3||category.length>100)return fail('category','Select a document category.');
+      if(!/^20\d{2}[–-]\d{2,4}$/.test(year))return fail('year','Select a valid academic year.');
+      if(description.length<10)return fail('description','Description must contain at least 10 characters.');
+      if(description.length>2000)return fail('description','Description cannot exceed 2,000 characters.');
+      if(!pickedFile)return fail(null,'Attach a document before submitting.');
+      const button=form.querySelector('button[type=submit]');button.disabled=true;
       const data=new FormData(form);data.set('file',pickedFile);
       try{await api('/api/documents',{method:'POST',body:data});pickedFile=null;page='documents';filter='verifying';modal=null;
         await refreshDocs();celebrate('Document received','AI and rule-based verification is queued.');notify('Verification queued. See status in My documents.');}
@@ -410,14 +428,14 @@
       catch(err){notify(err.message,'error');}return;
     }
     if(e.target.id==='create-user'){
-      e.preventDefault();if(role!=='admin')return;
+      e.preventDefault();if(role!=='admin'&&role!=='hod')return;
       const data=Object.fromEntries(new FormData(e.target).entries());
       try{await api('/api/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
         accounts=(await api('/api/users')).items;render();notify('Institutional user created.');}
       catch(err){notify(err.message,'error');}return;
     }
     if(e.target.id==='reset-user-password'){
-      e.preventDefault();if(role!=='admin')return;
+      e.preventDefault();if(role!=='admin'&&role!=='hod')return;
       const id=Number(e.target.dataset.id),password=e.target.querySelector('#new-user-password').value;
       try{await api(`/api/users/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({password})});
         modal=null;render();notify('Password reset. Previous sessions have been revoked.');}

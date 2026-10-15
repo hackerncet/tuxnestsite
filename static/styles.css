@@ -63,3 +63,6 @@
 .roles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
 .roles .role-option{min-width:0;flex:initial}
 @media(max-width:390px){.roles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.field-error{color:#a23d36;font-size:12px;line-height:1.5;margin:7px 0 0;font-weight:600}
+.form-control[aria-invalid="true"]{border-color:#b5473e;box-shadow:0 0 0 2px rgba(181,71,62,.09)}

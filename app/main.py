@@ -235,8 +235,10 @@ async def upload(title:str=Form(...),category:str=Form(...),year:str=Form(...),d
                  file:UploadFile=File(...),user:User=Depends(as_role_mutation('staff')),
                  db:DbSession=Depends(get_db)):
     title=title.strip(); description=description.strip()
-    if not 5<=len(title)<=140 or not 10<=len(description)<=2000 or not 3<=len(category)<=100 or not re.fullmatch(r'20\d{2}[–-]\d{2,4}',year):
-        raise HTTPException(422,'Please check your document details.')
+    if not 5<=len(title)<=140: raise HTTPException(422,'Document title must contain 5 to 140 characters.')
+    if not 10<=len(description)<=2000: raise HTTPException(422,'Description must contain 10 to 2,000 characters.')
+    if not 3<=len(category)<=100: raise HTTPException(422,'Select a valid document category.')
+    if not re.fullmatch(r'20\d{2}[–-]\d{2,4}',year): raise HTTPException(422,'Select a valid academic year.')
     name,mime,data=await read_upload(file)
     key,content=await run_in_threadpool(store,data,mime)
     try:
@@ -325,27 +327,37 @@ def download_file(public_id:str,version:int|None=None,user:User=Depends(current)
     return Response(raw,media_type='application/octet-stream',headers=headers)
 
 @app.get('/api/users')
-def list_users(user:User=Depends(as_role('admin')),db:DbSession=Depends(get_db)):
-    users=db.query(User).order_by(User.id).limit(1000).all()
+def list_users(user:User=Depends(as_role('admin','hod')),db:DbSession=Depends(get_db)):
+    query=db.query(User)
+    if user.role=='hod':query=query.filter(User.role=='staff',User.department==user.department)
+    users=query.order_by(User.id).limit(1000).all()
     return {'items':[user_json(u) for u in users]}
 
 @app.post('/api/users',status_code=201)
-def create_user(body:UserBody,user:User=Depends(as_role_mutation('admin')),
+def create_user(body:UserBody,user:User=Depends(as_role_mutation('admin','hod')),
                 db:DbSession=Depends(get_db)):
     if body.role not in ROLES:raise HTTPException(422,'Invalid role.')
+    department=body.department.strip()
+    if user.role=='hod':
+        if body.role!='staff' or department!=user.department:
+            raise HTTPException(403,'You may add faculty members only to your own department.')
+        department=user.department
     if db.query(User).filter(User.username==body.username.lower()).first():
         raise HTTPException(409,'Username already exists.')
     created=User(username=body.username.lower(),display_name=body.display_name.strip(),
-                 role=body.role,department=body.department.strip(),password_hash=hash_password(body.password))
+                 role=body.role,department=department,password_hash=hash_password(body.password))
     db.add(created)
     audit(db,user,'account.created',f'{created.username} ({created.role})')
     db.commit();return user_json(created)
 
 @app.patch('/api/users/{uid}')
-def edit_user(uid:int,body:UserPatch,user:User=Depends(as_role_mutation('admin')),
+def edit_user(uid:int,body:UserPatch,user:User=Depends(as_role_mutation('admin','hod')),
               db:DbSession=Depends(get_db)):
     target=db.get(User,uid)
-    if not target:raise HTTPException(404,'User not found.')
+    if not target or (user.role=='hod' and (target.role!='staff' or target.department!=user.department)):
+        raise HTTPException(404,'User not found.')
+    if user.role=='hod' and body.department is not None and body.department.strip()!=user.department:
+        raise HTTPException(403,'Staff cannot be transferred to another department.')
     if target.id==user.id and body.active is False:raise HTTPException(409,'Cannot disable your own account.')
     if target.role=='admin' and body.active is False and db.query(User).filter(User.role=='admin',User.active.is_(True)).count()<=1:
         raise HTTPException(409,'At least one active administrator is required.')
