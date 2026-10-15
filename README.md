@@ -58,26 +58,30 @@ The verifier runs as a **second process**; without it uploads remain in the Veri
 python -m app.worker
 ```
 
-## Deploy to Render
+## Deploy to Render (existing database, one web service)
 
-A reproducible, multi-service deployment is defined in **`render.yaml`**:
+The project now ships a **single-web-service** Render Blueprint using an **existing**
+PostgreSQL database, so it will not create another paid database. The selected free
+Oregon plan is suitable only for a low-traffic pilot, because idle web services sleep,
+interrupting document-verification work.
 
-1. **Managed PostgreSQL** (`basic-256mb`, Singapore).
-2. **Python web service** (`starter`, Docker, Singapore): migrations, first administrator bootstrap, FastAPI. Health check: `/healthz`.
-3. **Python background worker** (`starter`, Docker, Singapore): processes queued verification. Its DB and key settings are shared with the web service.
-
-**These are paid Render resources.** Check live plan pricing and institutional approval before applying the Blueprint. Render's connector requires a confirmed authorized workspace and a **Git repository on GitHub/GitLab/Bitbucket**. The source must be committed to a private repository first; a ZIP on its own cannot be deployed with the connected Render tools. No hosted URL should be considered live until the deployment and its `/healthz` endpoint are verified.
-
-**Deploy steps**
-
-1. Create a **private** repository; commit the contents of this project including `Dockerfile`, `render.yaml`, `app/`, `alembic/`, `static/`, `requirements.txt`, `.github/`. Never commit `.env`, credentials or private student documents.
-2. Connect that Git repository from the [Render Blueprint dashboard](https://dashboard.render.com/blueprints). Select the intended workspace and review each resource/charge.
-3. Configure secret `SETTINGS_ENCRYPTION_KEY` (a Fernet key; generate with Python `from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())`) **identically on both web and worker**. Store it in a secret manager; losing it prevents decryption of stored OpenRouter keys.
-4. Set `NCET_BOOTSTRAP_ADMIN_PASSWORD` (strong, unique, 16+ characters; **web only**), `PUBLIC_ORIGIN` (exact Render `https://<name>.onrender.com` URL; **web only**), and confirm that `DATABASE_URL` is wired privately by Render. Web and worker both use `STORAGE_BACKEND=database` by default. The project does not need an OpenRouter key to boot.
-5. Verify `/healthz` reports `{"ok":true}`, open `/app`, sign in as `admin`, create users, add the OpenRouter key in the Super Admin page, publish HOD rules and upload a non-sensitive test document. Verify the worker advances it from Verifying. Test approval and Principal/IQAC visibility in separate authenticated browsers.
-6. Configure uptime monitoring, database backups, audit retention, malware scanning, safe key rotation, support ownership, organization-approved privacy terms and a tested restoration procedure before institution-wide use.
-
-The Blueprint's `autoDeployTrigger: checksPass` expects Git checks. CI is defined in `.github/workflows/ci.yml`. If using another CI provider, adapt branch protections accordingly.
+1. Connect the `main` branch of this repo to a new Render Docker web service or
+   import `render.yaml` as a Blueprint. Select region **Oregon**, root directory `.`.
+2. Set `DATABASE_URL` privately in Render. Use an **internal URL** if PostgreSQL is
+   in the *same* workspace and region; for an externally connected Render database,
+   set the external PostgreSQL URL with `sslmode=require` for TLS.
+3. Generate and set `SETTINGS_ENCRYPTION_KEY` (a valid Fernet key), and a strong
+   one-time `NCET_BOOTSTRAP_ADMIN_PASSWORD`. Do not reuse public demo credentials.
+4. Set `PUBLIC_ORIGIN` to the exact HTTPS Render URL (no trailing slash),
+   `APP_ENV=production`, `STORAGE_BACKEND=database`, and
+   `APP_RUN_WORKER_IN_WEB=true`.
+5. Deploy. The startup runs Alembic migrations, bootstraps the initial `admin` user
+   if absent, and starts the API and worker processes together. Verify `/healthz`,
+   then sign in at `/app` and configure users, HOD rules and the OpenRouter API key.
+6. Before serving real institutional data, move to always-on compute (preferably
+   a separate worker), implement malware scanning and backups, monitor failures,
+   rotate exposed database credentials, and secure permission to transmit documents
+   to OpenRouter. `SCAN_MODE=off` is not suitable for untrusted production uploads.
 
 ## Self-hosting on a college-provided server
 

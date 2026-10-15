@@ -1,53 +1,30 @@
-# NCET VerifyFlow - requires your authorized Git repository and confirmed Render workspace.
-# Paid plans provide persistent Postgres; review projected charges before applying.
-databases:
-  - name: ncet-verifyflow-postgres
-    plan: basic-256mb
-    region: singapore
-    databaseName: ncet_verifyflow
-    user: ncet_verifyflow
+# NCET VerifyFlow — single Render web service, EXISTING PostgreSQL database.
+# Secrets must be configured privately in Render, never committed.
+# Free plan is a pilot, NOT an always-on institutional production plan.
 services:
   - type: web
     name: ncet-verifyflow
     runtime: docker
-    plan: starter
-    region: singapore
+    plan: free
+    region: oregon
+    branch: main
     dockerfilePath: ./Dockerfile
-    autoDeployTrigger: checksPass
+    autoDeployTrigger: commit
     healthCheckPath: /healthz
     envVars:
       - key: APP_ENV
         value: production
+      - key: APP_RUN_WORKER_IN_WEB
+        value: "true"
       - key: STORAGE_BACKEND
         value: database
       - key: DATABASE_URL
-        fromDatabase:
-          name: ncet-verifyflow-postgres
-          property: connectionString
-      - key: SETTINGS_ENCRYPTION_KEY
         sync: false
-      - key: PUBLIC_ORIGIN
+      - key: SETTINGS_ENCRYPTION_KEY
         sync: false
       - key: NCET_BOOTSTRAP_ADMIN_PASSWORD
         sync: false
-      - key: SCAN_MODE
-        value: off
-  - type: worker
-    name: ncet-verifyflow-worker
-    runtime: docker
-    plan: starter
-    region: singapore
-    dockerfilePath: ./Dockerfile
-    dockerCommand: python -m app.worker
-    autoDeployTrigger: checksPass
-    envVars:
-      - key: APP_ENV
-        value: production
-      - key: STORAGE_BACKEND
-        value: database
-      - key: DATABASE_URL
-        fromDatabase:
-          name: ncet-verifyflow-postgres
-          property: connectionString
-      - key: SETTINGS_ENCRYPTION_KEY
+      - key: PUBLIC_ORIGIN
         sync: false
+      - key: SCAN_MODE
+        value: "off"

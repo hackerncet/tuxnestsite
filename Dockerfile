@@ -8,4 +8,4 @@ COPY . .
 RUN mkdir -p /var/data/ncet-uploads && chown -R docflow:docflow /srv/ncet-verifyflow /var/data/ncet-uploads
 USER docflow
 EXPOSE 10000
-CMD ["sh","-c","alembic upgrade head && python -m app.bootstrap && exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-10000} --proxy-headers"]
+CMD ["python", "-m", "app.serve"]
