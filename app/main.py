@@ -10,7 +10,7 @@ from datetime import timedelta
 from pathlib import Path
 from urllib.parse import quote
 from fastapi import FastAPI, Request, Response, UploadFile, File, Form, Depends, HTTPException
-from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware.gzip import GZipMiddleware
@@ -143,6 +143,10 @@ def doc_json(d):
             'version':d.version,
             'history':[{'kind':event.action,'by':event.actor.display_name,
                         'at':event.happened_at.isoformat(),'note':event.note} for event in d.events]}
+
+@app.get('/favicon.ico', include_in_schema=False)
+def favicon_compat():
+    return RedirectResponse('/static/ncms-emblem.webp',status_code=302)
 
 @app.get('/healthz')
 def health():
