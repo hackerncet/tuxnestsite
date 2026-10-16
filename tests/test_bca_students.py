@@ -120,3 +120,27 @@ def test_admin_cannot_create_incomplete_student(client,login):
     assert response.status_code==422
     with DBSession() as db:
         assert db.query(User).filter(User.username=='1nc24bca555').first() is None
+
+
+def test_admin_password_reset_requires_student_password_change(client,login):
+    from app.student_models import BCAStudent
+    import_one(client,login)
+    admin_token=login(client,'admin')
+    with DBSession() as db:
+        student=db.query(User).filter(User.username=='1nc24bca001').one()
+        student_id=student.id
+    reset=client.patch(f'/api/users/{student_id}',headers={'X-CSRF-Token':admin_token},
+        json={'password':'ResetBCAStudentPassword2026!'})
+    assert reset.status_code==200,reset.text
+    with DBSession() as db:
+        student=db.query(BCAStudent).filter(BCAStudent.user_id==student_id).one()
+        assert student.must_change_password is True
+
+
+def test_csv_import_rejects_spreadsheet_formulas(client,login):
+    prepare_bca()
+    token=login(client,'staff')
+    malicious=b'usn,full_name,semester\\n1NC24BCA555,=Dangerous Formula,3\\n'.replace(b'\\\\n',b'\\n')
+    response=client.post('/api/bca/students/import',headers={'X-CSRF-Token':token},
+        files={'file':('roster.csv',malicious,'text/csv')})
+    assert response.status_code==422,response.text

@@ -390,6 +390,10 @@ def edit_user(uid:int,body:UserPatch,user:User=Depends(as_role_mutation('admin',
     if body.active is not None:target.active=body.active
     if body.password is not None:
         target.password_hash=hash_password(body.password)
+        if target.role=='student':
+            from .student_models import BCAStudent
+            record=db.query(BCAStudent).filter(BCAStudent.user_id==target.id).first()
+            if record:record.must_change_password=True
         target.password_changed_at=utcnow()
         db.query(Session).filter(Session.user_id==target.id).delete()
     if body.display_name is not None:target.display_name=body.display_name.strip()
