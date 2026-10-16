@@ -392,3 +392,35 @@ def set_deepseek_key(body:AIKeyBody,user:User=Depends(csrf_required),db:DbSessio
     task_audit(db,user,'integration.deepseek_updated','Dedicated DeepSeek credential updated')
     db.commit()
     return {'ok':True,'message':'DeepSeek key stored securely. API connectivity will be confirmed on the next review.'}
+
+
+@router.post('/insights/ai-brief')
+def generate_ai_brief(user:User=Depends(csrf_required),db:DbSession=Depends(get_db)):
+    """On-demand process suggestions from aggregate counts; no names or USNs."""
+    if user.role not in ('hod','principal','iqac','admin'):
+        raise HTTPException(403,'Institutional oversight only.')
+    provider=select_provider(db)
+    if not provider:raise HTTPException(503,'DeepSeek integration is not configured.')
+    total=db.query(func.count(AuditLog.id)).filter(AuditLog.actor_id==user.id,
+       AuditLog.event=='task.ai_brief',AuditLog.at>=utcnow()-timedelta(days=1)).scalar()
+    if (total or 0)>=4:raise HTTPException(429,'Daily insight request limit reached.')
+    records=scope(db,user).limit(4000).all()
+    states={s:sum(t.state==s for t in records) for s in
+       ('assigned','on_hold','verifying','awaiting_hod','manual_review','correction_required','approved')}
+    approved=[t.score for t in records if t.state=='approved' and t.score is not None]
+    payload={'task_total':len(records),'status_counts':states,'approved_quality_average':
+            round(sum(approved)/len(approved),1) if approved else None}
+    try:
+        raw=review_json(provider,
+            'You are an academic process-improvement assistant. Return JSON fields summary (string) and recommendations (up to four short strings). '
+            'Use only aggregate data. Never infer individual effort, character, health, or personnel quality.',
+            payload,max_tokens=950)
+        summary=raw.get('summary');ideas=raw.get('recommendations')
+        if not isinstance(summary,str) or not isinstance(ideas,list):raise ValueError('Invalid AI response')
+        recommendations=[x[:250] for x in ideas[:4] if isinstance(x,str)]
+    except (ValueError,httpx.HTTPError,TypeError,KeyError):
+        raise HTTPException(503,'AI process recommendations are temporarily unavailable.')
+    task_audit(db,user,'task.ai_brief','Aggregate process review generated')
+    db.commit()
+    return {'summary':summary[:1400],'recommendations':recommendations,'model':provider.model,
+            'note':'AI suggestions are advisory and require human review.'}

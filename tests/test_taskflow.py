@@ -114,3 +114,21 @@ def test_insights_and_in_app_notifications_are_private(client,login):
         assert anonymous.get('/api/tasks').status_code==401
         assert anonymous.get('/tasks').status_code==401
         assert anonymous.get('/api/tasks/notifications/inbox').status_code==401
+
+
+def test_ai_brief_requires_leadership_and_provider(client,login,monkeypatch):
+    monkeypatch.delenv('DEEPSEEK_API_KEY',raising=False)
+    monkeypatch.delenv('OPENROUTER_API_KEY',raising=False)
+    h=login(client,'hod')
+    assert client.post('/api/tasks/insights/ai-brief',headers={'X-CSRF-Token':h}).status_code==503
+    with TestClient(app) as staff:
+        token=login(staff,'staff')
+        assert staff.post('/api/tasks/insights/ai-brief',headers={'X-CSRF-Token':token}).status_code==403
+
+def test_select_provider_uses_direct_deepseek_key(monkeypatch):
+    from app.ai_gateway import select_provider
+    monkeypatch.setenv('DEEPSEEK_API_KEY','test-key-not-real')
+    with DBSession() as db:
+        provider=select_provider(db)
+        assert provider.name=='DeepSeek'
+        assert provider.url=='https://api.deepseek.com/chat/completions'
