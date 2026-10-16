@@ -74,7 +74,12 @@ def test_ai_missing_is_manual_review_not_rejection(client,login):
     row=client.get('/api/tasks').json()['items'][0]
     assert row['state']=='manual_review' and row['score'] is None
     assert client.post(f'/api/tasks/{id}/decide',headers={'X-CSRF-Token':h},json={'decision':'approved','note':'I manually inspected the PDF and confirm acceptance.'}).status_code==200
-    assert client.get('/api/tasks').json()['items'][0]['state']=='approved'
+    row=client.get('/api/tasks').json()['items'][0]
+    assert row['state']=='approved'
+    assert row['decisions'][0]['note']=='I manually inspected the PDF and confirm acceptance.'
+    with DBSession() as db:
+        submissions=db.query(TaskSubmission).filter(TaskSubmission.task_id==id).all()
+        assert submissions and submissions[0].report_json != '{}'
 
 
 def test_scoring_threshold_requires_actual_provider_and_no_uncertainty(client,login,monkeypatch):

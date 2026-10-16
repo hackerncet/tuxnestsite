@@ -64,10 +64,21 @@ class TaskSubmission(Base):
     filename:Mapped[str]=mapped_column(String(200))
     content:Mapped[bytes]=mapped_column(LargeBinary)
     state:Mapped[str]=mapped_column(String(22),default='queued',index=True)
+    report_json:Mapped[str]=mapped_column(Text,default='{}')
     created_at:Mapped[datetime]=mapped_column(DateTime(timezone=True),default=utcnow)
     started_at:Mapped[datetime|None]=mapped_column(DateTime(timezone=True),nullable=True)
     completed_at:Mapped[datetime|None]=mapped_column(DateTime(timezone=True),nullable=True)
     __table_args__=(UniqueConstraint('task_id','revision',name='uq_task_revision'),)
+
+
+class TaskDecision(Base):
+    __tablename__='task_decisions'
+    id:Mapped[int]=mapped_column(primary_key=True)
+    task_id:Mapped[int]=mapped_column(ForeignKey('task_items.id'),index=True)
+    actor_id:Mapped[int]=mapped_column(ForeignKey('users.id'))
+    decision:Mapped[str]=mapped_column(String(25))
+    note:Mapped[str]=mapped_column(Text)
+    created_at:Mapped[datetime]=mapped_column(DateTime(timezone=True),default=utcnow)
 
 
 class TaskNotification(Base):
@@ -98,7 +109,9 @@ def task_json(t, db):
     return {'id':t.id,'batch_id':t.batch_id,'file':t.filename,'state':t.state,'department':t.department,
             'assigned_to':staff.display_name if staff else None,'assigned_staff_id':t.assigned_to,
             'notes':t.notes,'rules':json.loads(t.rules_json),'score':t.score,
-            'report':json.loads(t.report_json or '{}'),'deadline':t.deadline.isoformat() if t.deadline else None,
+            'report':json.loads(t.report_json or '{}'),
+            'decisions':[{'decision':a.decision,'note':a.note,'at':a.created_at.isoformat()} for a in db.query(TaskDecision).filter(TaskDecision.task_id==t.id).order_by(TaskDecision.id).limit(50).all()],
+            'deadline':t.deadline.isoformat() if t.deadline else None,
             'updated_at':t.updated_at.isoformat()}
 
 
@@ -242,6 +255,7 @@ def decide(task_id:int,body:DecisionBody,user:User=Depends(csrf_required),db:DbS
         raise HTTPException(409,'Only tasks awaiting human review can receive a final decision.')
     task.state='approved' if body.decision=='approved' else 'correction_required';task.updated_at=utcnow()
     notify(db,task.assigned_to,f'Task {task.filename}: {"approved" if body.decision=="approved" else "revision requested"}.',task.id)
+    db.add(TaskDecision(task_id=task.id,actor_id=user.id,decision=body.decision,note=body.note.strip()))
     task_audit(db,user,'task.review',f'{task.id}:{body.decision}:{body.note[:200]}')
     db.commit()
     return {'state':task.state}
@@ -345,7 +359,7 @@ def evaluate_submission(submission_id:int):
         if not sub or not task or sub.state!='processing':return
         latest=db.query(func.max(TaskSubmission.revision)).filter(TaskSubmission.task_id==task_id).scalar()
         if latest!=revision:return
-        sub.state='completed';sub.completed_at=utcnow()
+        sub.state='completed';sub.completed_at=utcnow();sub.report_json=json.dumps(output,ensure_ascii=False)
         task.score=output['score'];task.report_json=json.dumps(output,ensure_ascii=False)
         task.state=state;task.updated_at=utcnow()
         if task.assigned_by:

@@ -33,12 +33,19 @@ def upgrade():
         sa.Column('uploaded_by',sa.Integer(),sa.ForeignKey('users.id'),nullable=False),
         sa.Column('revision',sa.Integer(),nullable=False),sa.Column('filename',sa.String(200),nullable=False),
         sa.Column('content',sa.LargeBinary(),nullable=False),sa.Column('state',sa.String(22),nullable=False),
+        sa.Column('report_json',sa.Text(),nullable=False),
         sa.Column('created_at',sa.DateTime(timezone=True),nullable=False),
         sa.Column('started_at',sa.DateTime(timezone=True),nullable=True),
         sa.Column('completed_at',sa.DateTime(timezone=True),nullable=True),
         sa.UniqueConstraint('task_id','revision',name='uq_task_revision'))
     for col in ('task_id','state'):
         op.create_index('ix_task_submissions_'+col,'task_submissions',[col])
+    op.create_table('task_decisions',
+        sa.Column('id',sa.Integer(),primary_key=True),sa.Column('task_id',sa.Integer(),sa.ForeignKey('task_items.id'),nullable=False),
+        sa.Column('actor_id',sa.Integer(),sa.ForeignKey('users.id'),nullable=False),
+        sa.Column('decision',sa.String(25),nullable=False),sa.Column('note',sa.Text(),nullable=False),
+        sa.Column('created_at',sa.DateTime(timezone=True),nullable=False))
+    op.create_index('ix_task_decisions_task_id','task_decisions',['task_id'])
     op.create_table('task_notifications',
         sa.Column('id',sa.Integer(),primary_key=True),sa.Column('user_id',sa.Integer(),sa.ForeignKey('users.id'),nullable=False),
         sa.Column('task_id',sa.Integer(),sa.ForeignKey('task_items.id'),nullable=True),
