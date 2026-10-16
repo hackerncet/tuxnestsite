@@ -3,3 +3,17 @@
 /* Footer credits remain legible as individual links. */
 .footer-credits a{display:block;margin:0 0 11px;line-height:1.55}
 @media(max-width:520px){.brand img{width:50px;height:43px}}
+
+/* Enrollment and student-portfolio additions */
+#flexible-enrollment {margin-bottom:18px}
+#flexible-enrollment textarea{width:100%;min-height:120px}
+#showcase-form>.field,#showcase-form>.split{margin:15px 0}
+#showcase-form input:not([type=checkbox]),#showcase-form textarea{width:100%}
+#showcase-form input[readonly]{background:#f1f5fb}
+.edit-student-form{display:grid;grid-template-columns:1fr 120px auto;align-items:end;gap:12px;margin-top:12px}
+.edit-student-form label{display:grid;gap:5px}
+.directory-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;padding:18px 0}
+.profile-card{padding:20px;background:white;border:1px solid #dce3ee;border-radius:12px;box-shadow:0 8px 25px #0e24550a}
+.profile-card h2{font-size:18px;margin:0 0 6px}
+.profile-card p{color:#56647a;margin:5px 0 14px}
+@media(max-width:760px){.edit-student-form{grid-template-columns:1fr}}
