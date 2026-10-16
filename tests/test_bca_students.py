@@ -140,7 +140,7 @@ def test_admin_password_reset_requires_student_password_change(client,login):
 def test_csv_import_rejects_spreadsheet_formulas(client,login):
     prepare_bca()
     token=login(client,'staff')
-    malicious=b'usn,full_name,semester\\n1NC24BCA555,=Dangerous Formula,3\\n'.replace(b'\\\\n',b'\\n')
+    malicious=bytes([10]).join([b'usn,full_name,semester',b'1NC24BCA555,=Dangerous Formula,3',b''])
     response=client.post('/api/bca/students/import',headers={'X-CSRF-Token':token},
         files={'file':('roster.csv',malicious,'text/csv')})
     assert response.status_code==422,response.text
