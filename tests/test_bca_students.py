@@ -110,3 +110,13 @@ def test_no_public_student_directory_and_hod_department_scope(client,login):
         assert outsider.get('/api/bca/students').status_code==403
         assert outsider.get('/api/bca/cases').status_code==403
         assert outsider.post('/api/bca/students/import',headers={'X-CSRF-Token':csrf},files={'file':('x.csv',b'usn,full_name,semester\n1NC24BCA111,Someone Else,2','text/csv')}).status_code==403
+
+
+def test_admin_cannot_create_incomplete_student(client,login):
+    token=login(client,'admin')
+    data={'username':'1nc24bca555','display_name':'New Student Example','role':'student',
+          'department':'Computer Applications','password':'GeneratedStrongPassword1234!'}
+    response=client.post('/api/users',headers={'X-CSRF-Token':token},json=data)
+    assert response.status_code==422
+    with DBSession() as db:
+        assert db.query(User).filter(User.username=='1nc24bca555').first() is None
