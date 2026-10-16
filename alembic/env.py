@@ -3,7 +3,7 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 from app.database import Base, db_url
 from app import database
-from app import student_models, community  # register additive BCA models
+from app import student_models, community, taskflow, discussion_digest  # register additive models
 config = context.config
 config.set_main_option('sqlalchemy.url', db_url().replace('%','%%'))
 if config.config_file_name is not None:

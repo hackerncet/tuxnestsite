@@ -1,4 +1,4 @@
-/* NCMS VerifyFlow · staff and HOD document workflow. */
+/* NCET VerifyFlow · staff and HOD document workflow. */
 (() => {
   'use strict';
   const ROLES = {
@@ -68,7 +68,7 @@
   let accounts = [];
   let auditEntries = [];
   let rulebook={version:0,rules:[],history:[]};
-  let integrations={openrouter_configured:false,model:'google/gemma-4-31b-it:free'};
+  let integrations={openrouter_configured:false,model:'deepseek/deepseek-v3.2'};
   let verifyReport=null;
   const app = document.getElementById('app');
   const currentRole = () => ({...ROLES[role || 'staff'], name: user?.name || ROLES[role || 'staff'].name, subtitle: user?.department || ROLES[role || 'staff'].subtitle});
@@ -105,19 +105,19 @@
   const fmtSize = bytes => !bytes ? '—' : bytes > 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
   const initials = str => String(str).split(/\s+/).slice(0,2).map(x=>x[0]).join('').toUpperCase();
   const titleFor = p => ({ overview:'Dashboard',documents:role === 'hod' ? 'Review submissions' : role === 'staff' ? 'My documents' : 'Approved documents',upload:'Submit a document',activity:'Activity & history',insights:'Reports & insights',guide:'How it works',rules:'Verification rules',integrations:'AI configuration',users:role==='hod'?'Department staff':'User management',audit:'Security audit',account:'My account' })[p] || 'Dashboard';
-  const crest = `<div class="crest ncms-crest"><img src="/static/ncms-emblem.webp" alt="NCMS tree and open-book emblem" /></div>`;
+  const crest = `<div class="crest ncms-crest"><img src="/static/ncet-official.webp" alt="NCET tree and open-book emblem" /></div>`;
   const campus = `<svg viewBox="0 0 560 195" xmlns="http://www.w3.org/2000/svg" fill="none"><path d="M70 165h426" stroke="#D6BE91" stroke-opacity=".42" stroke-width="1.5"/><path d="M124 161V87L280 30l156 57v74" stroke="#E3CEA6" stroke-width="1.7" fill="#D9BB8B" fill-opacity=".045"/><path d="m115 90 165-68 165 68" stroke="#F5D5A1" stroke-width="2.5"/><path d="M154 161V95h252v66M177 95V72m206 23V72" stroke="#E3CEA6" stroke-opacity=".7" stroke-width="1.5"/><path d="M256 161v-44h48v44" stroke="#E3CEA6" stroke-width="2"/><path d="M268 161v-33h24v33M149 115h82m98 0h82M149 133h82m98 0h82" stroke="#C7D8CF" stroke-opacity=".38"/><path d="M205 95v66m150-66v66" stroke="#E3CEA6" stroke-opacity=".6"/><circle cx="280" cy="82" r="14" stroke="#F0D6A8"/><path d="M280 75v14m-7-7h14" stroke="#F0D6A8"/><path d="M92 164V99m0 7c-36-10-31-45-3-55 31-9 53 29 22 52M468 164V99m0 7c-36-10-31-45-3-55 31-9 53 29 22 52" stroke="#7EADA3" stroke-opacity=".6" stroke-width="1.5"/><path d="M46 174h468" stroke="#A9CEBB" stroke-opacity=".33" stroke-width="1"/></svg>`;
   const txt = str => esc(str || '');
 
   function loginHTML() {
     return `<div class="login-page">
-      <section class="login-art"><div class="brandline">${crest}<div><div class="brand-name">NCMS VerifyFlow</div><div class="brand-sub">Institutional workspace</div></div></div>
-        <div class="hero-copy"><div class="eyebrow">INSTITUTIONAL DOCUMENT REVIEW</div><h1>Document review,<br><em>made straightforward.</em></h1><p>A clear, secure way to submit documents, review department requirements and track approvals at Nagarjuna College of Management Studies.</p></div>
+      <section class="login-art"><div class="brandline">${crest}<div><div class="brand-name">NCET VerifyFlow</div><div class="brand-sub">Institutional workspace</div></div></div>
+        <div class="hero-copy"><div class="eyebrow">INSTITUTIONAL DOCUMENT REVIEW</div><h1>Document review,<br><em>made straightforward.</em></h1><p>A clear, secure way to submit documents, review department requirements and track approvals at Nagarjuna College of Engineering and Technology.</p></div>
         
-        <div class="art-bottom"><span><span class="beacon"></span> Institutional document review</span><span>NCMS DOCUMENT WORKSPACE</span></div>
+        <div class="art-bottom"><span><span class="beacon"></span> Institutional document review</span><span>NCET DOCUMENT WORKSPACE</span></div>
       </section>
       <section class="login-right"><div class="login-panel"><div class="auth-topline">${icon('shield', 'sm')} DOCUMENT VERIFICATION PORTAL <span class="demo-flag" style="margin-left:auto">Secure workspace</span></div>
-        <h2>Welcome to NCMS VerifyFlow</h2><p class="intro">Sign in with your institution-issued username and password. Your permissions are assigned by the college.</p>
+        <h2>Welcome to NCET VerifyFlow</h2><p class="intro">Sign in with your institution-issued username and password. Your permissions are assigned by the college.</p>
         
         ${authError ? `<div class="error-message" role="alert">${icon('info','sm')}${esc(authError)}</div>` : ''}
         <form id="login-form" autocomplete="off"><div class="field"><label for="login-user" class="form-label">User ID</label><div class="input-wrap">${icon('user','leading')}<input class="with-icon" id="login-user" name="username" placeholder="Enter your user ID" aria-required="true" required autocapitalize="none" spellcheck="false" maxlength="40" /></div></div>
@@ -131,10 +131,10 @@
   function sidebarHTML() {
     const count = role === 'hod' ? docs.filter(d=>['pending','manual_review'].includes(d.status)).length : 0;
     const nav = role==='admin' ? [['overview','home','Overview'],['users','users','User management'],['integrations','sparkle','AI configuration'],['audit','shield','Security audit'],['account','user','My account']] : [['overview','home','Overview'],['documents',role==='hod'?'checkCircle':'folder',role==='hod'?'Review queue':role==='staff'?'My documents':'Approved records'],...(role==='staff'?[['upload','upload','Submit document']]:[]),...(role==='hod'?[['rules','shield','Verification rules'],['users','users','Department staff']]:[]),['activity','clock','Activity log'],...(role==='principal'||role==='iqac'?[['insights','chart','Reports & insights']]:[]),['account','user','My account'],['guide','info','Help & process']];
-    return `<aside class="sidebar ${mobileOpen?'open':''}" id="sidebar"><div class="sidebar-brand">${crest}<div><div class="brand-name">NCMS VerifyFlow</div><div class="brand-sub">Institutional workspace</div></div></div>
+    return `<aside class="sidebar ${mobileOpen?'open':''}" id="sidebar"><div class="sidebar-brand">${crest}<div><div class="brand-name">NCET VerifyFlow</div><div class="brand-sub">Institutional workspace</div></div></div>
       <div class="nav-group"><div class="nav-heading">Workspace</div>${nav.map(([k,i,t])=>`<button class="nav-item ${page===k?'active':''}" data-page="${k}" aria-current="${page===k?'page':'false'}">${icon(i)}${t}${k==='documents'&&count ? `<span class="count">${count}</span>`:''}</button>`).join('')}</div>
       ${(role==='admin'||(['hod','staff'].includes(role) && ['computer applications','bca','bachelor of computer applications'].includes(String(user?.department||'').trim().toLowerCase()))) ? `<div class="nav-group"><div class="nav-heading">BCA SERVICES</div><a class="nav-item" href="/bca/manage" style="text-decoration:none">${icon('users')} Student enrollment & requests</a><a class="nav-item" href="/community" style="text-decoration:none">${icon('folder')} Projects & contributions</a></div>` : ''}
-      <div class="sidebar-spacer"></div><div class="help-box">${icon('shield','sm')}<div class="h-title">A clear approval pathway</div><p>Faculty submission → HOD review → Principal and IQAC visibility.</p><button class="text-btn" data-page="guide">View workflow ${icon('arrow','sm')}</button></div>
+      <div class="nav-group"><div class="nav-heading">Department work</div><a class="nav-item" href="/tasks" style="text-decoration:none">${icon('file')} Assignments, notifications & reports</a></div><div class="sidebar-spacer"></div><div class="help-box">${icon('shield','sm')}<div class="h-title">A clear approval pathway</div><p>Faculty submission → HOD review → Principal and IQAC visibility.</p><button class="text-btn" data-page="guide">View workflow ${icon('arrow','sm')}</button></div>
       <div class="side-user"><span class="avatar">${initials(currentRole().name)}</span><div class="who"><strong>${txt(currentRole().name)}</strong><span>${txt(currentRole().subtitle)}</span></div><button type="button" class="icon-button" data-action="logout" aria-label="Sign out" title="Sign out">${icon('logout')}</button></div>
     </aside>`;
   }
@@ -149,7 +149,7 @@
     if (role==='staff') { headline = 'Faculty submissions'; sub = 'Submit documents, follow HOD decisions, and keep an organised record of your work.'; btn = `<button class="btn btn-primary" data-page="upload">${icon('upload','sm')} New submission</button>`; }
     else if (role==='hod') { headline = 'Department review queue'; sub = 'Review departmental submissions and make decisions that move records forward.'; btn = `<button class="btn btn-primary" data-page="documents">${icon('checkCircle','sm')} Open review queue</button>`; }
     else { headline = 'Institutional review overview'; sub = role==='principal' ? 'A consolidated view of HOD-approved records for institutional oversight.' : 'All department-approved documents, organised for quality assurance and accreditation readiness.'; btn = `<button class="btn btn-primary" data-page="documents">${icon('folder','sm')} Browse records</button>`; }
-    return `<section class="banner"><div class="bn-copy"><div class="bn-eyebrow">NCMS · DOCUMENT MANAGEMENT</div><h2>${headline}</h2><p>${sub}</p></div>${btn}</section>`;
+    return `<section class="banner"><div class="bn-copy"><div class="bn-eyebrow">NCET · DOCUMENT MANAGEMENT</div><h2>${headline}</h2><p>${sub}</p></div>${btn}</section>`;
   }
   const rowHTML = d => `<button class="doc-row" data-open="${esc(d.id)}" aria-label="View ${txt(d.title)}"><span class="file-glyph">${icon('file')}</span><span class="doc-meta"><span class="doc-title">${txt(d.title)}</span><span class="t-sub">${txt(d.category)} · ${prettyDate(d.submitted)}</span></span>${statusHTML(d.status)}</button>`;
   function emptyHTML(title='No documents found', desc='Try a different search or filter to see more records.') { return `<div class="empty-state"><div class="empty-icon">${icon('folder','lg')}</div><h3>${title}</h3><p>${desc}</p></div>`; }
@@ -252,7 +252,7 @@
     <div class="field"><label class="field-label">Guidelines for review</label><textarea name="instructions" class="form-control textarea" maxlength="1300" placeholder="Explain the college standard or what evidence is expected">${txt(r.instructions||'')}</textarea></div>
     <label class="rule-required"><input name="required" type="checkbox" ${r.required?'checked':''}/> Mandatory requirement</label><input type="hidden" name="rule_id" value="${esc(r.id)}" /></div>`).join('')||'<div class="empty-rules">No rules yet. Add your first rule to begin.</div>'}
     <div class="rule-form-actions"><button type="button" class="btn" data-action="add-rule">${icon('checkCircle','sm')} Add requirement</button><button type="submit" class="btn btn-primary">${icon('shield','sm')} Save new rule version</button></div></form></section>
-    <aside class="panel info-panel"><h3>How verification works</h3><p>Measurable rules are checked deterministically. Gemma 4 analyzes language, context and college guidelines, and suggests corrections with evidence.</p>
+    <aside class="panel info-panel"><h3>How verification works</h3><p>Measurable rules are checked deterministically. DeepSeek analyzes language, context and college guidelines, and suggests corrections with evidence.</p>
     <div class="notice"><strong>${icon('info','sm')} Confidence first</strong> Uncertain findings are marked for manual HOD review instead of automatically rejecting faculty uploads.</div>
     <h3 style="margin-top:28px">Rule history</h3><div class="rule-history">${(rulebook.history||[]).map(h=>`<span>v${h.version} · ${prettyDate(h.created)}</span>`).join('')||'<span>Rule versions will appear after you save.</span>'}</div>
     <p class="small muted" style="margin-top:20px">Rule changes apply to future submissions; historical verification reports remain tied to their original version.</p></aside></div>`;
@@ -260,7 +260,7 @@
   function integrationsHTML() {
     if(role!=='admin')return overviewHTML();
     return `${pageHeader('SUPER ADMIN / INTEGRATIONS','AI model configuration','Manage the document-review integration securely.')}
-    <div class="manage-grid"><section class="panel form-panel"><div class="model-name">${icon('sparkle','lg')} <div><strong>Gemma 4 · 31B Instruct</strong><span>OpenRouter · google/gemma-4-31b-it:free</span></div></div>
+    <div class="manage-grid"><section class="panel form-panel"><div class="model-name">${icon('sparkle','lg')} <div><strong>DeepSeek · 31B Instruct</strong><span>OpenRouter · deepseek/deepseek-v3.2</span></div></div>
     <div class="notice"><strong>${integrations.openrouter_configured?'Integration configured':'API key not yet configured'}</strong>${integrations.openrouter_configured?'A credential is available for automated document verification.':'Uploads will be routed to manual review until you add a key.'}</div>
     <form id="integration-form" autocomplete="off"><div class="field"><label class="field-label" for="openrouter-key">New OpenRouter API key</label><input id="openrouter-key" type="password" name="api_key" class="form-control" minlength="15" required autocomplete="new-password" placeholder="sk-or-v1-••••••••" /></div>
     <button class="btn btn-primary" type="submit">${icon('lock','sm')} Save encrypted key</button></form><p class="small muted" style="margin-top:18px">Updating the integration key will not change existing documents. If the connection cannot be saved, contact your system administrator.</p></section>
@@ -318,7 +318,7 @@
     const inSearch=focus?.id==='search-docs';const pos=inSearch?focus.selectionStart:null;
     if(!role){app.innerHTML=loginHTML();return;}
     const body={overview:overviewHTML,documents:documentsHTML,upload:uploadHTML,activity:activityHTML,insights:insightsHTML,guide:guideHTML,users:usersHTML,audit:auditHTML,account:accountHTML,rules:rulesHTML,integrations:integrationsHTML};
-    app.innerHTML=`<div class="app-shell">${sidebarHTML()}<div class="mobile-scrim ${mobileOpen?'open':''}" data-action="close-menu"></div><main class="main">${headerHTML()}<div class="content">${(body[page]||overviewHTML)()}<footer class="footer"><span><img src="/static/ngi-logo.webp" alt="Nagarjuna Group" class="footer-ngi"/> © ${new Date().getFullYear()} Nagarjuna College of Management Studies</span><span><a href="https://ncms.co.in/" target="_blank" rel="noopener noreferrer">College website</a> · Authorized access only · <a href="/students">BCA Students</a> · <a href="/community">Project community</a> · <a href="https://www.linkedin.com/in/bhargava-r-a08b8182/" target="_blank" rel="noopener noreferrer">HOD Bhargava</a> · <a href="https://www.linkedin.com/in/dr-thippeswamy-gangappa-686b3822/" target="_blank" rel="noopener noreferrer">Principal</a> · <a href="https://www.linkedin.com/in/paladuguganeshnaidu/" target="_blank" rel="noopener noreferrer">Developer</a></span></footer></div></main></div>${modal ? (modal.type==='report'?reportHTML():modal.type==='detail'?detailHTML(docs.find(d=>d.id===modal.id)||{}):modal.type==='review'?reviewHTML(modal.id,modal.decision):modal.type==='resubmit'?revisionHTML(docs.find(d=>d.id===modal.id)||{}):modal.type==='resetpwd'?resetPasswordHTML(modal.id):''):''}`;
+    app.innerHTML=`<div class="app-shell">${sidebarHTML()}<div class="mobile-scrim ${mobileOpen?'open':''}" data-action="close-menu"></div><main class="main">${headerHTML()}<div class="content">${(body[page]||overviewHTML)()}<footer class="footer"><span><img src="/static/ngi-logo.webp" alt="Nagarjuna Group" class="footer-ngi"/> © ${new Date().getFullYear()} Nagarjuna College of Engineering and Technology</span><span><a href="https://ncet.co.in/" target="_blank" rel="noopener noreferrer">College website</a> · Authorized access only · <a href="/students">BCA Students</a> · <a href="/community">Project community</a> · <a href="https://www.linkedin.com/in/bhargava-r-a08b8182/" target="_blank" rel="noopener noreferrer">HOD Bhargava</a> · <a href="https://www.linkedin.com/in/dr-thippeswamy-gangappa-686b3822/" target="_blank" rel="noopener noreferrer">Principal</a> · <a href="https://www.linkedin.com/in/paladuguganeshnaidu/" target="_blank" rel="noopener noreferrer">Developer</a></span></footer></div></main></div>${modal ? (modal.type==='report'?reportHTML():modal.type==='detail'?detailHTML(docs.find(d=>d.id===modal.id)||{}):modal.type==='review'?reviewHTML(modal.id,modal.decision):modal.type==='resubmit'?revisionHTML(docs.find(d=>d.id===modal.id)||{}):modal.type==='resetpwd'?resetPasswordHTML(modal.id):''):''}`;
     if(inSearch){const el=document.getElementById('search-docs');if(el){el.focus();if(pos!==null) el.setSelectionRange(pos,pos);}}
     if(modal) app.querySelector('.modal')?.focus?.();
   }

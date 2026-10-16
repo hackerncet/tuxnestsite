@@ -1,4 +1,4 @@
-"""Authenticated NCMS BCA student support. Never expose submissions on public routes."""
+"""Authenticated NCET BCA student support. Never expose submissions on public routes."""
 import csv
 import io
 import re
@@ -149,7 +149,7 @@ def create_case(body:NewCase,user:User=Depends(as_role_mutation('student')),db:D
     if body.category not in CATEGORIES:raise HTTPException(422,'Select a valid category.')
     recent=db.query(func.count(StudentCase.id)).filter(StudentCase.student_id==user.id,StudentCase.created_at>=utcnow()-timedelta(hours=24)).scalar()
     if recent>=10:raise HTTPException(429,'You have reached the daily request limit. Follow up on an existing request instead.')
-    case=StudentCase(reference='NCMS-BCA-'+secrets.token_hex(6).upper(),student_id=user.id,
+    case=StudentCase(reference='NCET-BCA-'+secrets.token_hex(6).upper(),student_id=user.id,
                      department=BCA_DEPARTMENT,category=body.category,subject=body.subject.strip(),description=body.description.strip(),status='submitted')
     if len(case.subject)<6 or len(case.description)<15:raise HTTPException(422,'Add a detailed subject and description.')
     db.add(case);db.add(AuditLog(actor_id=user.id,event='bca.case_submitted',detail=case.reference));db.commit()

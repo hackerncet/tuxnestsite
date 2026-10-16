@@ -15,7 +15,7 @@ STATIC = ROOT / 'static'
 def load_page(page, html_file, script=None, mock_denied=False):
     page.goto('about:blank')  # reset the previous page's global JavaScript scope
     html = (STATIC / html_file).read_text(encoding='utf-8')
-    for asset in ('ncms-emblem.webp', 'ngi-logo.webp'):
+    for asset in ('ncet-official.webp', 'ngi-logo.webp'):
         image = STATIC / asset
         if image.is_file():
             uri = 'data:image/webp;base64,' + base64.b64encode(image.read_bytes()).decode()
