@@ -310,7 +310,7 @@ def directory_page():
 
 def published_sitemap_paths(db:DbSession)->list[str]:
     return ['/students/directory'] + [f'/students/profile/{p.usn}'
-      for (p,) in (db.query(BCAStudent).join(User,User.id==BCAStudent.user_id)
+      for p in (db.query(BCAStudent).join(User,User.id==BCAStudent.user_id)
           .join(StudentShowcase,StudentShowcase.student_id==User.id)
           .filter(User.active.is_(True),BCAStudent.must_change_password.is_(False),
                   StudentShowcase.published.is_(True)).order_by(BCAStudent.usn).limit(10000).all())]
