@@ -62,7 +62,7 @@ $('roster').addEventListener('submit',async e=>{
 $('roster-search').addEventListener('input',renderRoster);
 $('export-roster').addEventListener('click',()=>{
  if(!rosterRows.length)return notify('No enrolled students to export.',true);
- const safe=v=>{const str=String(v??'');return csvCell(/^[=+\\-@\\t\\r]/.test(str)?"'"+str:str)};
+ const safe=v=>{const str=String(v??'');return csvCell(['=','+','-','@','\t','\r'].includes(str.charAt(0))?"'"+str:str)};
  const data=['usn,full_name,semester,active',...rosterRows.map(x=>[x.usn,x.name,x.semester,x.active?'yes':'no'].map(safe).join(','))].join('\r\n')+'\r\n';
  download('NCET_BCA_roster_without_passwords.csv',data);
  notify('Enrollment roster downloaded. No passwords or private contact details were included.');
