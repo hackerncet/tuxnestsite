@@ -302,7 +302,7 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{name} ({sid}) | NCET BCA</title><meta name="description" content="{description}">
 <link rel="canonical" href="{canonical}"><link rel="icon" href="/static/ncet-official.webp">
-<link rel="stylesheet" href="/static/bca.css"></head><body>
+<link rel="stylesheet" href="/static/bca.css"><link rel="stylesheet" href="/static/experience.css"></head><body>
 <header class="topnav"><div class="container nav-inner"><a class="brand" href="/students">
 <img src="/static/ncet-official.webp" alt="NCET emblem">NCET BCA</a>
 <nav class="navlinks"><a href="/students/directory">Student directory</a><a href="/students">Students</a></nav></div></header>

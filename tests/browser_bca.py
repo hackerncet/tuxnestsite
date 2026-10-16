@@ -20,7 +20,7 @@ def load_page(page, html_file, script=None, mock_denied=False):
         if image.is_file():
             uri = 'data:image/webp;base64,' + base64.b64encode(image.read_bytes()).decode()
             html = html.replace('/static/' + asset, uri)
-    for css in ('bca.css', 'community.css'):
+    for css in ('bca.css', 'community.css','experience.css'):
         html = html.replace('<link rel="stylesheet" href="/static/' + css + '">',
                             '<style>' + (STATIC / css).read_text(encoding='utf-8') + '</style>')
     html = re.sub(r'<script src="/static/[^"]+" defer></script>', '', html)
@@ -49,10 +49,16 @@ def main():
         desktop.set_default_timeout(8000)
 
         load_page(desktop, 'public-home.html', 'public-home.js')
-        assert desktop.locator('h1').inner_text().startswith('Student support.')
-        assert desktop.locator('.logo-stage img').evaluate('(img) => img.naturalWidth') > 0
-        desktop.locator('#toggle-animation').click()
-        assert desktop.locator('#logo-stage.paused').count() == 1
+        assert desktop.locator('h1').inner_text().startswith('Academic support.')
+        assert desktop.locator('.identity-crest').evaluate('(img) => img.naturalWidth') > 0
+        assert desktop.locator('.film-frames').count() == 0
+        assert desktop.locator('#toggle-animation').count() == 0
+        assert desktop.locator('.service-card').count() == 3
+        assert desktop.locator('.service-card[href="/students/directory"]').count() == 1
+        desktop.locator('#homepage-search').fill('1NC24BCA001')
+        assert desktop.locator('form[role="search"]').get_attribute('action') == '/students/directory'
+        desktop.locator('.guide-grid summary').first.click()
+        assert desktop.locator('.guide-grid details').first.get_attribute('open') == ''
         assert desktop.locator('header a[href="/students"]').inner_text().strip() == 'Students'
         assert desktop.locator('header a[href="/app"]').count() == 0
         assert desktop.locator('header small').count() == 0
