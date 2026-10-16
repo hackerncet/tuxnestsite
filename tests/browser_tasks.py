@@ -24,6 +24,8 @@ def test_browser():
         else if(u.includes('/insights/summary'))data={staff:[],total:1,states:{assigned:1}};
         else if(u.includes('/insights/discussions'))data={items:[]};
         else if(u.includes('/ai/status'))data={configured:false,model:null};
+        else if(u.endsWith('/tasks/rules/drafts'))data={items:[{task_id:1,state:'ready',summary:'Rules extracted from the uploaded PDF',model:'deepseek-chat',rules:[{id:'reference_1',title:'Introduction',type:'required_heading',required:true,value:'Introduction',instructions:'Use the introduction heading'}]}]};
+        else if(u.endsWith('/tasks/assign')){window.__assigned=JSON.parse(opts.body);data={assigned:1};}
         else data={ok:true,assigned:1};
         return {ok:true,json:async()=>data,status:200};
       }}""",role)
@@ -34,6 +36,17 @@ def test_browser():
         assert page.locator('#hod-section').is_visible()
         page.locator('[data-select="1"]').check()
         assert '1 unassigned PDFs selected' in page.locator('#selected-ids').inner_text()
+        page.get_by_text('Rules extracted from the uploaded PDF').wait_for()
+        assert page.locator('#rules').count()==0, 'Legacy line-by-line rule parser must be removed'
+        assert page.locator('#review-confirm').is_enabled()
+        page.locator('#staff-id').select_option('5')
+        page.locator('#notes').fill('Complete the academic document following the reference PDF.')
+        page.locator('#review-confirm').check()
+        page.locator('#assign-form button[type=submit]').click()
+        page.wait_for_function('window.__assigned && window.__assigned.use_generated_rules===true')
+        data=page.evaluate('window.__assigned')
+        assert data['confirmed_task_ids']==[1]
+        assert data['task_ids']==[1]
       else:assert page.locator('#hod-section').is_hidden()
       if role=='staff':assert page.evaluate('document.documentElement.scrollWidth <= innerWidth + 2')
       assert not errors,errors

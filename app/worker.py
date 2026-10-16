@@ -8,6 +8,7 @@ from sqlalchemy import or_
 from .database import DBSession, Verification, utcnow
 from .verification import run_job
 from .taskflow import run_task_once
+from .reference_rules import run_rule_draft_once
 from .discussion_digest import summarize_slot
 
 logging.basicConfig(level=os.getenv('LOG_LEVEL','INFO'))
@@ -39,6 +40,7 @@ def main():
         try:
             if run_once():continue
             if run_task_once():continue
+            if run_rule_draft_once():continue
             summarize_slot()
             time.sleep(3)
         except Exception:
