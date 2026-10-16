@@ -26,7 +26,7 @@ def test_existing_document_workflows_stay_intact():
     for required in ("/app", "/api/documents", "/api/users", "/api/rules", "/healthz"):
         assert required in paths
     assert app.title == "NCET VerifyFlow"
-    assert "public_id='NCMS-'" in (ROOT / "app/main.py").read_text(encoding="utf-8")
+    assert "public_id='NCET-'" in (ROOT / "app/main.py").read_text(encoding="utf-8")
 
 def test_legacy_bootstrap_secret_preserved():
     assert "NCET_BOOTSTRAP" in (ROOT / "app/bootstrap.py").read_text(encoding="utf-8")
