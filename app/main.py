@@ -43,6 +43,8 @@ app.include_router(digest_router)
 
 @app.middleware('http')
 async def security_headers(request: Request, call_next):
+    if request.url.path == '/static/bca-management.html':
+        return Response(status_code=404, headers={'Cache-Control':'no-store','X-Robots-Tag':'noindex, nofollow, noarchive'})
     if request.method in ('POST', 'PUT', 'PATCH', 'DELETE'):
         if request.url.path.startswith('/api/documents') and int(request.headers.get('content-length','0') or 0) > 12*1024*1024:
             return JSONResponse({'detail':'Upload exceeds the 10 MB attachment limit.'},status_code=413)
@@ -175,8 +177,10 @@ def community_page(user:User=Depends(current)):
     return FileResponse(STATIC/'community.html', headers={'X-Robots-Tag':'noindex,nofollow'})
 
 @app.get('/bca/manage', response_class=HTMLResponse)
-def bca_desk():
-    return FileResponse(STATIC/'bca-management.html', headers={'X-Robots-Tag':'noindex,nofollow'})
+def bca_desk(user:User=Depends(current)):
+    from .student_services import can_manage_bca
+    can_manage_bca(user)
+    return FileResponse(STATIC/'bca-management.html', headers={'X-Robots-Tag':'noindex,nofollow','Cache-Control':'no-store'})
 
 @app.get('/tasks',response_class=HTMLResponse)
 def task_portal(user:User=Depends(current)):
@@ -467,7 +471,14 @@ def verification_report(public_id:str,user:User=Depends(current),db:DbSession=De
 
 @app.get('/api/admin/integrations')
 def integration_status(user:User=Depends(as_role('admin')),db:DbSession=Depends(get_db)):
-    return {'openrouter_configured':bool(read_api_key(db)),'model':MODEL,'key_stored':bool(db.get(IntegrationSetting,'openrouter_key'))}
+    from .ai_gateway import select_provider
+    provider=select_provider(db)
+    return {'configured':bool(provider),
+            'provider':provider.name if provider else None,
+            'model':provider.model if provider else None,
+            'deepseek_configured':bool(provider and provider.name=='DeepSeek'),
+            'openrouter_configured':bool(db.get(IntegrationSetting,'openrouter_key')) or bool(os.getenv('OPENROUTER_API_KEY')),
+            'key_stored':bool(db.get(IntegrationSetting,'deepseek_key') or db.get(IntegrationSetting,'openrouter_key'))}
 
 @app.put('/api/admin/integrations/openrouter')
 def integration_update(body:IntegrationBody,user:User=Depends(as_role_mutation('admin')),db:DbSession=Depends(get_db)):

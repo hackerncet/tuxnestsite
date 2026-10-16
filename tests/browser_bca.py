@@ -49,11 +49,13 @@ def main():
         desktop.set_default_timeout(8000)
 
         load_page(desktop, 'public-home.html', 'public-home.js')
-        assert desktop.locator('h1').inner_text().startswith('College services.')
+        assert desktop.locator('h1').inner_text().startswith('Student support.')
         assert desktop.locator('.logo-stage img').evaluate('(img) => img.naturalWidth') > 0
         desktop.locator('#toggle-animation').click()
         assert desktop.locator('#logo-stage.paused').count() == 1
-        assert desktop.locator('a[href="/students"]').count() > 0
+        assert desktop.locator('header a[href="/students"]').inner_text().strip() == 'Students'
+        assert desktop.locator('header a[href="/app"]').count() == 0
+        assert desktop.locator('header small').count() == 0
 
         load_page(desktop, 'student-services.html')
         assert 'BACHELOR OF COMPUTER APPLICATIONS' in desktop.locator('main').inner_text().upper()
