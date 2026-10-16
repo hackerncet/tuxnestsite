@@ -1,4 +1,4 @@
-# NCMS BCA — Student Services and Project Community
+# NCET BCA — Student Services and Project Community
 
 ## Routes
 
@@ -8,7 +8,7 @@
 | `/students` | Public BCA student-service explanation | Public, indexable |
 | `/students/portal` | Signed-in BCA students | Noindex |
 | `/bca/manage` | BCA faculty, HOD and administrator | Noindex |
-| `/community` | All signed-in NCMS members | Noindex, authenticated GET |
+| `/community` | All signed-in NCET members | Noindex, authenticated GET |
 | `/app` | Staff/HOD/Principal/IQAC/Admin | Noindex |
 
 **Students and complaints are not indexed.** Student names and USNs appear only
@@ -42,7 +42,7 @@ in review, resolved and closed. Status transitions and replies are auditable.
 ## Project contributions
 
 Students edit a profile (name and USN drawn from verified enrollment), post
-projects and specify needed contributors. Anyone signed in with an NCMS account
+projects and specify needed contributors. Anyone signed in with an NCET account
 can read the directory, posts and visible comments, including the HOD,
 Principal and IQAC. Conversations are in shared threads only.
 BCA HOD and administrator can hide inappropriate posts or comments.

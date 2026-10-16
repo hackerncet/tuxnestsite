@@ -1,4 +1,4 @@
-/* NCMS shared community: information-dense, accessible, no third-party scripts */
+/* NCET shared community: information-dense, accessible, no third-party scripts */
 .community-layout{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(275px,1fr);gap:22px;align-items:start}
 .community-primary,.community-aside{min-width:0}
 .access-label{padding:7px 10px;border:1px solid #cfdaeb;border-radius:7px;color:#234267;background:#f0f4fa;font-size:12px;white-space:nowrap}
