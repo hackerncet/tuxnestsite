@@ -11,7 +11,7 @@ MOCK=r'''() => {
     const path=String(url),method=opts.method||'GET';let response={ok:true},status=200;
     if(path==='/api/auth/me'){if(!signed){status=401;response={detail:'Please sign in'};}else response={user:{role:signed,name:'NCET '+signed,department:'Computer Science & Engineering',username:signed,id:users.indexOf(signed)+1},csrf};}
     else if(path==='/api/auth/login'){
-      const req=JSON.parse(opts.body);if(!users.includes(req.username)||req.username!==req.role){status=401;response={detail:'Invalid credentials'};}
+      const req=JSON.parse(opts.body);if(!users.includes(req.username)||(req.role&&req.username!==req.role)){status=401;response={detail:'Invalid credentials'};}
       else{signed=req.username;response={user:{role:signed,name:'NCET '+signed,department:'Computer Science & Engineering',username:signed,id:users.indexOf(signed)+1},csrf};}
     }else if(path==='/api/auth/logout'){signed=null;}
     else if(path.startsWith('/api/documents?')){const view=docs.filter(d=>signed==='staff'||signed==='hod'||d.status==='approved');response={items:view,total:view.length};}
@@ -34,7 +34,7 @@ with sync_playwright() as p:
     page=context.new_page();page.set_default_timeout(11000)
     errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
     page.set_content('<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1" /></head><body><div id="app"></div></body></html>')
-    css=(ROOT/'static/styles.css').read_text()
+    css=(ROOT/'static/styles.css').read_text()+'\n'+(ROOT/'static/enterprise.css').read_text()
     js=(ROOT/'static/app.js').read_text()
     for name in ('ncet-crest','ngi-logo'):
         suffix='ncet-crest.webp' if name=='ncet-crest' else 'ngi-logo.webp'
@@ -43,11 +43,10 @@ with sync_playwright() as p:
     page.evaluate('(css)=>{const s=document.createElement("style");s.textContent=css;document.head.appendChild(s)}',css)
     page.evaluate(MOCK)
     page.add_script_tag(content=js)
-    page.get_by_text('Welcome to your workspace.').wait_for()
-    assert page.locator('.roles .role-option').count()==5
+    page.get_by_text('Welcome to NCMS VerifyFlow').wait_for()
+    assert page.locator('.roles .role-option').count()==0
     page.screenshot(path=str(ROOT/'tests/ui-login.png'),full_page=True)
     def signin(u):
-        page.locator(f'[data-action=pick-role][data-role={u}]').click()
         page.locator('#login-user').fill(u);page.locator('#login-pass').fill('test-pass')
         page.locator('#login-form button[type=submit]').click();page.locator('.sidebar-brand').wait_for()
     def signout():page.locator('[data-action=logout]').click();page.locator('#login-user').wait_for()
@@ -81,7 +80,7 @@ with sync_playwright() as p:
     mp=mobile.new_page();mp.set_content('<html><meta name="viewport" content="width=device-width, initial-scale=1"/><body><div id="app"></div></body></html>')
     mp.evaluate('(css)=>{const s=document.createElement("style");s.textContent=css;document.head.appendChild(s)}',css)
     mp.evaluate(MOCK);mp.add_script_tag(content=js)
-    mp.get_by_text('Welcome to your workspace.').wait_for()
+    mp.get_by_text('Welcome to NCMS VerifyFlow').wait_for()
     mp.screenshot(path=str(ROOT/'tests/ui-mobile.png'),full_page=True)
     assert not errors,errors
     print('UI SMOKE PASS: 5 roles, Super Admin, HOD rules, Staff upload, verification report, Principal/IQAC isolation, mobile. JS errors:',errors)

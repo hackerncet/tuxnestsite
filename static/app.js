@@ -112,13 +112,13 @@
   function loginHTML() {
     return `<div class="login-page">
       <section class="login-art"><div class="brandline">${crest}<div><div class="brand-name">NCMS VerifyFlow</div><div class="brand-sub">Institutional workspace</div></div></div>
-        <div class="hero-copy"><div class="eyebrow">One clear review process</div><h1>Clear requirements.<br><em>Confident reviews.</em></h1><p>A clear, secure way to submit documents, review department requirements and track approvals at Nagarjuna College of Management Studies.</p></div>
-        <div class="campus-visual">${campus}</div>
+        <div class="hero-copy"><div class="eyebrow">INSTITUTIONAL DOCUMENT REVIEW</div><h1>Document review,<br><em>made straightforward.</em></h1><p>A clear, secure way to submit documents, review department requirements and track approvals at Nagarjuna College of Management Studies.</p></div>
+        
         <div class="art-bottom"><span><span class="beacon"></span> Institutional document review</span><span>NCMS DOCUMENT WORKSPACE</span></div>
       </section>
       <section class="login-right"><div class="login-panel"><div class="auth-topline">${icon('shield', 'sm')} DOCUMENT VERIFICATION PORTAL <span class="demo-flag" style="margin-left:auto">Secure workspace</span></div>
-        <h2>Welcome to your workspace.</h2><p class="intro">Select your assigned role and sign in with your institution-issued credentials.</p>
-        <div class="roles" aria-label="Choose user role" role="group">${Object.entries(ROLES).map(([key,v])=>`<button type="button" class="role-option ${selectedRole === key ? 'active' : ''}" data-action="pick-role" data-role="${key}" aria-pressed="${selectedRole === key}">${icon(v.icon)}${v.short}</button>`).join('')}</div>
+        <h2>Welcome to NCMS VerifyFlow</h2><p class="intro">Sign in with your institution-issued username and password. Your permissions are assigned by the college.</p>
+        
         ${authError ? `<div class="error-message" role="alert">${icon('info','sm')}${esc(authError)}</div>` : ''}
         <form id="login-form" autocomplete="off"><div class="field"><label for="login-user" class="form-label">User ID</label><div class="input-wrap">${icon('user','leading')}<input class="with-icon" id="login-user" name="username" placeholder="Enter your user ID" aria-required="true" required autocapitalize="none" spellcheck="false" maxlength="40" /></div></div>
         <div class="field"><label for="login-pass" class="form-label">Password</label><div class="input-wrap">${icon('lock','leading')}<input id="login-pass" name="password" type="${showPassword ? 'text' : 'password'}" placeholder="Enter your password" aria-required="true" required maxlength="80" /><button class="trail" aria-label="Toggle password visibility" data-action="toggle-password" type="button">${icon(showPassword ? 'eyeOff':'eye','sm')}</button></div></div>
@@ -145,9 +145,9 @@
   function greeting() { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'; }
   function bannerHTML() {
     let headline, sub, btn = '';
-    if (role==='staff') { headline = 'Keep your submissions moving.'; sub = 'Submit documents, follow HOD decisions, and keep an organised record of your work.'; btn = `<button class="btn btn-primary" data-page="upload">${icon('upload','sm')} New submission</button>`; }
-    else if (role==='hod') { headline = 'Every review makes progress.'; sub = 'Review departmental submissions and make decisions that move records forward.'; btn = `<button class="btn btn-primary" data-page="documents">${icon('checkCircle','sm')} Open review queue</button>`; }
-    else { headline = 'Clarity across every approval.'; sub = role==='principal' ? 'A consolidated view of HOD-approved records for institutional oversight.' : 'All department-approved documents, organised for quality assurance and accreditation readiness.'; btn = `<button class="btn btn-primary" data-page="documents">${icon('folder','sm')} Browse records</button>`; }
+    if (role==='staff') { headline = 'Faculty submissions'; sub = 'Submit documents, follow HOD decisions, and keep an organised record of your work.'; btn = `<button class="btn btn-primary" data-page="upload">${icon('upload','sm')} New submission</button>`; }
+    else if (role==='hod') { headline = 'Department review queue'; sub = 'Review departmental submissions and make decisions that move records forward.'; btn = `<button class="btn btn-primary" data-page="documents">${icon('checkCircle','sm')} Open review queue</button>`; }
+    else { headline = 'Institutional review overview'; sub = role==='principal' ? 'A consolidated view of HOD-approved records for institutional oversight.' : 'All department-approved documents, organised for quality assurance and accreditation readiness.'; btn = `<button class="btn btn-primary" data-page="documents">${icon('folder','sm')} Browse records</button>`; }
     return `<section class="banner"><div class="bn-copy"><div class="bn-eyebrow">NCMS · DOCUMENT MANAGEMENT</div><h2>${headline}</h2><p>${sub}</p></div>${btn}</section>`;
   }
   const rowHTML = d => `<button class="doc-row" data-open="${esc(d.id)}" aria-label="View ${txt(d.title)}"><span class="file-glyph">${icon('file')}</span><span class="doc-meta"><span class="doc-title">${txt(d.title)}</span><span class="t-sub">${txt(d.category)} · ${prettyDate(d.submitted)}</span></span>${statusHTML(d.status)}</button>`;
@@ -379,7 +379,7 @@
     if(e.target.id==='integration-form'){e.preventDefault();if(role!=='admin')return;const val=e.target.querySelector('[name=api_key]').value.trim();try{await api('/api/admin/integrations/openrouter',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({api_key:val})});integrations=await api('/api/admin/integrations');render();notify('OpenRouter key encrypted and stored on the server.');}catch(err){notify(err.message,'error');}return;}
     if(e.target.id==='login-form'){
       e.preventDefault();const data=new FormData(e.target);
-      try{const auth=await api('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:String(data.get('username')||'').trim().toLowerCase(),password:String(data.get('password')||''),role:selectedRole})});
+      try{const auth=await api('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:String(data.get('username')||'').trim().toLowerCase(),password:String(data.get('password')||''),role:null})});
         user=auth.user;role=user.role;csrf=auth.csrf;authError='';page='overview';await refreshDocs();notify(`Welcome, ${currentRole().name}.`);}
       catch(err){authError=err.message;render();}return;
     }

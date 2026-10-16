@@ -30,10 +30,9 @@ with tempfile.TemporaryDirectory() as td:
         context=browser.new_context(viewport={'width':1440,'height':900},accept_downloads=True)
         page=context.new_page();page.set_default_timeout(12000)
         errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
-        page.goto(BASE+'/app');page.get_by_text('Welcome to your workspace.').wait_for()
+        page.goto(BASE+'/app');page.get_by_text('Welcome to NCMS VerifyFlow').wait_for()
         page.screenshot(path=str(ROOT/'tests/screen-login.png'),full_page=True)
         def signin(username):
-            page.locator(f'[data-action=pick-role][data-role={username}]').click()
             page.locator('#login-user').fill(username)
             page.locator('#login-pass').fill('BrowserTest2026Secure!')
             page.locator('#login-form button[type=submit]').click()
@@ -97,7 +96,7 @@ with tempfile.TemporaryDirectory() as td:
         page.get_by_text('NCET Annual Faculty Report').first.wait_for()
         page.screenshot(path=str(ROOT/'tests/screen-iqac.png'),full_page=True)
         mobile=browser.new_context(viewport={'width':390,'height':844},is_mobile=True,has_touch=True)
-        mp=mobile.new_page();mp.goto(BASE+'/app');mp.get_by_text('Welcome to your workspace.').wait_for()
+        mp=mobile.new_page();mp.goto(BASE+'/app');mp.get_by_text('Welcome to NCMS VerifyFlow').wait_for()
         mp.screenshot(path=str(ROOT/'tests/screen-mobile.png'),full_page=True)
         assert not errors,errors
         print('REAL BROWSER E2E PASS: admin, rules, staff upload, verification, revise, HOD approval, principal, IQAC, mobile; JS errors=',errors)

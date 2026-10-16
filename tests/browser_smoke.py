@@ -22,16 +22,15 @@ with tempfile.TemporaryDirectory() as td:
    page=context.new_page();page.set_default_timeout(7000);errors=[]
    page.on('pageerror',lambda e:errors.append(str(e)))
    def signin(username):
-    page.locator('[data-action=pick-role][data-role='+username+']').click()
     page.locator('#login-user').fill(username)
     page.locator('#login-pass').fill('BrowserSecurePass123!')
     page.locator('#login-form button[type=submit]').click()
     page.locator('.sidebar-brand').wait_for()
    page.goto('http://127.0.0.1:8778/app')
-   assert page.get_by_text('Welcome to your workspace.').is_visible()
+   assert page.get_by_text('Welcome to NCMS VerifyFlow').is_visible()
    page.screenshot(path=str(root/'tests/login.png'),full_page=True)
    signin('staff')
-   assert page.get_by_text('Keep your submissions moving.').is_visible()
+   assert page.get_by_text('Faculty submissions').is_visible()
    page.locator('[data-page=upload]').first.click()
    page.locator('#doc-title').fill('End-to-end browser document')
    page.locator('#doc-category').select_option('Academic Audit')
@@ -65,7 +64,7 @@ with tempfile.TemporaryDirectory() as td:
    page.get_by_text('End-to-end browser document').first.wait_for()
    mobile=browser.new_context(viewport={'width':390,'height':844},is_mobile=True,has_touch=True)
    mp=mobile.new_page();mp.goto('http://127.0.0.1:8778/app')
-   mp.get_by_text('Welcome to your workspace.').wait_for()
+   mp.get_by_text('Welcome to NCMS VerifyFlow').wait_for()
    mp.screenshot(path=str(root/'tests/mobile.png'),full_page=True)
    print('BROWSER WORKFLOW PASSED | JS ERRORS:',errors)
    assert not errors,errors
