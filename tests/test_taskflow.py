@@ -114,3 +114,49 @@ def test_insights_and_in_app_notifications_are_private(client,login):
         assert anonymous.get('/api/tasks').status_code==401
         assert anonymous.get('/tasks').status_code==401
         assert anonymous.get('/api/tasks/notifications/inbox').status_code==401
+
+
+
+def test_bulk_fifty_pdfs_and_reject_fifty_one(client, login):
+    h=login(client,'hod')
+    files=[('files',(f'reference_{i:02d}.pdf',PDF,'application/pdf')) for i in range(50)]
+    response=client.post('/api/tasks/batches',headers={'X-CSRF-Token':h},
+        data={'title':'Fifty academic assignment references'},files=files)
+    assert response.status_code==201,response.text
+    assert response.json()['count']==50
+    items=client.get('/api/tasks').json()['items']
+    assert len(items)==50
+    result=client.post('/api/tasks/assign',headers={'X-CSRF-Token':h},
+        json={'task_ids':[t['id'] for t in items],'staff_id':_staff_id(),
+              'notes':'Complete each PDF using the department checklist.',
+              'rules':RULE})
+    assert result.status_code==200,result.text
+    assert result.json()['assigned']==50
+    with TestClient(app) as staff:
+        login(staff,'staff')
+        assert staff.get('/api/tasks/notifications/inbox').json()['unread']==50
+    too_many=files+[('files',('reference_50.pdf',PDF,'application/pdf'))]
+    rejected=client.post('/api/tasks/batches',headers={'X-CSRF-Token':h},
+        data={'title':'Too many assignment references'},files=too_many)
+    assert rejected.status_code==422
+
+
+def test_deepseek_provider_priority_and_stored_key(monkeypatch, client, login):
+    from app.ai_gateway import select_provider
+    from app.database import IntegrationSetting
+    from app.verification import encrypt_key
+    from cryptography.fernet import Fernet
+    monkeypatch.setenv('SETTINGS_ENCRYPTION_KEY',Fernet.generate_key().decode())
+    monkeypatch.setenv('DEEPSEEK_API_KEY','direct-key-for-unit-tests')
+    monkeypatch.setenv('OPENROUTER_API_KEY','openrouter-key-for-unit-tests')
+    with DBSession() as db:
+        provider=select_provider(db)
+    assert provider.name=='DeepSeek'
+    assert provider.model=='deepseek-chat'
+    assert provider.url.startswith('https://api.deepseek.com/')
+    monkeypatch.delenv('DEEPSEEK_API_KEY')
+    with DBSession() as db:
+        provider=select_provider(db)
+    assert provider.name.startswith('OpenRouter')
+    assert 'deepseek' in provider.model.lower()
+    assert 'google/gemma' not in provider.model.lower()
