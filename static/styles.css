@@ -69,7 +69,7 @@
 
 
 /* Professional institutional theme. NCET/NGI original emblems are intentionally preserved;
-   NCMS imagery belongs to a different college and is not substituted. */
+   NCET imagery belongs to a different college and is not substituted. */
 :root {
   --institution-navy:#0e2455;--institution-navy-hover:#183771;
   --institution-orange:#f6872a;--institution-page:#f4f6f9;
@@ -173,7 +173,7 @@ select:focus-visible,textarea:focus-visible,[role="button"]:focus-visible{
 }
 
 
-/* NCMS identity: source artwork is preserved in cropped WebP files. */
+/* NCET identity: source artwork is preserved in cropped WebP files. */
 .ncet-crest,.ncms-crest{display:flex;align-items:center;justify-content:center;overflow:hidden;
 background:#fff;border-radius:12px;border:1px solid #e5e8ee;padding:3px}
 .ncet-crest img,.ncms-crest img{display:block;max-width:100%;width:100%;height:100%;object-fit:contain;min-width:0}

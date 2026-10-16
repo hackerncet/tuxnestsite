@@ -1,4 +1,4 @@
-/* NCMS VerifyFlow — professional institutional interface, existing private workflows */
+/* NCET VerifyFlow — professional institutional interface, existing private workflows */
 :root{--e-navy:#0e2455;--e-navy-2:#183769;--e-orange:#f6872a;--e-bg:#f5f7fa;--e-ink:#172033;--e-sub:#526179;--e-line:#dfe5ee;--e-shadow:0 3px 15px rgba(20,42,74,.035);font-family:Inter,'Segoe UI',system-ui,sans-serif;color:var(--e-ink);background:var(--e-bg)}
 body{background:var(--e-bg);color:var(--e-ink);letter-spacing:-.005em}
 h1,h2,h3,h4{font-family:Inter,'Segoe UI',system-ui,sans-serif;font-weight:720;letter-spacing:-.03em}
@@ -141,3 +141,7 @@ input[aria-invalid=true],select[aria-invalid=true],textarea[aria-invalid=true]{b
 @media(max-width:740px){.login-art{display:none!important}.login-page{display:block}.login-right{padding:46px 22px;min-height:100dvh}.login-panel{max-width:410px}.login-panel h2{font-size:26px}.login-panel .intro{margin-bottom:30px}.sidebar{width:min(300px,84vw);flex-basis:auto;box-shadow:10px 0 35px rgba(14,36,85,.13)}.content{padding:24px 16px 32px}.topbar{height:65px;padding:0 14px}.page-header h1{font-size:24px}.metrics{gap:10px}.metric{padding:16px;min-height:114px}.metric .metric-num{font-size:25px}.quick-actions{gap:9px}.banner{padding:19px;display:flex;flex-direction:column;align-items:flex-start;gap:14px}.banner .btn{display:inline-flex!important}.doc-row .status{font-size:11px;padding:5px 7px}.doc-row .status .s-dot{display:none}.form-panel{padding:18px}.user-item{flex-wrap:wrap}.user-item .user-details{flex-basis:calc(100% - 65px)}}
 @media(max-width:390px){.metrics{grid-template-columns:1fr 1fr}.metric .metric-label{font-size:11px}.topbar .breadcrumb{max-width:calc(100vw - 100px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+/* NCET official horizontal logo: preserve all lettering. */
+.brandline .ncet-crest,.brandline .ncms-crest{width:145px!important;height:85px!important}
+.brandline .ncet-crest img,.brandline .ncms-crest img{object-fit:contain!important}

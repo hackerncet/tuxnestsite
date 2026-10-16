@@ -1,6 +1,6 @@
-# NCMS VerifyFlow — AI-Powered Document Verification and Approval
+# NCET VerifyFlow — AI-Powered Document Verification and Approval
 
-A database-backed, role-enforced, AI-assisted college document-verification application prepared for **Nagarjuna College of Management Studies (NCMS)**. The interface uses the supplied NCMS emblem and NGI wordmark. The current deployment hostname and legacy NCET_BOOTSTRAP environment variables remain unchanged to preserve operational compatibility. This is an **independent, deployment-ready implementation**, not a claim of official college endorsement or finished security accreditation.
+A database-backed, role-enforced, AI-assisted college document-verification application prepared for **Nagarjuna College of Engineering and Technology (NCET)**. The interface uses the supplied NCET emblem and NGI wordmark. The current deployment hostname and legacy NCET_BOOTSTRAP environment variables remain unchanged to preserve operational compatibility. This is an **independent, deployment-ready implementation**, not a claim of official college endorsement or finished security accreditation.
 
 ## Architecture
 
@@ -141,9 +141,9 @@ The API suite tests permissions, cross-department separation, CSRF, password res
 - `tests/`: API and UI test suites
 
 
-## NCMS branding transition (October 2026)
+## NCET branding transition (October 2026)
 
-The public-facing platform and new document references use **NCMS VerifyFlow** and **Nagarjuna College of Management Studies**. The supplied NCMS tree/book artwork is preserved as cropped WebP raster assets; no auto-traced or claimed original vector logo has been created. Existing NCET-prefixed document IDs remain unchanged, as do database tables, authentication accounts, secret names, Render service URLs, and audit histories. Confirm organizational publication authority before using the platform for real institutional records.
+The public-facing platform and new document references use **NCET VerifyFlow** and **Nagarjuna College of Engineering and Technology**. The supplied NCET tree/book artwork is preserved as cropped WebP raster assets; no auto-traced or claimed original vector logo has been created. Existing NCET-prefixed document IDs remain unchanged, as do database tables, authentication accounts, secret names, Render service URLs, and audit histories. Confirm organizational publication authority before using the platform for real institutional records.
 
 
 ## BCA Student Services & Projects (2026)
@@ -155,3 +155,7 @@ Public pages: `/` and `/students`; authenticated BCA student portal: `/students/
 - Signed-in users may view profiles with names and USNs, read shared projects and participate in **visible discussion threads only**. There are no direct messages; faculty, HOD, Principal and IQAC may view the board; the BCA HOD and administrator can moderate.
 - Two additive Alembic revisions create BCA student, case, and community tables. No existing records or access credentials are reset.
 - Before institutional use, rotate exposed credentials, arrange backups, establish abuse/reporting procedures, review USN directory privacy with the institution and use always-on paid worker resources for document processing.
+
+## NCET task-assignment and DeepSeek add-ons
+
+See [Department Task Workflows](docs/NCET_TASK_WORKFLOWS.md) for role permissions, score semantics, background document review and discussion digests. Use `/tasks` after institutional sign-in. Existing database users/documents and historical NCMS identifiers remain unchanged; new records use NCET labels. Configure DeepSeek securely in the Admin task console or Render. No real keys are committed.
