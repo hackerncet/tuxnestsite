@@ -1,4 +1,4 @@
-/* NCMS VerifyFlow — professional institutional interface, existing private workflows */
+/* NCET VerifyFlow — professional institutional interface, existing private workflows */
 :root{--e-navy:#0e2455;--e-navy-2:#183769;--e-orange:#f6872a;--e-bg:#f5f7fa;--e-ink:#172033;--e-sub:#526179;--e-line:#dfe5ee;--e-shadow:0 3px 15px rgba(20,42,74,.035);font-family:Inter,'Segoe UI',system-ui,sans-serif;color:var(--e-ink);background:var(--e-bg)}
 body{background:var(--e-bg);color:var(--e-ink);letter-spacing:-.005em}
 h1,h2,h3,h4{font-family:Inter,'Segoe UI',system-ui,sans-serif;font-weight:720;letter-spacing:-.03em}
