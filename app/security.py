@@ -12,7 +12,7 @@ from .database import Session, User, db_url, get_db, utcnow
 
 hasher = PasswordHasher(time_cost=3, memory_cost=65536, parallelism=2)
 COOKIE = 'ncet_session'
-ROLES = {'admin', 'principal', 'hod', 'staff', 'iqac'}
+ROLES = {'admin', 'principal', 'hod', 'staff', 'iqac', 'student'}
 
 
 def hash_secret(s):

@@ -26,6 +26,7 @@ jobs:
         with:
           node-version: '22'
       - run: node --check static/app.js
+      - run: node --check static/community.js && node --check static/student-portal.js && node --check static/bca-management.js && node --check static/public-home.js
 
   browser:
     name: Chromium multi-role UI smoke
@@ -43,4 +44,4 @@ jobs:
       - name: Install Chromium and runtime libraries
         run: python -m playwright install --with-deps chromium
       - name: Test Admin, HOD, Staff, Principal, IQAC and mobile UI
-        run: python tests/browser_ui.py
+        run: python tests/browser_ui.py && python tests/browser_bca.py
