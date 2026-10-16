@@ -32,6 +32,10 @@ app = FastAPI(title='NCMS VerifyFlow', docs_url=None if ENV == 'production' else
               redoc_url=None, openapi_url=None if ENV == 'production' else '/api/openapi.json')
 app.mount('/static', StaticFiles(directory=STATIC), name='static')
 app.add_middleware(GZipMiddleware, minimum_size=1024)
+from .student_services import router as bca_router
+app.include_router(bca_router)
+from .community import router as community_router
+app.include_router(community_router)
 
 @app.middleware('http')
 async def security_headers(request: Request, call_next):
@@ -56,7 +60,7 @@ async def security_headers(request: Request, call_next):
                                               "object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'")
     if request.url.path.startswith('/static/'):
         res.headers['Cache-Control'] = 'public, max-age=300'
-    if request.url.path.startswith('/api/') or request.url.path in ('/', '/app'):
+    if request.url.path.startswith('/api/') or request.url.path in ('/app','/students/portal','/bca/manage','/community'):
         res.headers['Cache-Control'] = 'no-store'
         res.headers['X-Robots-Tag'] = 'noindex, nofollow, noarchive'
     if ENV == 'production':
@@ -148,7 +152,23 @@ def health():
 
 @app.get('/', response_class=HTMLResponse)
 def landing():
-    return FileResponse(STATIC/'index.html', headers={'X-Robots-Tag':'noindex, nofollow'})
+    return FileResponse(STATIC/'public-home.html')
+
+@app.get('/students', response_class=HTMLResponse)
+def public_student_services():
+    return FileResponse(STATIC/'student-services.html')
+
+@app.get('/students/portal', response_class=HTMLResponse)
+def student_portal():
+    return FileResponse(STATIC/'student-portal.html', headers={'X-Robots-Tag':'noindex,nofollow'})
+
+@app.get('/community', response_class=HTMLResponse)
+def community_page(user:User=Depends(current)):
+    return FileResponse(STATIC/'community.html', headers={'X-Robots-Tag':'noindex,nofollow'})
+
+@app.get('/bca/manage', response_class=HTMLResponse)
+def bca_desk():
+    return FileResponse(STATIC/'bca-management.html', headers={'X-Robots-Tag':'noindex,nofollow'})
 
 @app.get('/app', response_class=HTMLResponse)
 def workspace():
@@ -160,14 +180,15 @@ def about():
 
 @app.get('/robots.txt')
 def robots():
-    return Response('User-agent: *\nDisallow: /api/\nDisallow: /app\nDisallow: /\nAllow: /about\nSitemap: '+(PUBLIC_ORIGIN or 'https://example.org')+'/sitemap.xml\n',media_type='text/plain')
+    origin=PUBLIC_ORIGIN or 'https://ncet-verifyflow.onrender.com'
+    return Response('User-agent: *\nDisallow: /api/\nDisallow: /app\nDisallow: /students/portal\nDisallow: /bca/manage\nDisallow: /community\nSitemap: '+origin+'/sitemap.xml\n',media_type='text/plain')
 
 @app.get('/sitemap.xml')
 def sitemap():
-    origin = PUBLIC_ORIGIN or 'https://example.org'
-    return Response('<?xml version="1.0" encoding="UTF-8"?>'+
-                    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>'+origin+'/about</loc></url></urlset>',
-                    media_type='application/xml')
+    from xml.sax.saxutils import escape
+    origin=PUBLIC_ORIGIN or 'https://ncet-verifyflow.onrender.com'
+    urls=''.join('<url><loc>'+escape(origin+path)+'</loc></url>' for path in ('/','/students','/about'))
+    return Response('<?xml version="1.0" encoding="UTF-8"?>'+'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'+urls+'</urlset>',media_type='application/xml')
 
 @app.get('/api/auth/me')
 def me(request:Request,user:User=Depends(current)):
@@ -209,6 +230,10 @@ def change_password(body:ChangePassword,request:Request,response:Response,
     if body.old_password==body.new_password:
         raise HTTPException(422,'Choose a new password.')
     user.password_hash=hash_password(body.new_password)
+    if user.role=='student':
+        from .student_models import BCAStudent
+        student=db.query(BCAStudent).filter(BCAStudent.user_id==user.id).first()
+        if student:student.must_change_password=False
     user.password_changed_at=utcnow()
     db.query(Session).filter(Session.user_id==user.id,Session.id!=request.state.session.id).delete()
     audit(db,user,'auth.password_changed');db.commit()
@@ -337,6 +362,7 @@ def list_users(user:User=Depends(as_role('admin','hod')),db:DbSession=Depends(ge
 def create_user(body:UserBody,user:User=Depends(as_role_mutation('admin','hod')),
                 db:DbSession=Depends(get_db)):
     if body.role not in ROLES:raise HTTPException(422,'Invalid role.')
+    if body.role=='student':raise HTTPException(422,'Enroll BCA students through the authorized CSV import.')
     department=body.department.strip()
     if user.role=='hod':
         if body.role!='staff' or department!=user.department:
@@ -364,6 +390,10 @@ def edit_user(uid:int,body:UserPatch,user:User=Depends(as_role_mutation('admin',
     if body.active is not None:target.active=body.active
     if body.password is not None:
         target.password_hash=hash_password(body.password)
+        if target.role=='student':
+            from .student_models import BCAStudent
+            record=db.query(BCAStudent).filter(BCAStudent.user_id==target.id).first()
+            if record:record.must_change_password=True
         target.password_changed_at=utcnow()
         db.query(Session).filter(Session.user_id==target.id).delete()
     if body.display_name is not None:target.display_name=body.display_name.strip()

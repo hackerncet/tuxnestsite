@@ -144,3 +144,14 @@ The API suite tests permissions, cross-department separation, CSRF, password res
 ## NCMS branding transition (October 2026)
 
 The public-facing platform and new document references use **NCMS VerifyFlow** and **Nagarjuna College of Management Studies**. The supplied NCMS tree/book artwork is preserved as cropped WebP raster assets; no auto-traced or claimed original vector logo has been created. Existing NCET-prefixed document IDs remain unchanged, as do database tables, authentication accounts, secret names, Render service URLs, and audit histories. Confirm organizational publication authority before using the platform for real institutional records.
+
+
+## BCA Student Services & Projects (2026)
+
+Public pages: `/` and `/students`; authenticated BCA student portal: `/students/portal`; faculty enrollment/HOD case desk: `/bca/manage`; members-only collaboration: `/community`.
+
+- BCA faculty or HOD can import `usn,full_name,semester` CSV (up to 100 students per upload). Passwords are generated once and must be distributed privately. Each student changes the temporary password before participating.
+- Students raise confidential requests to the BCA HOD; request details and student records are never indexable or open to unauthenticated users.
+- Signed-in users may view profiles with names and USNs, read shared projects and participate in **visible discussion threads only**. There are no direct messages; faculty, HOD, Principal and IQAC may view the board; the BCA HOD and administrator can moderate.
+- Two additive Alembic revisions create BCA student, case, and community tables. No existing records or access credentials are reset.
+- Before institutional use, rotate exposed credentials, arrange backups, establish abuse/reporting procedures, review USN directory privacy with the institution and use always-on paid worker resources for document processing.
