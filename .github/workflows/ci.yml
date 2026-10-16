@@ -1,4 +1,4 @@
-name: NCMS VerifyFlow CI
+name: NCET VerifyFlow CI
 on:
   push:
   pull_request:
@@ -25,7 +25,7 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
-      - run: node --check static/app.js
+      - run: node --check static/app.js && node --check static/tasks.js
       - run: node --check static/community.js && node --check static/student-portal.js && node --check static/bca-management.js && node --check static/public-home.js
 
   browser:
@@ -44,4 +44,4 @@ jobs:
       - name: Install Chromium and runtime libraries
         run: python -m playwright install --with-deps chromium
       - name: Test Admin, HOD, Staff, Principal, IQAC and mobile UI
-        run: python tests/browser_ui.py && python tests/browser_bca.py
+        run: python tests/browser_ui.py && python tests/browser_bca.py && python tests/browser_tasks.py

@@ -9,13 +9,13 @@ def test_ncms_branding_is_consistent():
     files = [STATIC / name for name in ("app.js", "index.html", "about.html")]
     for path in files:
         text = path.read_text(encoding="utf-8")
-        assert "NCMS VerifyFlow" in text
-        assert "NCET VerifyFlow" not in text
-        assert "Nagarjuna College of Engineering" not in text
-        assert "ncet.co.in" not in text
+        assert "NCET VerifyFlow" in text
+        assert "NCMS VerifyFlow" not in text
+        assert "Nagarjuna College of Management Studies" not in text
+        assert "ncms.co.in" not in text
 
 def test_brand_assets_are_authentic_rasters():
-    for name in ("ncms-logo.webp", "ncms-emblem.webp", "ngi-logo.webp"):
+    for name in ("ncet-official.webp", "ngi-logo.webp"):
         with Image.open(STATIC / name) as im:
             assert im.width >= 100
             assert im.height >= 100
@@ -25,8 +25,8 @@ def test_existing_document_workflows_stay_intact():
     paths = {route.path for route in app.routes if hasattr(route, "path")}
     for required in ("/app", "/api/documents", "/api/users", "/api/rules", "/healthz"):
         assert required in paths
-    assert app.title == "NCMS VerifyFlow"
-    assert "public_id='NCMS-'" in (ROOT / "app/main.py").read_text(encoding="utf-8")
+    assert app.title == "NCET VerifyFlow"
+    assert "public_id='NCET-'" in (ROOT / "app/main.py").read_text(encoding="utf-8")
 
 def test_legacy_bootstrap_secret_preserved():
     assert "NCET_BOOTSTRAP" in (ROOT / "app/bootstrap.py").read_text(encoding="utf-8")

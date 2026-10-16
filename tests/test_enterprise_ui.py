@@ -14,7 +14,7 @@ def test_login_uses_server_assigned_identity():
     js=(ROOT/'static/app.js').read_text()
     assert 'role:null' in js
     assert 'data-action="pick-role"' not in js
-    assert 'Welcome to NCMS VerifyFlow' in js
+    assert 'Welcome to NCET VerifyFlow' in js
     assert 'Sign in with your institution-issued username and password' in js
 def test_existing_workflows_remain_visible():
     js=(ROOT/'static/app.js').read_text()

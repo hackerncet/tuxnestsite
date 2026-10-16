@@ -1,4 +1,4 @@
-"""NCMS VerifyFlow: server-authorized AI-assisted document verification and approval."""
+"""NCET VerifyFlow: server-authorized AI-assisted document verification and approval."""
 import csv
 import io
 import os
@@ -28,7 +28,7 @@ ROOT = Path(__file__).resolve().parent.parent
 STATIC = ROOT / 'static'
 PUBLIC_ORIGIN = os.getenv('PUBLIC_ORIGIN', '').rstrip('/')
 ENV = os.getenv('APP_ENV', 'development')
-app = FastAPI(title='NCMS VerifyFlow', docs_url=None if ENV == 'production' else '/api/docs',
+app = FastAPI(title='NCET VerifyFlow', docs_url=None if ENV == 'production' else '/api/docs',
               redoc_url=None, openapi_url=None if ENV == 'production' else '/api/openapi.json')
 app.mount('/static', StaticFiles(directory=STATIC), name='static')
 app.add_middleware(GZipMiddleware, minimum_size=1024)
@@ -36,6 +36,10 @@ from .student_services import router as bca_router
 app.include_router(bca_router)
 from .community import router as community_router
 app.include_router(community_router)
+from .taskflow import router as task_router
+app.include_router(task_router)
+from .discussion_digest import router as digest_router
+app.include_router(digest_router)
 
 @app.middleware('http')
 async def security_headers(request: Request, call_next):
@@ -60,7 +64,7 @@ async def security_headers(request: Request, call_next):
                                               "object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'")
     if request.url.path.startswith('/static/'):
         res.headers['Cache-Control'] = 'public, max-age=300'
-    if request.url.path.startswith('/api/') or request.url.path in ('/app','/students/portal','/bca/manage','/community'):
+    if request.url.path.startswith('/api/') or request.url.path in ('/app','/students/portal','/bca/manage','/community','/tasks'):
         res.headers['Cache-Control'] = 'no-store'
         res.headers['X-Robots-Tag'] = 'noindex, nofollow, noarchive'
     if ENV == 'production':
@@ -146,7 +150,7 @@ def doc_json(d):
 
 @app.get('/favicon.ico', include_in_schema=False)
 def favicon_compat():
-    return RedirectResponse('/static/ncms-emblem.webp',status_code=302)
+    return RedirectResponse('/static/ncet-official.webp',status_code=302)
 
 @app.get('/healthz')
 def health():
@@ -174,6 +178,10 @@ def community_page(user:User=Depends(current)):
 def bca_desk():
     return FileResponse(STATIC/'bca-management.html', headers={'X-Robots-Tag':'noindex,nofollow'})
 
+@app.get('/tasks',response_class=HTMLResponse)
+def task_portal(user:User=Depends(current)):
+    return FileResponse(STATIC/'tasks.html',headers={'X-Robots-Tag':'noindex,nofollow','Cache-Control':'no-store'})
+
 @app.get('/app', response_class=HTMLResponse)
 def workspace():
     return FileResponse(STATIC/'index.html', headers={'X-Robots-Tag':'noindex, nofollow'})
@@ -185,7 +193,7 @@ def about():
 @app.get('/robots.txt')
 def robots():
     origin=PUBLIC_ORIGIN or 'https://ncet-verifyflow.onrender.com'
-    return Response('User-agent: *\nDisallow: /api/\nDisallow: /app\nDisallow: /students/portal\nDisallow: /bca/manage\nDisallow: /community\nSitemap: '+origin+'/sitemap.xml\n',media_type='text/plain')
+    return Response('User-agent: *\nDisallow: /api/\nDisallow: /app\nDisallow: /students/portal\nDisallow: /bca/manage\nDisallow: /community\nDisallow: /tasks\nSitemap: '+origin+'/sitemap.xml\n',media_type='text/plain')
 
 @app.get('/sitemap.xml')
 def sitemap():
@@ -272,7 +280,7 @@ async def upload(title:str=Form(...),category:str=Form(...),year:str=Form(...),d
     key,content=await run_in_threadpool(store,data,mime)
     try:
         policy=db.query(RulePolicy).filter(RulePolicy.department==user.department).order_by(RulePolicy.version.desc()).first()
-        doc=Document(public_id='NCMS-'+str(utcnow().year)+'-'+secrets.token_hex(5).upper(),
+        doc=Document(public_id='NCET-'+str(utcnow().year)+'-'+secrets.token_hex(5).upper(),
                      title=title,category=category, academic_year=year, description=description,
                      department=user.department,submitter_id=user.id,status='verifying')
         db.add(doc);db.flush()
