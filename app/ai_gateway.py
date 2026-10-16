@@ -37,7 +37,7 @@ def select_provider(db: Session) -> Provider | None:
     master = os.getenv('SETTINGS_ENCRYPTION_KEY')
     direct = _decrypt(db.get(IntegrationSetting, 'deepseek_key'), master) or os.getenv('DEEPSEEK_API_KEY')
     if direct:
-        return Provider('DeepSeek', os.getenv('DEEPSEEK_MODEL', 'deepseek-chat'),
+        return Provider('DeepSeek', os.getenv('DEEPSEEK_MODEL', 'deepseek-flash'),
                         'https://api.deepseek.com/chat/completions', direct)
     router = _decrypt(db.get(IntegrationSetting, 'openrouter_key'), master) or os.getenv('OPENROUTER_API_KEY')
     if router:

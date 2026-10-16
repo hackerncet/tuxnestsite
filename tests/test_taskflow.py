@@ -152,7 +152,7 @@ def test_deepseek_provider_priority_and_stored_key(monkeypatch, client, login):
     with DBSession() as db:
         provider=select_provider(db)
     assert provider.name=='DeepSeek'
-    assert provider.model=='deepseek-chat'
+    assert provider.model=='deepseek-flash'
     assert provider.url.startswith('https://api.deepseek.com/')
     monkeypatch.delenv('DEEPSEEK_API_KEY')
     with DBSession() as db:
@@ -160,3 +160,37 @@ def test_deepseek_provider_priority_and_stored_key(monkeypatch, client, login):
     assert provider.name.startswith('OpenRouter')
     assert 'deepseek' in provider.model.lower()
     assert 'google/gemma' not in provider.model.lower()
+
+
+def test_ai_process_brief_is_denied_for_staff_and_unconfigured(client, login, monkeypatch):
+    monkeypatch.delenv('DEEPSEEK_API_KEY', raising=False)
+    monkeypatch.delenv('OPENROUTER_API_KEY', raising=False)
+    hod_csrf=login(client,'hod')
+    assert client.post('/api/tasks/insights/ai-brief',
+                       headers={'X-CSRF-Token':hod_csrf}).status_code==503
+    with TestClient(app) as staff_client:
+        staff_csrf=login(staff_client,'staff')
+        assert staff_client.post('/api/tasks/insights/ai-brief',
+                                 headers={'X-CSRF-Token':staff_csrf}).status_code==403
+
+
+def test_hod_review_history_is_durable(client, login, monkeypatch):
+    hod_csrf=login(client,'hod')
+    ids=_batch(client,hod_csrf,1)
+    assigned=client.post('/api/tasks/assign',headers={'X-CSRF-Token':hod_csrf},
+                         json={'task_ids':ids,'staff_id':_staff_id(),
+                               'notes':'Prepare the complete academic report with all sections.',
+                               'rules':RULE})
+    assert assigned.status_code==200
+    from app.taskflow import TaskItem,TaskDecision
+    from app.database import DBSession
+    with DBSession() as db:
+        task=db.get(TaskItem,ids[0]);task.state='manual_review';db.commit()
+    reviewed=client.post(f'/api/tasks/{ids[0]}/decide',
+         headers={'X-CSRF-Token':hod_csrf},
+         json={'decision':'approved','note':'Manual audit completed, references and format inspected.'})
+    assert reviewed.status_code==200,reviewed.text
+    row=next(r for r in client.get('/api/tasks').json()['items'] if r['id']==ids[0])
+    assert row['decisions'][0]['decision']=='approved'
+    with DBSession() as db:
+        assert db.query(TaskDecision).filter(TaskDecision.task_id==ids[0]).count()==1
