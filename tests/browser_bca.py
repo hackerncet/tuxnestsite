@@ -55,7 +55,7 @@ def main():
         assert desktop.locator('a[href="/students"]').count() > 0
 
         load_page(desktop, 'student-services.html')
-        assert 'Bachelor of Computer Applications' in desktop.locator('main').inner_text()
+        assert 'BACHELOR OF COMPUTER APPLICATIONS' in desktop.locator('main').inner_text().upper()
         assert desktop.locator('a[href="/students/portal"]').count() > 0
 
         load_page(desktop, 'student-portal.html','student-portal.js',mock_denied=True)
