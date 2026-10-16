@@ -362,6 +362,7 @@ def list_users(user:User=Depends(as_role('admin','hod')),db:DbSession=Depends(ge
 def create_user(body:UserBody,user:User=Depends(as_role_mutation('admin','hod')),
                 db:DbSession=Depends(get_db)):
     if body.role not in ROLES:raise HTTPException(422,'Invalid role.')
+    if body.role=='student':raise HTTPException(422,'Enroll BCA students through the authorized CSV import.')
     department=body.department.strip()
     if user.role=='hod':
         if body.role!='staff' or department!=user.department:
