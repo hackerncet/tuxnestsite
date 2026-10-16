@@ -38,6 +38,8 @@ from .community import router as community_router
 app.include_router(community_router)
 from .taskflow import router as task_router
 app.include_router(task_router)
+from .reference_rules import router as rule_draft_router
+app.include_router(rule_draft_router)
 from .discussion_digest import router as digest_router
 app.include_router(digest_router)
 

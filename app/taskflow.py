@@ -95,7 +95,9 @@ class AssignBody(BaseModel):
     task_ids:list[int]=Field(min_length=1,max_length=50)
     staff_id:int
     notes:str=Field(min_length=10,max_length=3000)
-    rules:list[dict]=Field(min_length=1,max_length=30)
+    rules:list[dict]=Field(default_factory=list,max_length=30)
+    use_generated_rules:bool=False
+    confirmed_task_ids:list[int]=Field(default_factory=list,max_length=50)
     deadline:datetime|None=None
 
 
@@ -163,8 +165,13 @@ async def bulk_upload(title:str=Form(...),files:list[UploadFile]=File(...),
     if len({name.lower() for name,_ in staged})!=len(staged):raise HTTPException(422,'Filenames must be unique within the batch.')
     batch=TaskBatch(title=title.strip(),department=department,created_by=user.id)
     db.add(batch);db.flush()
+    created=[]
     for name,data in staged:
-        db.add(TaskItem(batch_id=batch.id,department=department,filename=name,reference_pdf=data))
+        item=TaskItem(batch_id=batch.id,department=department,filename=name,reference_pdf=data)
+        db.add(item);created.append(item)
+    db.flush()
+    from .reference_rules import queue_drafts
+    queue_drafts(db,created)
     task_audit(db,user,'task.batch_created',f'{batch.id}:{len(staged)}')
     db.commit()
     return {'batch_id':batch.id,'count':len(staged)}
@@ -192,19 +199,38 @@ def assign(body:AssignBody,user:User=Depends(csrf_required),db:DbSession=Depends
     if not staff or not staff.active or staff.role!='staff' or staff.department!=user.department:
         raise HTTPException(403,'Choose active staff from your own department.')
     from .verification import Rule, ALLOWED_TYPES
-    try:
-        rules=[Rule.model_validate(x) for x in body.rules]
-    except Exception:raise HTTPException(422,'Correct the rule format.')
-    if any(r.type not in ALLOWED_TYPES for r in rules):raise HTTPException(422,'Unsupported validation type.')
-    if len({r.id for r in rules})!=len(rules):raise HTTPException(422,'Rule identifiers must be unique.')
+    if body.use_generated_rules:
+        if set(body.confirmed_task_ids)!=set(body.task_ids) or len(body.confirmed_task_ids)!=len(body.task_ids):
+            raise HTTPException(422,'Review and confirm each PDF’s AI rule suggestions before assigning.')
+        if body.rules:raise HTTPException(422,'Do not combine manual and generated rule sets.')
+    else:
+        try:rules=[Rule.model_validate(x) for x in body.rules]
+        except Exception:raise HTTPException(422,'Correct the rule format.')
+        if not rules:raise HTTPException(422,'Review or supply at least one validation rule.')
+        if any(r.type not in ALLOWED_TYPES for r in rules):raise HTTPException(422,'Unsupported validation type.')
+        if len({r.id for r in rules})!=len(rules):raise HTTPException(422,'Rule identifiers must be unique.')
     if body.deadline and body.deadline.replace(tzinfo=body.deadline.tzinfo or utcnow().tzinfo)<utcnow():
         raise HTTPException(422,'Deadline must be in the future.')
     items=db.query(TaskItem).filter(TaskItem.id.in_(body.task_ids),TaskItem.department==user.department).with_for_update().all()
     if len(items)!=len(body.task_ids):raise HTTPException(404,'One or more tasks are unavailable.')
     if any(t.state!='unassigned' for t in items):raise HTTPException(409,'Only unassigned tasks may be allocated.')
+    selected_rules={}
+    if body.use_generated_rules:
+        from .reference_rules import RuleDraft
+        drafts=db.query(RuleDraft).filter(RuleDraft.task_id.in_(body.task_ids)).with_for_update().all()
+        if len(drafts)!=len(items) or any(d.state!='ready' for d in drafts):
+            raise HTTPException(409,'AI rule drafts are not ready for every selected PDF. Review errors or retry analysis.')
+        for draft in drafts:
+            try:
+                proposal=[Rule.model_validate(x) for x in json.loads(draft.rules_json)]
+            except Exception:raise HTTPException(409,'A rule draft is invalid. Regenerate it.')
+            if not proposal or any(r.type not in ALLOWED_TYPES for r in proposal):
+                raise HTTPException(409,'AI draft requires HOD review and regeneration.')
+            selected_rules[draft.task_id]=proposal
     for task in items:
+        task_rules=selected_rules[task.id] if body.use_generated_rules else rules
         task.assigned_to=staff.id;task.assigned_by=user.id;task.notes=body.notes.strip()
-        task.rules_json=json.dumps([r.model_dump() for r in rules]);task.deadline=body.deadline
+        task.rules_json=json.dumps([r.model_dump() for r in task_rules]);task.deadline=body.deadline
         task.state='assigned';task.updated_at=utcnow()
         notify(db,staff.id,f'New task: {task.filename}',task.id)
     task_audit(db,user,'task.assigned',f'{len(items)} to {staff.id}')
