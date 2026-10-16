@@ -68,7 +68,7 @@
   let accounts = [];
   let auditEntries = [];
   let rulebook={version:0,rules:[],history:[]};
-  let integrations={openrouter_configured:false,model:'deepseek/deepseek-v3.2'};
+  let integrations={configured:false,deepseek_configured:false,openrouter_configured:false,provider:null,model:null};
   let verifyReport=null;
   const app = document.getElementById('app');
   const currentRole = () => ({...ROLES[role || 'staff'], name: user?.name || ROLES[role || 'staff'].name, subtitle: user?.department || ROLES[role || 'staff'].subtitle});
@@ -260,13 +260,35 @@
   }
   function integrationsHTML() {
     if(role!=='admin')return overviewHTML();
-    return `${pageHeader('SUPER ADMIN / INTEGRATIONS','AI model configuration','Manage the document-review integration securely.')}
-    <div class="manage-grid"><section class="panel form-panel"><div class="model-name">${icon('sparkle','lg')} <div><strong>DeepSeek document review</strong><span>OpenRouter · deepseek/deepseek-v3.2</span></div></div>
-    <div class="notice"><strong>${integrations.openrouter_configured?'Integration configured':'API key not yet configured'}</strong>${integrations.openrouter_configured?'A credential is available for automated document verification.':'Uploads will be routed to manual review until you add a key.'}</div>
-    <form id="integration-form" autocomplete="off"><div class="field"><label class="field-label" for="openrouter-key">New OpenRouter API key</label><input id="openrouter-key" type="password" name="api_key" class="form-control" minlength="15" required autocomplete="new-password" placeholder="sk-or-v1-••••••••" /></div>
-    <button class="btn btn-primary" type="submit">${icon('lock','sm')} Save encrypted key</button></form><p class="small muted" style="margin-top:18px">Updating the integration key will not change existing documents. If the connection cannot be saved, contact your system administrator.</p></section>
-    <section class="panel info-panel"><h3>Data handling</h3><p>Extracted document text and active verification rules are sent to OpenRouter only when this integration is enabled. Do not upload sensitive documents without your institution's approval and a reviewed provider data-processing policy.</p>
-    <div class="info-list"><div class="info-row"><span class="info-mark">${icon('shield')}</span><div><b>Server-side key</b><p>Integration credentials are accessible only through authorized administration.</p></div></div><div class="info-row"><span class="info-mark">${icon('file')}</span><div><b>Structured validation</b><p>All AI responses are parsed and validated; unsupported output triggers human review.</p></div></div><div class="info-row"><span class="info-mark">${icon('lock')}</span><div><b>Private document routes</b><p>No indexed uploads or public document URLs.</p></div></div></div></section></div>`;
+    const provider=integrations.provider || 'Not configured';
+    const ready=Boolean(integrations.configured);
+    const dedicated=Boolean(integrations.deepseek_configured);
+    const fallback=Boolean(integrations.openrouter_configured);
+    return `${pageHeader('SUPER ADMIN / INTEGRATIONS','DeepSeek AI settings','Connect DeepSeek to document review and task verification.')}
+    <div class="manage-grid"><section class="panel form-panel">
+    <div class="model-name">${icon('sparkle','lg')} <div><strong>DeepSeek AI document review</strong><span>Preferred provider · Direct DeepSeek</span></div></div>
+    <div class="notice" role="status"><strong>${ready ? (dedicated?'DeepSeek configured':'Fallback provider configured') : 'AI provider not configured'}</strong>
+      <p>Active provider: <b>${txt(provider)}</b>${integrations.model ? ' · '+txt(integrations.model) : ''}.
+      ${ready?'Document verification will use the available provider.':'Without an available key, submissions require manual review.'}</p></div>
+    <form id="integration-form" autocomplete="off">
+      <div class="field"><label class="field-label" for="deepseek-key">DeepSeek API key</label>
+      <input id="deepseek-key" type="password" name="api_key" class="form-control" minlength="15" maxlength="300" required autocomplete="new-password" placeholder="Paste your DeepSeek API key" /></div>
+      <button class="btn btn-primary" type="submit">${icon('lock','sm')} Save DeepSeek key securely</button>
+    </form>
+    <p class="small muted" style="margin-top:15px">Saved keys are encrypted on the server. A configured key does not guarantee provider connectivity or available usage balance.</p>
+    <details style="margin-top:20px"><summary class="field-label">Optional: OpenRouter fallback</summary>
+      <p class="small muted">Used only when a dedicated DeepSeek key is unavailable. Existing OpenRouter configuration is retained.</p>
+      <p class="small muted">Fallback: ${fallback?'Configured':'Not configured'}</p>
+      <form id="fallback-form" autocomplete="off"><div class="field"><label class="field-label" for="fallback-key">OpenRouter fallback API key</label>
+      <input id="fallback-key" type="password" name="api_key" class="form-control" minlength="15" maxlength="300" required autocomplete="new-password" placeholder="OpenRouter API key" /></div>
+      <button class="btn btn-secondary" type="submit">Save fallback key</button></form>
+    </details></section>
+    <section class="panel info-panel"><h3>Privacy & verification</h3>
+      <p>Document text and HOD rules are sent to the selected external AI provider only when configured. Obtain institutional authorization before processing sensitive records.</p>
+      <div class="info-list"><div class="info-row"><span class="info-mark">${icon('shield')}</span><div><b>Server-side credentials</b><p>Only administrators can change integration credentials.</p></div></div>
+      <div class="info-row"><span class="info-mark">${icon('file')}</span><div><b>Structured review</b><p>AI findings are validated. Failed or uncertain evaluations require human review.</p></div></div>
+      <div class="info-row"><span class="info-mark">${icon('lock')}</span><div><b>Protected records</b><p>Private documents remain behind authenticated endpoints.</p></div></div></div>
+    </section></div>`;
   }
   function reportHTML(){
     const v=verifyReport||{},r=v.report||{},rows=r.findings||[];
@@ -378,7 +400,7 @@
   });
   document.addEventListener('submit',async e=>{
     if(e.target.id==='rule-form'){e.preventDefault();if(role!=='hod')return;syncRuleForm();try{const result=await api('/api/rules',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({rules:rulebook.rules})});rulebook=await api('/api/rules');render();notify(`Rules saved as version ${result.version}.`);}catch(err){notify(err.message,'error');}return;}
-    if(e.target.id==='integration-form'){e.preventDefault();if(role!=='admin')return;const val=e.target.querySelector('[name=api_key]').value.trim();try{await api('/api/admin/integrations/openrouter',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({api_key:val})});integrations=await api('/api/admin/integrations');render();notify('OpenRouter key encrypted and stored on the server.');}catch(err){notify(err.message,'error');}return;}
+    if(e.target.id==='integration-form'||e.target.id==='fallback-form'){e.preventDefault();if(role!=='admin')return;const fallback=e.target.id==='fallback-form';const val=e.target.querySelector('[name=api_key]').value.trim();try{await api(fallback?'/api/admin/integrations/openrouter':'/api/tasks/ai/key',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({api_key:val})});integrations=await api('/api/admin/integrations');render();notify(fallback?'Fallback key encrypted and saved.':'DeepSeek key encrypted and saved. Provider connectivity must be tested with a document review.');}catch(err){notify(err.message,'error');}return;}
     if(e.target.id==='login-form'){
       e.preventDefault();const data=new FormData(e.target);
       try{const auth=await api('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:String(data.get('username')||'').trim().toLowerCase(),password:String(data.get('password')||''),role:null})});
