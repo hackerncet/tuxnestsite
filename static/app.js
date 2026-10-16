@@ -295,7 +295,7 @@
       ${u.id!==user?.id?`<button class="btn btn-sm" data-action="reset-password" data-id="${u.id}">${icon('lock','sm')} Reset password</button><button class="btn btn-sm" data-action="toggle-user" data-id="${u.id}" data-active="${u.active}">${u.active?'Disable':'Enable'}</button>`:''}</div>`).join('')||emptyHTML('No accounts','Create the first institution account.')}
       </section></div>`;
   }
-  const departments=()=>['Computer Science & Engineering','Information Science & Engineering','Artificial Intelligence & Machine Learning','Electronics & Communication Engineering','Mechanical Engineering','Civil Engineering','Basic Sciences & Humanities','Other'];
+  const departments=()=>[...new Set(['Computer Applications','Commerce','Management','Science',...accounts.map(u=>u.department).filter(Boolean),user?.department].filter(Boolean))];
   function accountHTML() {return `${pageHeader('PERSONAL SECURITY','My account','Review your role and update your sign-in password.')}
       <div class="manage-grid"><section class="panel form-panel"><h3 style="margin-bottom:19px">Account information</h3><div class="detail-grid">
       ${[['Name',user?.name],['Username',user?.username],['Role',user?.role?.toUpperCase()],['Department',user?.department]].map(([k,v])=>`<div><div class="detail-label">${k}</div><div class="detail-value">${txt(v)}</div></div>`).join('')}</div></section>
@@ -381,7 +381,7 @@
       e.preventDefault();const data=new FormData(e.target);
       try{const auth=await api('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:String(data.get('username')||'').trim().toLowerCase(),password:String(data.get('password')||''),role:null})});
         user=auth.user;role=user.role;csrf=auth.csrf;authError='';page='overview';await refreshDocs();notify(`Welcome, ${currentRole().name}.`);}
-      catch(err){authError=err.message;render();}return;
+      catch(err){authError=err.message;const attempted=String(data.get('username')||'').trim();render();const usernameField=document.getElementById('login-user');if(usernameField){usernameField.value=attempted;document.getElementById('login-pass')?.focus();}}return;
     }
     if(e.target.id==='submit-document'){
       e.preventDefault();if(role!=='staff')return;
