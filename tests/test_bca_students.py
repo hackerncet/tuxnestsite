@@ -63,7 +63,7 @@ def test_case_privacy_password_change_hod_replies_and_closure(client,login):
         c=student_client.post('/api/bca/cases',headers={'X-CSRF-Token':student_token},json=payload)
         assert c.status_code==201,c.text
         ref=c.json()['reference']
-        assert ref.startswith('NCMS-BCA-')
+        assert ref.startswith('NCET-BCA-')
         assert len(student_client.get('/api/bca/cases').json()['items'])==1
         assert client.get('/api/bca/cases').status_code==200
         # Case replies cannot be read by staff.
@@ -149,5 +149,5 @@ def test_csv_import_rejects_spreadsheet_formulas(client,login):
 def test_browser_favicon_compatibility(client):
     response=client.get('/favicon.ico',follow_redirects=False)
     assert response.status_code==302
-    assert response.headers['location']=='/static/ncms-emblem.webp'
+    assert response.headers['location']=='/static/ncet-official.webp'
     assert client.get('/favicon.ico').status_code==200
