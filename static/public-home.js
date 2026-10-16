@@ -1,3 +1,5 @@
 'use strict';
-const stage=document.getElementById('logo-stage');const button=document.getElementById('toggle-animation');
-button?.addEventListener('click',()=>{const paused=stage.classList.toggle('paused');button.textContent=paused?'Play motion':'Pause motion';button.setAttribute('aria-pressed',String(paused));});
+// Progressive enhancement only. Navigation and search remain functional without JavaScript.
+for(const link of document.querySelectorAll('.navlinks a')){
+ if(link.getAttribute('href')===location.pathname)link.setAttribute('aria-current','page');
+}
