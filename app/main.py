@@ -34,6 +34,8 @@ app.mount('/static', StaticFiles(directory=STATIC), name='static')
 app.add_middleware(GZipMiddleware, minimum_size=1024)
 from .student_services import router as bca_router
 app.include_router(bca_router)
+from .student_profiles import router as showcase_router
+app.include_router(showcase_router)
 from .community import router as community_router
 app.include_router(community_router)
 from .taskflow import router as task_router
@@ -205,7 +207,10 @@ def robots():
 def sitemap():
     from xml.sax.saxutils import escape
     origin=PUBLIC_ORIGIN or 'https://ncet-verifyflow.onrender.com'
-    urls=''.join('<url><loc>'+escape(origin+path)+'</loc></url>' for path in ('/','/students','/about'))
+    from .student_profiles import published_sitemap_paths
+    with DBSession() as db:
+        paths=('/', '/students', '/about', *published_sitemap_paths(db))
+    urls=''.join('<url><loc>'+escape(origin+path)+'</loc></url>' for path in paths)
     return Response('<?xml version="1.0" encoding="UTF-8"?>'+'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'+urls+'</urlset>',media_type='application/xml')
 
 @app.get('/api/auth/me')
