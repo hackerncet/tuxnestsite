@@ -170,8 +170,8 @@ def _my_student(db,user):
     return found
 
 
-PUBLIC_EMAIL_PATTERN=re.compile(r'[A-Za-z0-9._%+\\-]+@[A-Za-z0-9.\\-]+\\.[A-Za-z]{2,}')
-PUBLIC_PHONE_PATTERN=re.compile(r'(?<!\\w)\\+?\\d[\\d() .\\-]{7,}\\d(?!\\w)')
+PUBLIC_EMAIL_PATTERN=re.compile(r'[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}')
+PUBLIC_PHONE_PATTERN=re.compile(r'(?<!\w)\+?\d[\d() .\-]{7,}\d(?!\w)')
 
 
 def check_public_text(text:str)->None:
