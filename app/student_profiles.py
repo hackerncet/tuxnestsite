@@ -170,6 +170,15 @@ def _my_student(db,user):
     return found
 
 
+PUBLIC_EMAIL_PATTERN=re.compile(r'[A-Za-z0-9._%+\\-]+@[A-Za-z0-9.\\-]+\\.[A-Za-z]{2,}')
+PUBLIC_PHONE_PATTERN=re.compile(r'(?<!\\w)\\+?\\d[\\d() .\\-]{7,}\\d(?!\\w)')
+
+
+def check_public_text(text:str)->None:
+    if PUBLIC_EMAIL_PATTERN.search(text) or PUBLIC_PHONE_PATTERN.search(text):
+        raise HTTPException(422,'Remove email addresses and phone numbers from fields published publicly.')
+
+
 def validate_proof(url:str)->str:
     url=url.strip()
     parts=urlsplit(url)
@@ -215,8 +224,14 @@ def edit_showcase(body:ShowcaseEdit,user:User=Depends(csrf_required),db:DbSessio
         if not 2<=len(value)<=45 or any(ord(c)<32 for c in value):
             raise HTTPException(422,'Each skill must contain 2–45 printable characters.')
         if value.casefold() not in [x.casefold() for x in skills]:skills.append(value)
+    check_public_text(name)
+    check_public_text(body.about)
+    for value in skills:check_public_text(value)
     certificates=[]
     for certificate in body.certificates:
+        check_public_text(certificate.title)
+        check_public_text(certificate.issuer)
+        check_public_text(certificate.proof_url.split('?',1)[-1] if '?' in certificate.proof_url else '')
         certificates.append({'title':certificate.title.strip(),'issuer':certificate.issuer.strip(),
                             'proof_url':validate_proof(certificate.proof_url)})
     profile=_showcase(db,user)

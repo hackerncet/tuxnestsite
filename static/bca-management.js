@@ -25,6 +25,8 @@ $('quick-enroll').addEventListener('submit',async e=>{
  const records=[];
  for(const line of lines){
   const parts=line.split(',').map(v=>v.trim());
+  const usn=/^1NC[A-Z0-9]{5,14}$/i;
+  if(parts.length>1&&parts.every(v=>usn.test(v))){for(const value of parts)records.push({usn:value,full_name:'',semester:1});continue;}
   if(parts.length===1){records.push({usn:parts[0],full_name:'',semester:1});continue;}
   if(parts.length!==2&&parts.length!==3)return notify('Each line should contain USN, optional name, optional semester.',true);
   records.push({usn:parts[0],full_name:parts[1]||'',semester:Number(parts[2]||1)});

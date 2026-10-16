@@ -125,3 +125,27 @@ def test_excel_and_bulk_enrollment_are_scoped_and_atomic(client,login):
                       json={'full_name':'Corrected Student Name','semester':5})
     assert edit.status_code==200
     assert 'Corrected Student Name' in str(client.get('/api/bca/students').json())
+
+
+
+def test_public_profiles_reject_contact_details_in_public_fields(client,login):
+    response,token=enroll(client,login,[{'usn':'1NC24BCA311','full_name':'Profile Student','semester':3}])
+    assert response.status_code==200
+    password=response.json()['credentials'][0]['temporary_password']
+    with TestClient(app) as student:
+        auth=student.post('/api/auth/login',json={'username':'1nc24bca311','password':password,'role':'student'})
+        csrf=auth.json()['csrf']
+        assert student.post('/api/auth/change-password',headers={'X-CSRF-Token':csrf},
+            json={'old_password':password,'new_password':'MyNewPrivatePassword888!'}).status_code==200
+        payload={'full_name':'Profile Student','mobile':'+919988776655','email':'private@example.org',
+                 'about':'Contact me at secret@example.org','skills':['Python'],
+                 'certificates':[],'publish':True}
+        attempt=student.put('/api/bca/showcase/me',headers={'X-CSRF-Token':csrf},json=payload)
+        assert attempt.status_code==422
+        second=student.put('/api/bca/showcase/me',headers={'X-CSRF-Token':csrf},
+            json={**payload,'about':'Working on academic technology','skills':['Contact 9998887776']})
+        assert second.status_code==422
+        third=student.put('/api/bca/showcase/me',headers={'X-CSRF-Token':csrf},
+            json={**payload,'about':'Interested in software engineering'})
+        assert third.status_code==200
+        assert client.get('/api/bca/directory/1NC24BCA311').status_code==200
