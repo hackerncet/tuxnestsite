@@ -136,4 +136,5 @@ def test_select_provider_uses_direct_deepseek_key(monkeypatch):
     with DBSession() as db:
         provider=select_provider(db)
         assert provider.name=='DeepSeek'
+        assert provider.model=='deepseek-flash'
         assert provider.url=='https://api.deepseek.com/chat/completions'
