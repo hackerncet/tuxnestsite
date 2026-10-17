@@ -244,7 +244,8 @@ def sitemap():
     """Newly published, consented profiles appear on the next sitemap request."""
     from .student_profiles import public_query
     with DBSession() as db:
-        total=public_query(db).count()
+        from .student_profiles import StudentShowcase
+        total=public_query(db).with_entities(func.count(StudentShowcase.id)).scalar() or 0
         if total<=50000:
             return _sitemap_xml([('/', ''),('/students',''),('/about',''),
                                  ('/students/directory','')]+_published_sitemap_batch(db))
@@ -270,7 +271,8 @@ def sitemap_students(page:int):
     if page<1:raise HTTPException(404,'Sitemap not found.')
     with DBSession() as db:
         from .student_profiles import public_query
-        total=public_query(db).count()
+        from .student_profiles import StudentShowcase
+        total=public_query(db).with_entities(func.count(StudentShowcase.id)).scalar() or 0
         if (page-1)*10000>=total:raise HTTPException(404,'Sitemap not found.')
         return _sitemap_xml(_published_sitemap_batch(db,limit=10000,
                                                       offset=(page-1)*10000))
