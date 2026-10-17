@@ -202,7 +202,7 @@ async def import_excel(file:UploadFile=File(...),actor:User=Depends(csrf_require
 def faculty_edit(usn:str,body:FacultyUpdate,actor:User=Depends(csrf_required),db:DbSession=Depends(get_db)):
     can_manage_bca(actor)
     found=(db.query(User,BCAStudent).join(BCAStudent,BCAStudent.user_id==User.id)
-           .filter(BCAStudent.usn==usn.upper()).first())
+           .filter(BCAStudent.usn==usn.strip().upper()).first())
     if not found:raise HTTPException(404,'Student USN not found.')
     name=body.full_name.strip()
     if not valid_name(name):raise HTTPException(422,'Enter a valid student name.')

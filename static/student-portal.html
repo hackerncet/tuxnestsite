@@ -19,7 +19,7 @@
 <div id="alert" role="status" aria-live="polite" class="hidden"></div>
 <section id="sign-in" class="student-auth-card panel">
 <div><span class="eyebrow">Secure student access</span><h2>Sign in using your USN</h2><p class="muted">Use the password provided by your department. You’ll be asked to change temporary credentials on your first visit.</p></div>
-<form id="login-form"><div class="field"><label for="login-usn">University Seat Number</label><input id="login-usn" name="usn" required minlength="8" maxlength="24" autocomplete="username" placeholder="1NC24BCA…"></div>
+<form id="login-form"><div class="field"><label for="login-usn">University Seat Number</label><input id="login-usn" name="usn" required minlength="8" maxlength="24" autocomplete="username" autocapitalize="characters" spellcheck="false" aria-describedby="login-usn-hint" placeholder="1NC24BCA…"><small class="muted" id="login-usn-hint">Uppercase, lowercase, or mixed-case USN all work.</small></div>
 <div class="field"><label for="login-password">Password</label><input id="login-password" name="password" type="password" required autocomplete="current-password"></div><button class="btn btn-navy" type="submit">Sign in securely →</button></form>
 </section>
 <section id="change-password" class="student-auth-card panel hidden"><h2>Set your own password</h2><p class="muted">Replace the temporary password before using student portal.</p>
