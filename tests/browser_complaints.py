@@ -68,7 +68,7 @@ def main():
    page.locator('#reset-filters').click()
    page.wait_for_function("document.querySelectorAll('#case-results .complaint-row').length===3")
    page.locator('[data-status=submitted]').click()
-   page.locator('#case-results .complaint-row').first.wait_for()
+   page.wait_for_function("document.querySelectorAll('#case-results .complaint-row').length===1")
    assert page.locator('#case-results .complaint-row').count()==1
    assert 'Lab class' in page.locator('#case-results').inner_text()
    page.locator('#reset-filters').click()
