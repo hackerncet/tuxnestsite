@@ -156,3 +156,52 @@ def test_counts_not_truncated_to_recent_task_listing(client,login):
     # UI does not expose source PDFs or secret payloads.
     assert 'reference_pdf' not in result.text
     assert 'content' not in body['tasks'][0]
+
+
+def test_server_side_search_status_and_pagination_across_department(client,login):
+    token=login(client,'hod')
+    with DBSession() as db:
+        hod=db.query(User).filter(User.username=='hod').one()
+        staff=db.query(User).filter(User.username=='staff').one()
+        group=TaskBatch(department=hod.department,title='Pagination and search test',
+                        created_by=hod.id)
+        db.add(group);db.flush()
+        # Make the distinctive assigned task the oldest, outside the first page.
+        old=utcnow()-timedelta(days=100)
+        db.add(TaskItem(batch_id=group.id,department=hod.department,
+            filename='Unique_Older_Academic_Record.pdf',reference_pdf=PDF,
+            assigned_to=staff.id,assigned_by=hod.id,state='approved',updated_at=old))
+        for index in range(505):
+            db.add(TaskItem(batch_id=group.id,department=hod.department,
+                filename=f'common_record_{index:03d}.pdf',reference_pdf=PDF))
+        db.commit()
+    initial=client.get('/api/tasks/dashboard')
+    assert initial.status_code==200,initial.text
+    summary=initial.json()
+    assert summary['counts']['total']==506
+    assert len(summary['tasks'])==500
+    assert summary['task_list_total']==506
+    assert summary['task_list_truncated'] is True
+    # Staff workload includes the older assigned task, not only the page.
+    staff_row=next(x for x in summary['staff'] if x['id']==staff_id())
+    assert staff_row['total']==1 and staff_row['approved']==1
+
+    page=client.get('/api/tasks/dashboard',params={'offset':500,'limit':50}).json()
+    assert page['task_list_offset']==500 and page['task_list_total']==506
+    assert len(page['tasks'])==6
+    assert any(x['file']=='Unique_Older_Academic_Record.pdf' for x in page['tasks'])
+    searched=client.get('/api/tasks/dashboard',params={
+        'status':'approved','search':'Unique_Older','staff_id':staff_id(),'limit':10})
+    assert searched.status_code==200,searched.text
+    rows=searched.json()
+    assert rows['counts']['total']==506
+    assert rows['task_list_total']==1
+    assert len(rows['tasks'])==1
+    assert rows['tasks'][0]['file']=='Unique_Older_Academic_Record.pdf'
+
+    empty=client.get('/api/tasks/dashboard',params={'status':'reviewing'}).json()
+    assert empty['task_list_total']==0 and empty['counts']['total']==506
+    assert client.get('/api/tasks/dashboard',params={'limit':501}).status_code==422
+    with TestClient(app) as another:
+        login(another,'hod2')
+        assert another.get('/api/tasks/dashboard',params={'search':'Unique_Older'}).json()['task_list_total']==0
