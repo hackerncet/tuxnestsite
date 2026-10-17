@@ -390,7 +390,8 @@ def public_record(user,student,showcase):
             'about':showcase.about,'skills':json.loads(showcase.skills_json),
             'certificates':json.loads(showcase.certificates_json),
             'social_links':json.loads(showcase.social_links_json or '{}'),
-            'photo_url':f'/students/profile/{student.usn}/photo' if showcase.photo_bytes else None}
+            'photo_url':f'/students/profile/{student.usn}/photo' if showcase.photo_bytes else None,
+            'updated_at':showcase.updated_at.isoformat() if showcase.updated_at else None}
 
 
 @router.get('/api/bca/directory')
@@ -418,49 +419,69 @@ def public_one(usn:str,db:DbSession=Depends(get_db)):
 @router.get('/students/profile/{usn}',response_class=HTMLResponse,include_in_schema=False)
 def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
     info=public_one(usn,db)
-    name=escape(info['name']);sid=escape(info['usn'])
-    description=escape((info['about'] or f'{name} studies Bachelor of Computer Applications at NCET.')[:155],quote=True)
-    skills=''.join(f'<li>{escape(x)}</li>' for x in info['skills']) or '<li>Not added yet</li>'
+    name=escape(info['name'])
+    sid=escape(info['usn'])
+    description=escape((info['about'] or f"{info['name']} studies Bachelor of Computer Applications at NCET.")[:155],quote=True)
+    canonical=f"{URL_ROOT}/students/profile/{sid}"
+    photo_url=info.get('photo_url')
+    image_full=URL_ROOT+photo_url if photo_url else ''
+    initials=escape(''.join(part[0] for part in info['name'].split()[:2]).upper() or 'BCA')
+    photo_html=(f'<img class="profile-card-avatar" src="{escape(photo_url,quote=True)}" width="115" height="115" alt="{name} profile photo">'
+                if photo_url else f'<div class="profile-card-initial" aria-label="Profile photo not added">{initials}</div>')
+    skills=''.join(f'<li>{escape(x)}</li>' for x in info['skills']) or '<li>Interests not added yet</li>'
     certs=''.join('<li><strong>'+escape(x['title'])+'</strong> · '+escape(x['issuer'])+
-                  ' — <a rel="noopener noreferrer nofollow" target="_blank" href="'+escape(x['proof_url'],quote=True)+'">Public proof</a></li>'
-                  for x in info['certificates']) or '<li>No certificates listed yet</li>'
-    socials=''.join('<li><a href="'+escape(url,quote=True)+'" rel="noopener noreferrer nofollow" target="_blank">'+escape(site.title())+'</a></li>' for site,url in info['social_links'].items())
-    canonical=f'{URL_ROOT}/students/profile/{sid}'
-    schema = {
-        "@context": "https://schema.org", "@type": "ProfilePage",
-        "url": f"{URL_ROOT}/students/profile/{info['usn']}",
-        "mainEntity": {
-            "@type": "Person", "name": info["name"],
-            "identifier": info["usn"],
-            "description": info["about"] or f"{info['name']} is an NCET BCA student.",
-            "affiliation": {"@type": "CollegeOrUniversity",
-                            "name": "Nagarjuna College of Engineering and Technology"},
-            "knowsAbout": info["skills"][:40],
-            "sameAs": list(info["social_links"].values())[:10],
+        ' — <a rel="noopener noreferrer nofollow" target="_blank" href="'+escape(x['proof_url'],quote=True)+'">View proof ↗</a></li>'
+        for x in info['certificates']) or '<li>No certificates shared yet</li>'
+    socials=''.join('<li><a href="'+escape(url,quote=True)+'" rel="noopener noreferrer nofollow" target="_blank">'+escape(site.title())+' ↗</a></li>'
+                    for site,url in info['social_links'].items()) or '<li>No links shared yet</li>'
+    profile_schema={
+        '@context':'https://schema.org','@type':'ProfilePage',
+        'url':URL_ROOT+f"/students/profile/{info['usn']}",
+        'dateModified':info.get('updated_at'),
+        'mainEntity':{
+            '@type':'Person','name':info['name'],'identifier':info['usn'],
+            'description':info['about'] or f"{info['name']} is an NCET BCA student.",
+            'affiliation':{'@type':'CollegeOrUniversity','name':'Nagarjuna College of Engineering and Technology'},
+            'knowsAbout':info['skills'][:40],'sameAs':list(info['social_links'].values())[:10],
         },
     }
-    # Protect HTML parser from student-authored strings inside JSON-LD.
-    schema_script = json.dumps(schema, ensure_ascii=False).replace("<", "\\u003c")
+    if image_full:profile_schema['mainEntity']['image']=image_full
+    schema_script=json.dumps(profile_schema,ensure_ascii=False).replace('<','\\u003c')
+    og_image=(f'<meta property="og:image" content="{escape(image_full,quote=True)}">') if image_full else ''
     return HTMLResponse(f'''<!doctype html><html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{name} ({sid}) | NCET BCA Student Portfolio</title><meta name="description" content="{description}">
+<meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0E2455">
+<title>{name} ({sid}) | NCET BCA Student Portfolio</title>
+<meta name="description" content="{description}">
 <meta name="robots" content="index,follow,max-image-preview:large">
 <meta property="og:type" content="profile"><meta property="og:title" content="{name} | NCET BCA">
-<meta property="og:description" content="{description}">
-<meta property="og:url" content="{canonical}">
+<meta property="og:description" content="{description}"><meta property="og:url" content="{canonical}">{og_image}
 <script type="application/ld+json">{schema_script}</script>
 <link rel="canonical" href="{canonical}"><link rel="icon" href="/static/ncet-official.webp">
-<link rel="stylesheet" href="/static/bca.css"><link rel="stylesheet" href="/static/experience.css"></head><body>
+<link rel="stylesheet" href="/static/bca.css"><link rel="stylesheet" href="/static/experience.css">
+<link rel="stylesheet" href="/static/responsive-upgrade.css?v=20261017">
+<link rel="stylesheet" href="/static/student-redesign.css?v=20261017b"></head>
+<body class="student-public">
 <header class="topnav"><div class="container nav-inner"><a class="brand" href="/students">
 <img src="/static/ncet-official.webp" alt="NCET emblem">NCET BCA</a>
 <nav class="navlinks"><a href="/students/directory">Student directory</a><a href="/students">Students</a></nav></div></header>
-<main class="shell"><div class="panel"><span class="eyebrow">Student portfolio · voluntary publication</span>
-<h1>{name}</h1><p class="muted">USN: {sid} · Bachelor of Computer Applications · Semester {info['semester']}</p>
-<h2>About</h2><p>{escape(info['about']) or 'The student has not provided a description.'}</p>
-<h2>Skills</h2><ul>{skills}</ul><h2>Portfolio & coding profiles</h2><ul>{socials or '<li>No links added yet</li>'}</ul><h2>Certificates & proof</h2><ul>{certs}</ul>
-<p class="muted">This profile is published by the student. NCET does not independently endorse linked credentials.</p>
-<a class="btn" href="/students/directory">Back to student directory</a></div></main>
-</body></html>''',headers={'Cache-Control':'public, max-age=120'})
+<main class="shell">
+<div class="student-portfolio-hero">{photo_html}<div>
+<span class="eyebrow">NCET · Student published portfolio</span>
+<h1>{name}</h1><p>{sid} · Bachelor of Computer Applications · Semester {info['semester']}</p>
+</div></div>
+<div class="student-portfolio-columns"><div>
+<section class="panel"><span class="eyebrow">ABOUT</span><h2>About me</h2>
+<p>{escape(info['about']) or 'This student has not added an introduction yet.'}</p></section>
+<section class="panel" style="margin-top:16px"><span class="eyebrow">SKILLS</span><h2>Skills & interests</h2>
+<ul class="student-skill-chips">{skills}</ul></section></div>
+<div><section class="panel"><span class="eyebrow">CONNECT</span><h2>Portfolio & coding profiles</h2>
+<ul class="student-portfolio-list">{socials}</ul></section>
+<section class="panel" style="margin-top:16px"><span class="eyebrow">LEARNING</span><h2>Certificates & proof</h2>
+<ul class="student-portfolio-list">{certs}</ul></section></div></div>
+<p class="student-portfolio-note">Shared voluntarily by the student. Linked achievements are not independently endorsed by NCET.</p>
+<a class="btn" href="/students/directory">← Back to student directory</a></main>
+<footer class="student-footer"><div class="container"><span>© 2026 NCET VerifyFlow · BCA</span><span><a href="/students">Student services</a> · <a href="/about">About</a></span></div></footer>
+</body></html>''',headers={'Cache-Control':'no-store'})
 
 
 @router.get('/students/directory',include_in_schema=False)
