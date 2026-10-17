@@ -24,6 +24,9 @@ async function loadShowcase(){
   $('showcase-mobile').value=p.mobile;
   $('showcase-email').value=p.email;
   $('showcase-about').value=p.about;
+  $('showcase-interests').value=(p.interests||[]).join(', ');
+  $('showcase-projects').replaceChildren();
+  for(const project of (p.projects||[]))addProjectEditor(project);
   $('showcase-skills').value=p.skills.join(', ');
   for(const input of document.querySelectorAll('.social-link'))input.value=p.social_links?.[input.name]||'';
   updateSkillCount();
@@ -49,9 +52,19 @@ $('showcase-form').addEventListener('submit',async e=>{
    certificates.push({title:parts[0],issuer:parts[1],proof_url:parts[2]});
   }
  }
+ const interests=$('showcase-interests').value.split(',').map(x=>x.trim()).filter(Boolean);
+ if(interests.length>20)return notify('Use up to 20 interests.',true);
+ const projects=[...document.querySelectorAll('#showcase-projects .resume-edit-project')].map(row=>({
+  title:row.querySelector('[name=title]').value.trim(),
+  description:row.querySelector('[name=description]').value.trim(),
+  technologies:row.querySelector('[name=technologies]').value.split(',').map(x=>x.trim()).filter(Boolean),
+  github_url:row.querySelector('[name=github_url]').value.trim(),
+  live_url:row.querySelector('[name=live_url]').value.trim(),
+ })).filter(x=>x.title||x.description||x.github_url||x.live_url);
+ if(projects.some(x=>!x.title))return notify('Every project requires a title.',true);
  const body={full_name:$('showcase-name').value,mobile:$('showcase-mobile').value,
   email:$('showcase-email').value,about:$('showcase-about').value,
-  skills,certificates,social_links,publish:$('showcase-public').checked};
+  skills,certificates,social_links,interests,projects,publish:$('showcase-public').checked};
  const btn=e.target.querySelector('button[type=submit]');btn.disabled=true;btn.setAttribute('aria-busy','true');
  try{
   const response=await api('/api/bca/showcase/me',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
@@ -95,7 +108,7 @@ function setProfilePhoto(available){
   img.src='/api/bca/showcase/me/photo?ts='+Date.now();
   img.alt='Your saved student profile photo';
  }else{
-  img.src='/static/ncet-official.webp';
+  img.src='/static/ncet-brand.svg';
   img.alt='NCET emblem placeholder for your profile photo';
  }
  show('remove-showcase-photo',available);
@@ -133,3 +146,30 @@ $('remove-showcase-photo').addEventListener('click',async ()=>{
  }catch(err){notify(err.message,true)}
  finally{btn.disabled=false;btn.removeAttribute('aria-busy')}
 });
+
+function addProjectEditor(project={}){
+ const list=$('showcase-projects');
+ if(list.children.length>=8)return notify('Maximum 8 projects per portfolio.',true);
+ const wrapper=document.createElement('div');
+ wrapper.className='resume-edit-project';
+ const n=list.children.length+1;
+ wrapper.innerHTML=`<div class="resume-edit-project-heading"><strong>Project ${n}</strong><button type="button" class="btn" data-remove-project>Remove</button></div>
+ <div class="field"><label>Project title <input name="title" minlength="3" maxlength="105" placeholder="e.g. Campus Verification Portal"></label></div>
+ <div class="field"><label>Description <textarea name="description" maxlength="550" rows="2" placeholder="Problem, approach and outcome"></textarea></label></div>
+ <div class="field"><label>Technologies (comma separated) <input name="technologies" maxlength="650" placeholder="Python, React, PostgreSQL"></label></div>
+ <div class="split">
+  <div class="field"><label>GitHub repository <input name="github_url" type="url" maxlength="400" placeholder="https://github.com/username/repo"></label></div>
+  <div class="field"><label>Live demo / website <input name="live_url" type="url" maxlength="400" placeholder="https://example.com"></label></div>
+ </div>`;
+ for(const field of ['title','description','technologies','github_url','live_url']){
+  const input=wrapper.querySelector('[name='+field+']');
+  const value=field==='technologies'?(project.technologies||[]).join(', '):(project[field]||'');
+  input.value=value;
+ }
+ wrapper.querySelector('[data-remove-project]').addEventListener('click',()=>{
+  wrapper.remove();
+  [...list.children].forEach((x,i)=>x.querySelector('strong').textContent='Project '+(i+1));
+ });
+ list.appendChild(wrapper);
+}
+$('add-showcase-project').addEventListener('click',()=>addProjectEditor());

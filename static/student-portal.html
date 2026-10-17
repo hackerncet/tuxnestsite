@@ -3,15 +3,15 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow,noarchive"><meta name="theme-color" content="#0E2455">
 <title>My Student Desk | NCET VerifyFlow</title>
-<link rel="icon" href="/static/ncet-official.webp">
+<link rel="icon" href="/static/ncet-brand.svg">
 <link rel="stylesheet" href="/static/bca.css">
 <link rel="stylesheet" href="/static/experience.css">
 <link rel="stylesheet" href="/static/notifications.css">
 <link rel="stylesheet" href="/static/responsive-upgrade.css?v=20261017">
 <link rel="stylesheet" href="/static/student-redesign.css?v=20261017b">
-</head><body class="student-modern">
+<link rel="stylesheet" href="/static/ncet-brand-system.css?v=20261017"><script src="/static/ncet-loading.js?v=20261017" defer></script></head><body class="student-modern">
 <header class="topnav"><div class="container nav-inner">
-<a class="brand" href="/students"><img src="/static/ncet-official.webp" alt="NCET emblem"><span>NCET VerifyFlow<small>BCA student services</small></span></a>
+<a class="brand" href="/students"><img src="/static/ncet-brand.svg" alt="NCET emblem"><span>NCET VerifyFlow<small>BCA student services</small></span></a>
 <nav class="navlinks" aria-label="Student navigation"><a href="/students">Student home</a><a href="/students/directory">Directory</a><button type="button" id="logout" class="btn hidden">Sign out</button></nav>
 </div></header>
 <main class="shell student-shell">
@@ -44,7 +44,7 @@
 <section id="student-tab-profile" role="tabpanel" aria-labelledby="student-tab-profile-button" class="student-tab-panel hidden">
 <div class="student-profile-intro"><div><span class="eyebrow">YOUR STUDENT PORTFOLIO</span><h2>Make your work discoverable</h2><p>Share your skills, photo and work publicly only when you're ready. Contact details and private requests stay private.</p></div><a class="btn" href="/students/directory">Browse student directory ↗</a></div>
 <section class="panel student-photo-panel">
-<div class="student-avatar-wrap"><img id="showcase-photo-preview" src="/static/ncet-official.webp" alt="Your profile photo preview" width="108" height="108"><span id="showcase-photo-fallback" class="small muted">No photo yet</span></div>
+<div class="student-avatar-wrap"><img id="showcase-photo-preview" src="/static/ncet-brand.svg" alt="Your profile photo preview" width="108" height="108"><span id="showcase-photo-fallback" class="small muted">No photo yet</span></div>
 <div class="student-photo-fields"><h3>Profile photo</h3><p class="muted small">Optional · JPEG, PNG or WebP · strictly under 150 KB. We resize and remove image metadata before storing.</p>
 <form id="showcase-photo-form" class="photo-controls"><label class="student-file-label" for="showcase-photo">Choose photo<input id="showcase-photo" name="file" type="file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"></label>
 <button class="btn btn-navy" type="submit">Upload photo</button><button id="remove-showcase-photo" type="button" class="btn hidden">Remove</button></form>
@@ -55,6 +55,14 @@
 <div class="field"><label for="showcase-dept">Department</label><input id="showcase-dept" readonly value="Bachelor of Computer Applications"></div></div>
 <div class="field"><label for="showcase-about">About me & academic interests</label><textarea id="showcase-about" rows="3" maxlength="900" placeholder="Tell visitors what you are building, learning or interested in"></textarea></div>
 <div class="field"><label for="showcase-skills">Skills (comma separated, up to 100)</label><textarea id="showcase-skills" rows="3" maxlength="8500" placeholder="Python, C, C++, Java, AI, Web Development…"></textarea><p id="skill-count" class="small muted" role="status">0 / 100 skills.</p></div>
+<div class="field"><label for="showcase-interests">Areas of interest</label>
+<textarea id="showcase-interests" rows="2" maxlength="1500" placeholder="Artificial Intelligence, Cloud Engineering, Design Systems, Cybersecurity…"></textarea>
+<p class="small muted">Comma-separated interests. Up to 20 interests, each 2–75 characters.</p></div>
+<details class="student-details" open><summary>Projects & live work <span>Optional · up to 8 projects</span></summary>
+<p class="small muted">Add a project title and optional description, technologies, GitHub repository and live demo link.</p>
+<div class="resume-project-form-list" id="showcase-projects"></div>
+<button class="btn" type="button" id="add-showcase-project">+ Add project</button>
+</details>
 <details class="student-details"><summary>Private contact details <span>Never displayed publicly</span></summary><div class="split student-details-body"><div class="field"><label for="showcase-mobile">Private mobile</label><input id="showcase-mobile" type="tel" inputmode="tel" autocomplete="tel" maxlength="20"></div>
 <div class="field"><label for="showcase-email">Private email</label><input id="showcase-email" type="email" autocomplete="email" maxlength="180"></div></div></details>
 <details class="student-details"><summary>Coding & social links <span>Optional · 11 sites</span></summary>
@@ -78,5 +86,5 @@
 </form></section>
 </section>
 </div></main>
-<footer class="student-footer"><div class="container"><span>© 2026 NCET VerifyFlow · BCA Student Services</span><span><a href="/students">Students</a> · <a href="/students/directory">Published portfolios</a> · <a href="/about">About</a></span></div></footer>
+<footer class="student-footer"><div class="container"><img class="footer-ngi" src="/static/ngi-brand.svg" alt="Nagarjuna Group of Institutions" width="64" height="58"><span>© 2026 NCET VerifyFlow · BCA Student Services</span><span><a href="/students">Students</a> · <a href="/students/directory">Published portfolios</a> · <a href="/about">About</a></span></div></footer>
 <script src="/static/student-portal.js" defer></script><script src="/static/notifications.js" defer></script></body></html>

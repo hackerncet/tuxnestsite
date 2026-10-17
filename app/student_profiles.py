@@ -41,6 +41,8 @@ class StudentShowcase(Base):
     skills_json: Mapped[str] = mapped_column(Text,default='[]')
     certificates_json: Mapped[str] = mapped_column(Text,default='[]')
     social_links_json: Mapped[str] = mapped_column(Text,default='{}')
+    projects_json: Mapped[str] = mapped_column(Text,default='[]')
+    interests_json: Mapped[str] = mapped_column(Text,default='[]')
     published: Mapped[bool] = mapped_column(Boolean,default=False,index=True)
     photo_bytes: Mapped[bytes | None] = mapped_column(LargeBinary,nullable=True)
     photo_mime: Mapped[str | None] = mapped_column(String(32),nullable=True)
@@ -65,6 +67,13 @@ class Certificate(BaseModel):
     issuer: str = Field(min_length=2,max_length=120)
     proof_url: str = Field(min_length=12,max_length=650)
 
+class StudentProject(BaseModel):
+    title: str = Field(min_length=3,max_length=105)
+    description: str = Field(default='',max_length=550)
+    technologies: list[str] = Field(default_factory=list,max_length=12)
+    github_url: str = Field(default='',max_length=400)
+    live_url: str = Field(default='',max_length=400)
+
 class ShowcaseEdit(BaseModel):
     full_name: str = Field(min_length=3,max_length=130)
     mobile: str = Field(default='',max_length=20)
@@ -72,6 +81,8 @@ class ShowcaseEdit(BaseModel):
     about: str = Field(default='',max_length=900)
     skills: list[str] = Field(default_factory=list,max_length=100)
     certificates: list[Certificate] = Field(default_factory=list,max_length=8)
+    interests: list[str] = Field(default_factory=list,max_length=20)
+    projects: list[StudentProject] = Field(default_factory=list,max_length=8)
     social_links: dict[str,str] = Field(default_factory=dict,max_length=12)
     publish: bool = False
 
@@ -234,6 +245,21 @@ def validate_proof(url:str)->str:
     return url
 
 
+def validate_public_link(raw:str,*,github_only:bool=False)->str:
+    url=raw.strip()
+    parsed=urlsplit(url)
+    host=(parsed.hostname or '').lower()
+    if (parsed.scheme!='https' or not host or parsed.username or parsed.password or
+        host in ('localhost','127.0.0.1','0.0.0.0','::1') or
+        host.endswith(('.local','.internal','.localhost')) or
+        any(ord(c)<32 for c in url)):
+        raise HTTPException(422,'Project links must be valid public HTTPS URLs.')
+    if github_only and host not in ('github.com','www.github.com'):
+        raise HTTPException(422,'Project GitHub URL must point to github.com.')
+    check_public_text(parsed.path)
+    return url
+
+
 def _showcase(db,user):
     return db.query(StudentShowcase).filter(StudentShowcase.student_id==user.id).first()
 
@@ -248,6 +274,8 @@ def my_showcase(user:User=Depends(current),db:DbSession=Depends(get_db)):
             'mobile':s.mobile_private if s else '', 'email':s.email_private if s else '',
             'about':s.about if s else '', 'skills':json.loads(s.skills_json) if s else [],
             'certificates':json.loads(s.certificates_json) if s else [],
+            'projects':json.loads(s.projects_json or '[]') if s else [],
+            'interests':json.loads(s.interests_json or '[]') if s else [],
             'social_links':json.loads(s.social_links_json or '{}') if s else {},
             'published':s.published if s else False,
             'photo_available':bool(s.photo_bytes) if s else False}
@@ -273,6 +301,28 @@ def edit_showcase(body:ShowcaseEdit,user:User=Depends(csrf_required),db:DbSessio
         if value.casefold() not in [x.casefold() for x in skills]:skills.append(value)
     if sum(len(v) for v in skills)>5000:raise HTTPException(422,'All skills combined must be under 5,000 characters.')
     social_links=validate_social_links(body.social_links)
+    interests=[]
+    for item in body.interests:
+        interest=item.strip()
+        if not 2<=len(interest)<=75 or any(ord(c)<32 for c in interest):
+            raise HTTPException(422,'Each interest must have 2–75 printable characters.')
+        check_public_text(interest)
+        if interest.casefold() not in [v.casefold() for v in interests]:interests.append(interest)
+    projects=[]
+    for item in body.projects:
+        title=item.title.strip();description=item.description.strip()
+        if not 3<=len(title)<=105:raise HTTPException(422,'Project titles must contain 3–105 characters.')
+        check_public_text(title);check_public_text(description)
+        tech=[]
+        for value in item.technologies:
+            entry=value.strip()
+            if not 1<=len(entry)<=50:raise HTTPException(422,'Project technologies must be 1–50 characters.')
+            check_public_text(entry)
+            if entry.casefold() not in [v.casefold() for v in tech]:tech.append(entry)
+        github=validate_public_link(item.github_url,github_only=True) if item.github_url else ''
+        live=validate_public_link(item.live_url) if item.live_url else ''
+        projects.append({'title':title,'description':description,'technologies':tech,
+                         'github_url':github,'live_url':live})
     check_public_text(name)
     check_public_text(body.about)
     for value in skills:check_public_text(value)
@@ -293,6 +343,8 @@ def edit_showcase(body:ShowcaseEdit,user:User=Depends(csrf_required),db:DbSessio
     profile.skills_json=json.dumps(skills)
     profile.certificates_json=json.dumps(certificates)
     profile.social_links_json=json.dumps(social_links)
+    profile.projects_json=json.dumps(projects)
+    profile.interests_json=json.dumps(interests)
     profile.published=bool(body.publish)
     profile.updated_at=utcnow()
     db.add(AuditLog(actor_id=user.id,event='bca.showcase_updated',
@@ -403,6 +455,8 @@ def public_record(user,student,showcase):
             'department':user.department,'semester':student.semester,
             'about':showcase.about,'skills':json.loads(showcase.skills_json),
             'certificates':json.loads(showcase.certificates_json),
+            'projects':json.loads(showcase.projects_json or '[]'),
+            'interests':json.loads(showcase.interests_json or '[]'),
             'social_links':json.loads(showcase.social_links_json or '{}'),
             'photo_url':f'/students/profile/{student.usn}/photo' if showcase.photo_bytes else None,
             'updated_at':showcase.updated_at.isoformat() if showcase.updated_at else None}
@@ -435,69 +489,119 @@ def public_one(usn:str,db:DbSession=Depends(get_db)):
 
 @router.get('/students/profile/{usn}',response_class=HTMLResponse,include_in_schema=False)
 def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
+    """Institutional, résumé-style single-column portfolio; safe for search engines."""
     info=public_one(usn,db)
     name=escape(info['name'])
     sid=escape(info['usn'])
-    description=escape((info['about'] or f"{info['name']} studies at NCET.")[:155],quote=True)
+    branch=escape(info['department'])
+    summary=escape((info['about'] or f"{info['name']} studies at Nagarjuna College of Engineering and Technology.")[:155],quote=True)
     canonical=f"{URL_ROOT}/students/profile/{sid}"
-    photo_url=info.get('photo_url')
-    image_full=URL_ROOT+photo_url if photo_url else ''
-    initials=escape(''.join(part[0] for part in info['name'].split()[:2]).upper() or 'BCA')
-    photo_html=(f'<img class="profile-card-avatar" src="{escape(photo_url,quote=True)}" width="115" height="115" alt="{name} profile photo">'
-                if photo_url else f'<div class="profile-card-initial" aria-label="Profile photo not added">{initials}</div>')
-    skills=''.join(f'<li>{escape(x)}</li>' for x in info['skills']) or '<li>Interests not added yet</li>'
-    certs=''.join('<li><strong>'+escape(x['title'])+'</strong> · '+escape(x['issuer'])+
-        ' — <a rel="noopener noreferrer nofollow" target="_blank" href="'+escape(x['proof_url'],quote=True)+'">View proof ↗</a></li>'
-        for x in info['certificates']) or '<li>No certificates shared yet</li>'
-    socials=''.join('<li><a href="'+escape(url,quote=True)+'" rel="noopener noreferrer nofollow" target="_blank">'+escape(site.title())+' ↗</a></li>'
-                    for site,url in info['social_links'].items()) or '<li>No links shared yet</li>'
-    profile_schema={
-        '@context':'https://schema.org','@type':'ProfilePage',
-        'url':URL_ROOT+f"/students/profile/{info['usn']}",
+    photo=info.get('photo_url')
+    absolute_photo=URL_ROOT+photo if photo else ''
+    initials=escape(''.join(part[0] for part in info['name'].split()[:2]).upper() or 'NCET')
+    avatar=(f'<img class="resume-avatar" src="{escape(photo,quote=True)}" alt="{name} profile photograph" width="108" height="108">'
+            if photo else f'<div class="resume-initials" aria-label="Profile photo not provided">{initials}</div>')
+    def chips(values):
+        return ''.join(f'<li>{escape(x)}</li>' for x in values)
+    def empty(text):
+        return '<p class="resume-empty">'+escape(text)+'</p>'
+    skill_section='<ul class="resume-chips">'+chips(info['skills'])+'</ul>' if info['skills'] else empty('Skills will appear when the student adds them.')
+    interests='<ul class="resume-chips resume-interests">'+chips(info['interests'])+'</ul>' if info['interests'] else empty('Academic interests have not been shared yet.')
+    def link(url,title,klass='resume-text-link'):
+        return (f'<a class="{klass}" href="{escape(url,quote=True)}" target="_blank" rel="noopener noreferrer nofollow">'
+                f'{escape(title)} <span aria-hidden="true">↗</span></a>')
+    projects=[]
+    for project in info['projects']:
+        links=''.join(filter(None,[
+            link(project.get('github_url',''),'GitHub source') if project.get('github_url') else '',
+            link(project.get('live_url',''),'Live project') if project.get('live_url') else ''
+        ]))
+        tags=('<ul class="resume-chips resume-project-tags">'+chips(project.get('technologies',[]))+'</ul>') if project.get('technologies') else ''
+        projects.append('<article class="resume-project"><h3>'+escape(project['title'])+'</h3>'+
+                        '<p>'+escape(project.get('description') or 'Student project')+'</p>'+tags+
+                        ('<div class="resume-links">'+links+'</div>' if links else '')+'</article>')
+    project_html=''.join(projects) if projects else empty('Student projects have not been added yet.')
+    certificates=[]
+    for cert in info['certificates']:
+        certificates.append('<li class="resume-certificate"><div><strong>'+escape(cert['title'])+
+                            '</strong><p>'+escape(cert['issuer'])+'</p></div>'+
+                            link(cert['proof_url'],'View credential')+'</li>')
+    cert_html='<ul class="resume-certificates">'+''.join(certificates)+'</ul>' if certificates else empty('No certificates shared yet.')
+    socials=''.join('<li>'+link(url,platform.title(),'resume-social')+'</li>' for platform,url in info['social_links'].items())
+    social_html='<ul class="resume-socials">'+socials+'</ul>' if socials else empty('Public coding and professional links have not been added yet.')
+    projects_schema=[{'@type':'CreativeWork','name':p['title'],
+                      'description':p.get('description',''),
+                      'url':p.get('live_url') or p.get('github_url') or canonical}
+                     for p in info['projects']]
+    schema={
+        '@context':'https://schema.org','@type':'ProfilePage','url':canonical,
         'dateModified':info.get('updated_at'),
-        'mainEntity':{
-            '@type':'Person','name':info['name'],'identifier':info['usn'],
-            'description':info['about'] or f"{info['name']} is an NCET BCA student.",
-            'affiliation':{'@type':'CollegeOrUniversity','name':'Nagarjuna College of Engineering and Technology'},
-            'knowsAbout':info['skills'][:40],'sameAs':list(info['social_links'].values())[:10],
-        },
+        'about':{'@type':'Person','name':info['name'],'identifier':info['usn'],
+                 'description':info['about'] or f"{info['name']} studies at NCET.",
+                 'affiliation':{'@type':'CollegeOrUniversity',
+                                'name':'Nagarjuna College of Engineering and Technology'},
+                 'knowsAbout':info['skills']+info['interests'],
+                 'sameAs':list(info['social_links'].values())},
+        'mainEntity':{'@type':'Person','name':info['name'],'identifier':info['usn']},
+        'hasPart':projects_schema,
     }
-    if image_full:profile_schema['mainEntity']['image']=image_full
-    schema_script=json.dumps(profile_schema,ensure_ascii=False).replace('<','\\u003c')
-    og_image=(f'<meta property="og:image" content="{escape(image_full,quote=True)}">') if image_full else ''
-    return HTMLResponse(f'''<!doctype html><html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0E2455">
-<title>{name} ({sid}) | NCET BCA Student Portfolio</title>
-<meta name="description" content="{description}">
+    if absolute_photo:schema['about']['image']=absolute_photo
+    json_ld=json.dumps(schema,ensure_ascii=False).replace('<','\\u003c')
+    og_image=(f'<meta property="og:image" content="{escape(absolute_photo,quote=True)}">'
+              if absolute_photo else '<meta property="og:image" content="'+URL_ROOT+'/static/ncet-brand.png">')
+    return HTMLResponse(f'''<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0E2455">
+<title>{name} ({sid}) | NCET Student Portfolio</title>
+<meta name="description" content="{summary}">
 <meta name="robots" content="index,follow,max-image-preview:large">
-<meta property="og:type" content="profile"><meta property="og:title" content="{name} | NCET BCA">
-<meta property="og:description" content="{description}"><meta property="og:url" content="{canonical}">{og_image}
-<script type="application/ld+json">{schema_script}</script>
-<link rel="canonical" href="{canonical}"><link rel="icon" href="/static/ncet-official.webp">
-<link rel="stylesheet" href="/static/bca.css"><link rel="stylesheet" href="/static/experience.css">
+<meta property="og:type" content="profile"><meta property="og:title" content="{name} — NCET Student Portfolio">
+<meta property="og:description" content="{summary}"><meta property="og:url" content="{canonical}">
+{og_image}<link rel="canonical" href="{canonical}">
+<link rel="icon" href="/static/ncet-brand.svg">
+<script type="application/ld+json">{json_ld}</script>
+<link rel="stylesheet" href="/static/bca.css">
+<link rel="stylesheet" href="/static/experience.css">
 <link rel="stylesheet" href="/static/responsive-upgrade.css?v=20261017">
-<link rel="stylesheet" href="/static/student-redesign.css?v=20261017b"></head>
-<body class="student-public">
-<header class="topnav"><div class="container nav-inner"><a class="brand" href="/students">
-<img src="/static/ncet-official.webp" alt="NCET emblem">NCET BCA</a>
-<nav class="navlinks"><a href="/students/directory">Student directory</a><a href="/students">Students</a></nav></div></header>
-<main class="shell">
-<div class="student-portfolio-hero">{photo_html}<div>
-<span class="eyebrow">NCET · Student published portfolio</span>
-<h1>{name}</h1><p>{sid} · {escape(info['department'])} · Semester {info['semester']}</p>
-</div></div>
-<div class="student-portfolio-columns"><div>
-<section class="panel"><span class="eyebrow">ABOUT</span><h2>About me</h2>
-<p>{escape(info['about']) or 'This student has not added an introduction yet.'}</p></section>
-<section class="panel" style="margin-top:16px"><span class="eyebrow">SKILLS</span><h2>Skills & interests</h2>
-<ul class="student-skill-chips">{skills}</ul></section></div>
-<div><section class="panel"><span class="eyebrow">CONNECT</span><h2>Portfolio & coding profiles</h2>
-<ul class="student-portfolio-list">{socials}</ul></section>
-<section class="panel" style="margin-top:16px"><span class="eyebrow">LEARNING</span><h2>Certificates & proof</h2>
-<ul class="student-portfolio-list">{certs}</ul></section></div></div>
-<p class="student-portfolio-note">Shared voluntarily by the student. Linked achievements are not independently endorsed by NCET.</p>
-<a class="btn" href="/students/directory">← Back to student directory</a></main>
-<footer class="student-footer"><div class="container"><span>© 2026 NCET VerifyFlow · BCA</span><span><a href="/students">Student services</a> · <a href="/about">About</a></span></div></footer>
+<link rel="stylesheet" href="/static/ncet-brand-system.css?v=20261017">
+<link rel="stylesheet" href="/static/resume-profile.css?v=20261017">
+<script src="/static/ncet-loading.js?v=20261017" defer></script>
+</head><body class="ncet-profile-page">
+<a class="skip-link" href="#student-resume">Skip to portfolio</a>
+<header class="resume-site-header">
+<div class="resume-site-inner">
+<a class="resume-college" href="/students" aria-label="NCET Student Services">
+<img src="/static/ncet-brand.svg" alt="Nagarjuna College of Engineering and Technology" width="178" height="88">
+<span>Student portfolios<small>Official NCET student services</small></span></a>
+<nav aria-label="Profile navigation"><a href="/students/directory">Student directory</a><a href="/students">Student services</a></nav>
+<img class="resume-group-logo" src="/static/ngi-brand.svg" alt="Nagarjuna Group of Institutions" width="78" height="70">
+</div></header>
+<main id="student-resume" class="resume-container">
+<div class="resume-paper">
+<div class="resume-accreditation"><span>NCET · STUDENT PORTFOLIO</span>
+<img src="/static/naac-brand.svg" alt="Institutional accreditation: NAAC A+" width="61" height="61"></div>
+<div class="resume-heading">{avatar}<div class="resume-heading-copy">
+<p class="resume-overline">Student profile · Voluntarily published</p>
+<h1>{name}</h1><p class="resume-subtitle">{branch} <span aria-hidden="true">·</span> Semester {info['semester']}</p>
+<p class="resume-usn"><strong>USN</strong> {sid}</p></div></div>
+<nav class="resume-anchors" aria-label="Portfolio sections">
+<a href="#about">About</a><a href="#skills">Skills</a><a href="#projects">Projects</a>
+<a href="#certifications">Certifications</a><a href="#interests">Interests</a><a href="#links">Links</a>
+</nav>
+<section id="about" class="resume-section"><h2>About</h2>
+<p class="resume-about">{escape(info['about']) or 'This student has not yet added a summary.'}</p></section>
+<section id="skills" class="resume-section"><h2>Technical skills</h2>{skill_section}</section>
+<section id="projects" class="resume-section"><h2>Projects</h2>{project_html}</section>
+<section id="certifications" class="resume-section"><h2>Certifications</h2>{cert_html}</section>
+<section id="interests" class="resume-section"><h2>Areas of interest</h2>{interests}</section>
+<section id="links" class="resume-section"><h2>GitHub, live work & professional links</h2>{social_html}</section>
+<div class="resume-disclaimer"><p>Published by the student. NCET has not independently verified personal projects, skills or linked credentials.</p>
+<a href="/students/directory">← Browse student directory</a></div>
+</div>
+</main>
+<footer class="resume-footer"><img src="/static/ngi-brand.svg" alt="Nagarjuna Group of Institutions" width="53" height="47">
+<span>NCET VerifyFlow · Academic collaboration & student success</span>
+<a href="/students">Student Services</a></footer>
 </body></html>''',headers={'Cache-Control':'no-store'})
 
 
