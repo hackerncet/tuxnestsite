@@ -20,14 +20,21 @@ def make_student(client):
     assert reply.status_code==200,reply.text
     return {"X-CSRF-Token":reply.json()["csrf"]}
 
-def test_brand_assets_are_supplied_and_png(client):
-    for name in ("ncet-brand.svg","ngi-brand.svg","naac-brand.svg"):
+def test_brand_assets_are_supplied_and_svg(client):
+    for name in ("ncet-brand.png","ngi-brand.png","naac-brand.png"):
         file=BASE/"static"/name
         assert file.is_file(), name
-        assert file.read_bytes().startswith(b"\x89PNG\r\n\x1a\n"), name
+        assert file.read_bytes().startswith(b"\\x89PNG\\r\\n\\x1a\\n"), name
         response=client.get("/static/"+name)
         assert response.status_code==200
-        assert response.headers["content-type"]=="image/png"\n    for name in ("ncet-brand.svg","ngi-brand.svg","naac-brand.svg"):\n        svg=(BASE/"static"/name).read_text()\n        assert "data:image/png;base64," in svg\n        assert client.get("/static/"+name).status_code==200
+        assert response.headers["content-type"]=="image/png"
+    for name in ("ncet-brand.svg","ngi-brand.svg","naac-brand.svg"):
+        svg=(BASE/"static"/name).read_text()
+        assert "data:image/png;base64," in svg
+        response=client.get("/static/"+name)
+        assert response.status_code==200
+        assert response.headers["content-type"]=="image/svg+xml"
+
 
 def test_portfolio_sections_projects_and_public_links(client):
     token=make_student(client)
