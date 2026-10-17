@@ -187,7 +187,9 @@ def update_case_status(reference:str,body:CaseStatus,user:User=Depends(as_role_m
     note=body.note.strip()
     if body.status in {'resolved','closed'} and len(note)<5:
         raise HTTPException(422,'Provide an explanation of at least five characters.')
+    from .notifications import emit
     case.status=body.status;case.updated_at=utcnow()
+    emit(db,[case.student_id],'Your BCA request status changed to '+body.status.replace('_',' ')+'.','/students/portal','complaints')
     if note:db.add(StudentCaseMessage(case_id=case.id,actor_id=user.id,body=note))
     db.add(AuditLog(actor_id=user.id,event='bca.case_status',detail=f'{case.reference}: {body.status}'))
     db.commit();return {'ok':True,'status':case.status}
