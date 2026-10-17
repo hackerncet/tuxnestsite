@@ -565,6 +565,7 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
 <link rel="stylesheet" href="/static/responsive-upgrade.css?v=20261017">
 <link rel="stylesheet" href="/static/ncet-brand-system.css?v=20261017">
 <link rel="stylesheet" href="/static/resume-profile.css?v=20261017">
+<script src="/static/ncet-loading.js?v=20261017" defer></script>
 </head><body class="ncet-profile-page">
 <a class="skip-link" href="#student-resume">Skip to portfolio</a>
 <header class="resume-site-header">
