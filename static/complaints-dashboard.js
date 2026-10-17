@@ -21,7 +21,7 @@
  function values(){
    const form=new FormData($('case-filters'));
    const params=new URLSearchParams({offset:String(offset),limit:String(pageSize)});
-   for(const name of ['search','status','category','from_date','to_date','sort']){
+   for(const name of ['search','attention','status','category','from_date','to_date','sort']){
      const value=String(form.get(name)||'').trim();if(value && (value!=='all'||name==='status'||name==='category'))params.set(name,value);
    }
    return params;
@@ -37,7 +37,10 @@
    const count=Number(data.all_total||0),counts=data.counts||{},categories=data.categories||{};
    $('kpi-all').textContent=count.toLocaleString();
    for(const key of Object.keys(titles))$('kpi-'+key).textContent=Number(counts[key]||0).toLocaleString();
-   const status=$('case-filters').elements.status.value;
+   const status=$('case-filters').elements.status.value,attention=$('case-filters').elements.attention.value;
+   $('priority-count-waiting').textContent=Number(data.attention_counts?.awaiting_reply||0).toLocaleString();
+   $('priority-count-aged').textContent=Number(data.attention_counts?.older_than_7d||0).toLocaleString();
+   for(const button of document.querySelectorAll('[data-attention]'))button.setAttribute('aria-pressed',String(button.dataset.attention===attention));
    for(const card of document.querySelectorAll('.case-kpi'))card.setAttribute('aria-pressed',String(card.dataset.status===status));
    renderBars('case-status-bars',Object.keys(titles).map(k=>[k,titles[k],Number(counts[k]||0)]),count);
    renderBars('case-category-bars',Object.keys(categoryTitles).filter(k=>categories[k]).map(k=>[k,categoryTitles[k],Number(categories[k])]),count);
@@ -46,12 +49,13 @@
    $('case-prev').disabled=offset===0;
    $('case-next').disabled=!data.has_more;
    const filters=values();
-   $('filter-summary').textContent=filters.get('search')||status!=='all'||filters.get('category')!=='all'||filters.has('from_date')||filters.has('to_date')
+   $('filter-summary').textContent=filters.get('search')||status!=='all'||attention!=='all'||filters.get('category')!=='all'||filters.has('from_date')||filters.has('to_date')
      ?'Filtered department results':'Showing all department requests';
    $('list-updated').textContent='Updated '+fmt(new Date());
    $('case-results').innerHTML=data.items.length?data.items.map(c=>
-     '<button type="button" class="complaint-row '+(c.status==='submitted'?'is-new':'')+'" data-ref="'+esc(c.reference)+'">'+
+     '<button type="button" class="complaint-row '+(c.status==='submitted'?'is-new':'')+(c.awaiting_reply?' needs-reply':'')+(c.older_than_7d?' is-aged':'')+'" data-ref="'+esc(c.reference)+'">'+
        '<span class="complaint-row-title"><strong>'+esc(c.subject)+'</strong>'+badge(c.status)+'</span>'+
+       (c.awaiting_reply?'<span class="complaint-row-emphasis">Awaiting HOD reply</span>':c.older_than_7d?'<span class="complaint-row-emphasis">Open over 7 days</span>':'')+
        '<span class="complaint-row-meta"><span><b>Reference</b> '+esc(c.reference)+'</span>'+
        '<span><b>Student</b> '+esc(c.student?.name||'—')+'</span>'+
        '<span><b>Category</b> '+esc(categoryTitles[c.category]||c.category)+'</span>'+
@@ -75,11 +79,13 @@
    }
  }
  function refresh(){offset=0;void load()}
- async function openCase(ref){
+ async function openCase(ref,refreshOnly=false){
    selected=ref;
-   $('detail-content').textContent='Loading request details…';
-   $('case-dialog-message').textContent='';
-   $('case-dialog').showModal();
+   if(!refreshOnly){
+     $('detail-content').textContent='Loading request details…';
+     $('case-dialog-message').textContent='';
+   }
+   if(!$('case-dialog').open)$('case-dialog').showModal();
    try{
      const item=await api('/api/bca/cases/'+encodeURIComponent(ref));
      if(selected!==ref)return;
@@ -95,20 +101,24 @@
          '</time><p>'+esc(m.body)+'</p></article>').join('')+'</div>';
      $('case-actions').hidden=item.status==='closed';
      $('update-case-form').elements.status.value=item.status==='submitted'?'in_review':item.status;
-     $('case-dialog-message').textContent=item.status==='closed'?'This request is closed. Past messages remain available for review.':'';
+     if(!refreshOnly)$('case-dialog-message').textContent=item.status==='closed'?'This request is closed. Past messages remain available for review.':'';
    }catch(err){$('detail-content').textContent=err.message;$('case-actions').hidden=true;}
  }
- function close(){selected=null;$('case-dialog').close()}
+ function close(){selected=null;if($('case-dialog').open)$('case-dialog').close()}
  $('close-dialog').addEventListener('click',close);
  $('case-dialog').addEventListener('close',()=>{selected=null;});
  $('case-dialog').addEventListener('click',e=>{if(e.target===$('case-dialog'))close()});
  $('case-results').addEventListener('click',e=>{const row=e.target.closest('[data-ref]');if(row)void openCase(row.dataset.ref)});
  $('case-filters').addEventListener('submit',e=>{e.preventDefault();refresh()});
- $('case-filters').addEventListener('change',refresh);
+ $('case-filters').addEventListener('change',()=>{clearTimeout(searchTimer);refresh()});
+ document.querySelectorAll('[data-attention]').forEach(button=>button.addEventListener('click',()=>{
+   $('case-filters').elements.attention.value=button.dataset.attention;
+   refresh();$('case-list-title').scrollIntoView({block:'start',behavior:'auto'});
+ }));
  $('case-filters').elements.search.addEventListener('input',()=>{
    clearTimeout(searchTimer);searchTimer=setTimeout(refresh,300);
  });
- $('reset-filters').addEventListener('click',()=>{$('case-filters').reset();refresh()});
+ $('reset-filters').addEventListener('click',()=>{$('case-filters').reset();clearTimeout(searchTimer);refresh()});
  document.querySelectorAll('.case-kpi').forEach(b=>b.addEventListener('click',()=>{
    $('case-filters').elements.status.value=b.dataset.status;refresh();
    $('case-list-title').scrollIntoView({block:'start',behavior:'auto'});
@@ -123,9 +133,11 @@
      await api(url,options);
      const reference=selected;
      form.reset();
-     $('case-dialog-message').textContent='Saved successfully. The student has been notified.';
      await load();
-     await openCase(reference);
+     if(selected===reference){
+       await openCase(reference,true);
+       $('case-dialog-message').textContent='Saved successfully. The student has been notified.';
+     }
    }catch(err){$('case-dialog-message').textContent=err.message}
    finally{button.disabled=false;button.removeAttribute('aria-busy')}
  }
