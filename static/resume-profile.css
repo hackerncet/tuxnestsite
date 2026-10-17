@@ -93,3 +93,58 @@ body.ncet-profile-page{margin:0;background:#F4F6F9;color:#172033;font-family:Int
  .resume-paper{border:0;box-shadow:none}
  .resume-section{break-inside:avoid}
 }
+
+
+/* Tabs override: no-JS keeps every section accessible; JS selects one panel. */
+.ncet-profile-page{min-height:100dvh}
+.ncet-profile-page .skip-link{position:absolute;left:12px;top:-80px;background:#fff;color:#0E2455;padding:10px 15px;border:2px solid #F6872A;z-index:100;border-radius:9px}
+.ncet-profile-page .skip-link:focus{top:12px}
+.ncet-profile-page :is(a,button):focus-visible{outline:3px solid #F6872A;outline-offset:3px}
+.ncet-profile-page .resume-site-header nav a{transition:color .18s ease,text-decoration-color .18s ease}
+.resume-anchors{position:relative;gap:6px;overflow-x:auto;overscroll-behavior-inline:contain;scrollbar-width:thin;scrollbar-color:#ffffff55 transparent}
+.resume-anchors a{flex:0 0 auto;display:inline-flex;align-items:center;min-height:42px;border-radius:9px;padding:10px 17px;
+ color:#e0e9f8;position:relative;white-space:nowrap;font-weight:700;
+ transition:background-color .2s ease,color .2s ease,box-shadow .2s ease}
+.resume-anchors a:hover{background:#ffffff16;color:#fff}
+.resume-anchors a[aria-selected="true"]{color:#0E2455;background:#fff;box-shadow:0 2px 13px #08173335}
+.resume-anchors a[aria-selected="true"]::after{content:"";position:absolute;bottom:3px;left:18%;right:18%;height:3px;border-radius:9px;background:#F6872A}
+.resume-anchors a[aria-selected="true"]:hover{color:#0E2455}
+.resume-tab-stage{min-width:0;overflow:visible}
+.resume-tab-stage.tabs-enhanced{min-height:210px}
+.resume-tab-stage.tab-animate{overflow:hidden;transition:height .24s cubic-bezier(.22,1,.36,1)}
+.resume-tab-stage.tabs-enhanced .resume-section[hidden]{display:none!important}
+.resume-tab-stage.tabs-enhanced .resume-section{border:0;padding-top:28px;padding-bottom:32px;min-height:180px}
+.resume-tab-stage .resume-section.tab-appearing{animation:resume-panel-enter .24s cubic-bezier(.22,1,.36,1) both}
+@keyframes resume-panel-enter{from{opacity:.15;transform:translateY(9px)}to{opacity:1;transform:translateY(0)}}
+.resume-tab-stage .resume-section h2{font-size:17px}
+.resume-tab-stage .resume-section p{max-width:850px}
+.resume-tab-stage .resume-section .resume-project h3{font-size:15px}
+.resume-tab-stage .resume-section .resume-empty{padding:16px;border:1px dashed #DCE5F0;background:#FAFBFD;border-radius:9px}
+.resume-disclaimer{margin-top:0}
+@media(max-width:570px){
+ .resume-anchors{gap:5px;flex-wrap:nowrap;padding:9px 12px}
+ .resume-anchors a{padding:10px 12px;min-height:44px;font-size:12px}
+ .resume-tab-stage.tabs-enhanced .resume-section{padding-top:22px;padding-bottom:25px;min-height:180px}
+ .resume-site-header nav{display:none}
+}
+@media(prefers-reduced-motion:reduce){
+ .resume-tab-stage .resume-section.tab-appearing{animation:none!important}
+ .resume-tab-stage.tab-animate{transition:none!important}
+ .resume-anchors a,.resume-site-header nav a{transition:none!important}
+}
+@media print{
+ .resume-anchors{display:none!important}
+ .resume-tab-stage.tabs-enhanced .resume-section[hidden]{display:block!important}
+ .resume-tab-stage.tabs-enhanced .resume-section{min-height:0!important;padding-block:17px}
+ .resume-tab-stage{height:auto!important;overflow:visible!important}
+}
+
+/* Opt-in on BOTH ends for a subtle same-origin navigation transition. */
+@view-transition{navigation:auto}
+::view-transition-old(root){animation:.14s ease-out both resume-page-out}
+::view-transition-new(root){animation:.2s ease-out both resume-page-in}
+@keyframes resume-page-out{to{opacity:.96}}
+@keyframes resume-page-in{from{opacity:.93;transform:translateY(4px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){
+ ::view-transition-old(root),::view-transition-new(root){animation-duration:.01ms!important}
+}

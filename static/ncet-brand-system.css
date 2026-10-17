@@ -67,3 +67,20 @@
 .ncet-about-accreditation img{object-fit:contain;width:74px;height:74px}
 
 .footer-ngi{object-fit:contain;width:58px;height:52px;background:white;padding:5px;border-radius:8px;vertical-align:middle;margin-right:10px}
+
+/* Same-origin page transitions where supported; conventional navigation otherwise. */
+@view-transition{navigation:auto}
+::view-transition-old(root){animation:.14s ease-out both ncet-page-leave}
+::view-transition-new(root){animation:.2s ease-out both ncet-page-arrive}
+@keyframes ncet-page-leave{from{opacity:1}to{opacity:.96}}
+@keyframes ncet-page-arrive{from{opacity:.92;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+:where(.topnav a,.navlinks a,.sidebar a,.student-footer a,.btn){
+ transition:color .18s ease,background-color .18s ease,border-color .18s ease,box-shadow .18s ease
+}
+:where(.topnav a,.navlinks a,.sidebar a,.student-footer a):hover{
+ text-decoration-color:var(--ncet-orange);text-underline-offset:5px
+}
+@media(prefers-reduced-motion:reduce){
+ ::view-transition-old(root),::view-transition-new(root){animation-duration:.01ms!important;transform:none!important}
+ :where(.topnav a,.navlinks a,.sidebar a,.student-footer a,.btn){transition:none!important}
+}
