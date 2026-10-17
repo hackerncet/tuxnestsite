@@ -137,3 +137,11 @@
  .ncet-impact-metrics .institutional-counter{padding:10px 8px}
  .ncet-impact-metrics strong{font-size:32px}
 }
+
+@media(max-width:380px){
+ .topnav .nav-accreditation{display:none}
+ .topnav .brand img{width:75px}
+ .topnav .brand small{display:none}
+ .topnav .brand span strong{font-size:13px}
+ .topnav .brand{gap:7px}
+}
