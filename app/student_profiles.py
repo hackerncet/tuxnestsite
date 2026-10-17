@@ -371,7 +371,7 @@ def published_profile_photo(usn:str,db:DbSession=Depends(get_db)):
     if not row or not row[2].photo_bytes:
         raise HTTPException(404,'Profile photo unavailable.')
     return Response(row[2].photo_bytes,media_type='image/webp',
-                    headers={'Cache-Control':'public,max-age=60',
+                    headers={'Cache-Control':'no-store',
                              'X-Content-Type-Options':'nosniff'})
 
 
@@ -395,15 +395,16 @@ def public_record(user,student,showcase):
 
 
 @router.get('/api/bca/directory')
-def public_directory(q:str='',limit:int=30,db:DbSession=Depends(get_db)):
-    if not 1<=limit<=50 or len(q)>60:raise HTTPException(422,'Invalid search.')
+def public_directory(q:str='',limit:int=30,offset:int=0,db:DbSession=Depends(get_db)):
+    if not 1<=limit<=50 or not 0<=offset<=1_000_000 or len(q)>60:raise HTTPException(422,'Invalid search.')
     query=public_query(db)
     if q.strip():
         term='%'+q.strip().replace('%','\\%').replace('_','\\_')+'%'
         query=query.filter(or_(BCAStudent.usn.ilike(term,escape='\\'),
                                 User.display_name.ilike(term,escape='\\')))
-    rows=query.order_by(BCAStudent.usn).limit(limit).all()
-    return {'items':[{'name':u.display_name,'usn':p.usn,'department':'Bachelor of Computer Applications',
+    total=query.count()
+    rows=query.order_by(BCAStudent.usn).offset(offset).limit(limit).all()
+    return {'total':total,'offset':offset,'limit':limit,'items':[{'name':u.display_name,'usn':p.usn,'department':'Bachelor of Computer Applications',
                        'skills':json.loads(s.skills_json),
                        'photo_url':f'/students/profile/{p.usn}/photo' if s.photo_bytes else None} for u,p,s in rows]}
 
@@ -485,29 +486,36 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
 
 
 @router.get('/students/directory',include_in_schema=False)
-def directory_page(db:DbSession=Depends(get_db)):
-    """Server-rendered profile links complement interactive client-side search.
-
-    Google and other crawlers can find published profiles without executing JS.
-    Do not show records that the student did not explicitly publish.
-    """
+def directory_page(page:int=1,db:DbSession=Depends(get_db)):
+    """Small paginated server-rendered lists, with every published profile crawlable."""
     from pathlib import Path
-    static = Path(__file__).resolve().parents[1] / 'static'
-    html = (static / 'student-directory.html').read_text(encoding='utf-8')
-    rows = public_query(db).order_by(BCAStudent.usn).limit(1000).all()
-    items = ''.join(
-        '<li><a href="/students/profile/' + escape(student.usn,quote=True) + '">' +
-        escape(user.display_name) + '</a> <span class="muted">' +
-        escape(student.usn) + '</span></li>'
-        for user, student, showcase in rows
+    if page<1 or page>100000:raise HTTPException(404,'Directory page not found.')
+    static=Path(__file__).resolve().parents[1]/'static'
+    html=(static/'student-directory.html').read_text(encoding='utf-8')
+    per_page=18
+    total=public_query(db).count()
+    pages=max(1,(total+per_page-1)//per_page)
+    if page>pages:raise HTTPException(404,'Directory page not found.')
+    rows=public_query(db).order_by(BCAStudent.usn).offset((page-1)*per_page).limit(per_page).all()
+    items=''.join(
+        '<li><a href="/students/profile/'+escape(student.usn,quote=True)+'">'+
+        escape(user.display_name)+'</a> <span class="muted">'+escape(student.usn)+'</span></li>'
+        for user,student,showcase in rows
     )
-    links = ('<section class="panel server-profile-links" aria-label="Published student profiles">'
-             '<h2>Browse published NCET BCA student portfolios</h2>'
-             '<p>Only profiles students have chosen to publish are listed.</p>'
-             '<ul>' + items + '</ul></section>') if rows else ''
-    html = html.replace('</main>', links + '</main>')
-    return HTMLResponse(html,headers={'Cache-Control':'public,max-age=60'})
-
+    controls=(
+        ('<a class="btn" href="/students/directory?page='+str(page-1)+'">← Previous</a>' if page>1 else '')+
+        '<span>Page '+str(page)+' of '+str(pages)+'</span>'+
+        ('<a class="btn" href="/students/directory?page='+str(page+1)+'">Next →</a>' if page<pages else '')
+    )
+    section=('<section class="panel server-profile-links" aria-label="Published student profiles">'+
+             '<h2>Browse all published portfolios</h2>'+
+             '<p class="small muted">'+str(total)+' student-published profiles. Showing '+str(len(rows))+' on this page.</p>'+
+             '<ul>'+items+'</ul><nav class="profile-pagination" aria-label="Directory pages">'+controls+'</nav></section>')
+    html=html.replace('</main>',section+'</main>')
+    if page>1:
+        html=html.replace('href="https://ncet-verifyflow.onrender.com/students/directory"',
+                          'href="https://ncet-verifyflow.onrender.com/students/directory?page='+str(page)+'"')
+    return HTMLResponse(html,headers={'Cache-Control':'no-store'})
 
 
 
