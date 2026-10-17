@@ -9,14 +9,15 @@ import io
 import json
 import re
 import secrets
+from PIL import Image, ImageOps, UnidentifiedImageError
 from datetime import datetime
 from html import escape
 from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel, Field
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, or_
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, LargeBinary, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session as DbSession, Mapped, mapped_column
 
@@ -40,6 +41,8 @@ class StudentShowcase(Base):
     certificates_json: Mapped[str] = mapped_column(Text,default='[]')
     social_links_json: Mapped[str] = mapped_column(Text,default='{}')
     published: Mapped[bool] = mapped_column(Boolean,default=False,index=True)
+    photo_bytes: Mapped[bytes | None] = mapped_column(LargeBinary,nullable=True)
+    photo_mime: Mapped[str | None] = mapped_column(String(32),nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),default=utcnow)
 
 class EnrollmentItem(BaseModel):
@@ -232,7 +235,8 @@ def my_showcase(user:User=Depends(current),db:DbSession=Depends(get_db)):
             'about':s.about if s else '', 'skills':json.loads(s.skills_json) if s else [],
             'certificates':json.loads(s.certificates_json) if s else [],
             'social_links':json.loads(s.social_links_json or '{}') if s else {},
-            'published':s.published if s else False}
+            'published':s.published if s else False,
+            'photo_available':bool(s.photo_bytes) if s else False}
 
 
 @router.put('/api/bca/showcase/me')
@@ -283,6 +287,94 @@ def edit_showcase(body:ShowcaseEdit,user:User=Depends(csrf_required),db:DbSessio
     return {'ok':True,'published':profile.published,'public_url':f'/students/profile/{student.usn}' if profile.published else None}
 
 
+PHOTO_LIMIT=150*1024  # uploaded file must be strictly smaller than 150 KiB
+ALLOWED_PHOTO_FORMATS={'PNG','JPEG','WEBP'}
+
+
+@router.put('/api/bca/showcase/me/photo')
+async def upload_profile_photo(
+    file:UploadFile=File(...),
+    user:User=Depends(csrf_required),
+    db:DbSession=Depends(get_db),
+):
+    student=_my_student(db,user)
+    if student.must_change_password:
+        raise HTTPException(403,'Change your temporary password before uploading a photo.')
+    if file.content_type not in ('image/png','image/jpeg','image/webp'):
+        raise HTTPException(422,'Choose a PNG, JPEG or WebP photo under 150 KB.')
+    raw=await file.read(PHOTO_LIMIT+1)
+    await file.close()
+    if not raw or len(raw)>=PHOTO_LIMIT:
+        raise HTTPException(413,'Profile photo must be smaller than 150 KB.')
+    try:
+        with Image.open(io.BytesIO(raw)) as incoming:
+            if incoming.format not in ALLOWED_PHOTO_FORMATS:
+                raise HTTPException(422,'Unsupported photo format.')
+            if incoming.width>2500 or incoming.height>2500 or incoming.width<32 or incoming.height<32:
+                raise HTTPException(422,'Photo dimensions must be between 32 and 2500 pixels.')
+            incoming.load()
+            image=ImageOps.exif_transpose(incoming).convert('RGB')
+            image.thumbnail((640,640),Image.Resampling.LANCZOS)
+            photo=None
+            for quality in (83,72,60,48):
+                out=io.BytesIO()
+                image.save(out,format='WEBP',quality=quality,method=4)
+                if len(out.getvalue())<PHOTO_LIMIT:
+                    photo=out.getvalue()
+                    break
+            if photo is None:
+                raise HTTPException(422,'Photo could not fit under 150 KB. Choose a smaller image.')
+    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError):
+        raise HTTPException(422,'Invalid or damaged image.')
+    profile=_showcase(db,user)
+    if not profile:
+        profile=StudentShowcase(student_id=user.id)
+        db.add(profile)
+    profile.photo_bytes=photo
+    profile.photo_mime='image/webp'
+    profile.updated_at=utcnow()
+    db.add(AuditLog(actor_id=user.id,event='bca.showcase_photo_updated',detail=student.usn))
+    db.commit()
+    return {'ok':True,'photo_available':True,'size_bytes':len(photo),
+            'public_photo_url':f'/students/profile/{student.usn}/photo' if profile.published else None}
+
+
+@router.get('/api/bca/showcase/me/photo')
+def private_profile_photo(user:User=Depends(current),db:DbSession=Depends(get_db)):
+    _my_student(db,user)
+    profile=_showcase(db,user)
+    if not profile or not profile.photo_bytes:
+        raise HTTPException(404,'Profile photo not uploaded.')
+    return Response(profile.photo_bytes,media_type='image/webp',
+                    headers={'Cache-Control':'private,no-store','X-Robots-Tag':'noindex,nofollow'})
+
+
+@router.delete('/api/bca/showcase/me/photo')
+def delete_profile_photo(user:User=Depends(csrf_required),db:DbSession=Depends(get_db)):
+    student=_my_student(db,user)
+    profile=_showcase(db,user)
+    if not profile or not profile.photo_bytes:
+        raise HTTPException(404,'Profile photo not uploaded.')
+    profile.photo_bytes=None
+    profile.photo_mime=None
+    profile.updated_at=utcnow()
+    db.add(AuditLog(actor_id=user.id,event='bca.showcase_photo_removed',detail=student.usn))
+    db.commit()
+    return {'ok':True,'photo_available':False}
+
+
+@router.get('/students/profile/{usn}/photo',include_in_schema=False)
+def published_profile_photo(usn:str,db:DbSession=Depends(get_db)):
+    if not USN_RE.fullmatch(usn.strip().upper()):
+        raise HTTPException(404,'Profile unavailable.')
+    row=public_query(db).filter(BCAStudent.usn==usn.strip().upper()).first()
+    if not row or not row[2].photo_bytes:
+        raise HTTPException(404,'Profile photo unavailable.')
+    return Response(row[2].photo_bytes,media_type='image/webp',
+                    headers={'Cache-Control':'public,max-age=60',
+                             'X-Content-Type-Options':'nosniff'})
+
+
 def public_query(db):
     return (db.query(User,BCAStudent,StudentShowcase)
             .join(BCAStudent,BCAStudent.user_id==User.id)
@@ -297,7 +389,8 @@ def public_record(user,student,showcase):
             'department':'Bachelor of Computer Applications','semester':student.semester,
             'about':showcase.about,'skills':json.loads(showcase.skills_json),
             'certificates':json.loads(showcase.certificates_json),
-            'social_links':json.loads(showcase.social_links_json or '{}')}
+            'social_links':json.loads(showcase.social_links_json or '{}'),
+            'photo_url':f'/students/profile/{student.usn}/photo' if showcase.photo_bytes else None}
 
 
 @router.get('/api/bca/directory')
@@ -310,7 +403,8 @@ def public_directory(q:str='',limit:int=30,db:DbSession=Depends(get_db)):
                                 User.display_name.ilike(term,escape='\\')))
     rows=query.order_by(BCAStudent.usn).limit(limit).all()
     return {'items':[{'name':u.display_name,'usn':p.usn,'department':'Bachelor of Computer Applications',
-                       'skills':json.loads(s.skills_json)} for u,p,s in rows]}
+                       'skills':json.loads(s.skills_json),
+                       'photo_url':f'/students/profile/{p.usn}/photo' if s.photo_bytes else None} for u,p,s in rows]}
 
 
 @router.get('/api/bca/directory/{usn}')
