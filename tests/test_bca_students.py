@@ -16,7 +16,7 @@ def import_one(client,login):
     prepare_bca()
     token=login(client,'hod')
     r=client.post('/api/bca/students/import',headers={'X-CSRF-Token':token},files={
-        'file':('students.csv',b'usn,full_name,semester\n1NC24BCA001,Student One,3\n','text/csv')})
+        'file':('students.csv',b'usn,full_name,branch,semester\n1NC24BCA001,Student One,Computer Applications,3\n','text/csv')})
     assert r.status_code==200,r.text
     assert r.json()['created']==1
     return token,r.json()['credentials'][0]['temporary_password']
@@ -31,9 +31,9 @@ def login_student(client,pwd):
 def test_csv_enrollment_role_scope_validation_and_no_overwrite(client,login):
     prepare_bca()
     token=login(client,'staff')
-    csv=b'usn,full_name,semester\n1NC24BCA001,Student One,3\n1NC24BCA002,Student Two,4\n'
+    csv=b'usn,full_name,branch,semester\n1NC24BCA001,Student One,Computer Applications,3\n1NC24BCA002,Student Two,Computer Applications,4\n'
     assert client.post('/api/bca/students/import',files={'file':('x.csv',csv,'text/csv')}).status_code==403
-    invalid=client.post('/api/bca/students/import',headers={'X-CSRF-Token':token},files={'file':('x.csv',b'usn,full_name,semester\nBADA,Student One,3\n','text/csv')})
+    invalid=client.post('/api/bca/students/import',headers={'X-CSRF-Token':token},files={'file':('x.csv',b'usn,full_name,branch,semester\nBADA,Student One,Computer Applications,3\n','text/csv')})
     assert invalid.status_code==422
     r=client.post('/api/bca/students/import',headers={'X-CSRF-Token':token},files={'file':('x.csv',csv,'text/csv')})
     assert r.status_code==200,r.text
@@ -109,7 +109,7 @@ def test_no_public_student_directory_and_hod_department_scope(client,login):
         csrf=login(outsider,'principal')
         assert outsider.get('/api/bca/students').status_code==403
         assert outsider.get('/api/bca/cases').status_code==403
-        assert outsider.post('/api/bca/students/import',headers={'X-CSRF-Token':csrf},files={'file':('x.csv',b'usn,full_name,semester\n1NC24BCA111,Someone Else,2','text/csv')}).status_code==403
+        assert outsider.post('/api/bca/students/import',headers={'X-CSRF-Token':csrf},files={'file':('x.csv',b'usn,full_name,branch,semester\n1NC24BCA111,Someone Else,Computer Applications,2','text/csv')}).status_code==403
 
 
 def test_admin_cannot_create_incomplete_student(client,login):
@@ -140,7 +140,7 @@ def test_admin_password_reset_requires_student_password_change(client,login):
 def test_csv_import_rejects_spreadsheet_formulas(client,login):
     prepare_bca()
     token=login(client,'staff')
-    malicious=bytes([10]).join([b'usn,full_name,semester',b'1NC24BCA555,=Dangerous Formula,3',b''])
+    malicious=bytes([10]).join([b'usn,full_name,branch,semester',b'1NC24BCA555,=Dangerous Formula,Computer Applications,3',b''])
     response=client.post('/api/bca/students/import',headers={'X-CSRF-Token':token},
         files={'file':('roster.csv',malicious,'text/csv')})
     assert response.status_code==422,response.text

@@ -85,7 +85,7 @@ def test_public_discussion_no_dm_csrf_rate_limits_and_moderation(client,login):
 def test_import_rejects_duplicate_usn_and_all_discussion_needs_login(client,login):
     token,pwd=import_one(client,login)
     assert client.post('/api/bca/students/import',headers={'X-CSRF-Token':token},files={
-        'file':('roster.csv',b'usn,full_name,semester\n1NC24BCA001,Other Name,4\n','text/csv')}).status_code==409
+        'file':('roster.csv',b'usn,full_name,branch,semester\n1NC24BCA001,Other Name,Computer Applications,4\n','text/csv')}).status_code==409
     with TestClient(app) as anon:
         for u in ('/api/community/me','/api/community/profiles','/api/community/posts'):
             assert anon.get(u).status_code==401

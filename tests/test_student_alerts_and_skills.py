@@ -13,7 +13,7 @@ def create_student(client,login,suffix='701'):
     make_bca_hod()
     csrf=login(client,'hod')
     resp=client.post('/api/bca/students/enroll',headers={'X-CSRF-Token':csrf},
-        json={'students':[{'usn':'1NC24BCA'+suffix,'full_name':'Student Example','semester':3}]})
+        json={'students':[{'usn':'1NC24BCA'+suffix,'full_name':'Student Example','branch':'Computer Applications','semester':3}]})
     assert resp.status_code==200,resp.text
     return resp.json()['credentials'][0]['temporary_password']
 
