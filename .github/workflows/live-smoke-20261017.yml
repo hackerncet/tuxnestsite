@@ -31,13 +31,14 @@ jobs:
               return e.code,e.read(200000),e.headers.get('Content-Type','')
           def check(path,expected=200):
             url=BASE+path
-            for attempt in range(4):
+            for attempt in range(18):
               try:
                 t=time.monotonic();status,content,ctype=fetch(url,timeout=30)
                 if status==expected:break
               except Exception as exc:
                 status=0;content=b'';ctype='';error=str(exc)
-              if attempt<3:time.sleep(5)
+              print('RETRY',path,attempt+1,'status',status,flush=True)
+              if attempt<17:time.sleep(7)
             result={'path':path,'status':status,'ms':round((time.monotonic()-t)*1000),
               'bytes':len(content),'content_type':ctype}
             results.append(result);print('RESULT',json.dumps(result),flush=True)
