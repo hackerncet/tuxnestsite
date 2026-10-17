@@ -199,7 +199,7 @@ def create_case(body:NewCase,user:User=Depends(as_role_mutation('student')),db:D
     from .notifications import emit, hod_recipients
     db.add(case);db.add(AuditLog(actor_id=user.id,event='bca.case_submitted',detail=case.reference))
     recipients=hod_recipients(db)
-    emit(db,recipients,'New BCA student request awaiting review.','/bca/complaints','complaints')
+    emit(db,recipients,'New BCA student request awaiting review.','/complaints','complaints')
     if not recipients:
         admins=[u.id for u in db.query(User.id).filter(User.active.is_(True),User.role=='admin').all()]
         emit(db,admins,'A BCA student request needs an authorized Computer Applications HOD. Assign a BCA HOD in User Management.','/app','setup')
@@ -220,7 +220,7 @@ def send_message(reference:str,body:CaseReply,user:User=Depends(csrf_required),d
     from .notifications import emit, hod_recipients
     db.add(StudentCaseMessage(case_id=case.id,actor_id=user.id,body=message))
     if user.role=='student':
-        emit(db,hod_recipients(db),'A student replied to a BCA request.','/bca/complaints','complaints')
+        emit(db,hod_recipients(db),'A student replied to a BCA request.','/complaints','complaints')
     else:
         emit(db,[case.student_id],'The BCA HOD replied to your request.','/students/portal','complaints')
     case.updated_at=utcnow()
