@@ -96,8 +96,9 @@ def test_browser():
         assert page.locator('.dash-history').is_visible()
         assert 'NCET hod' in page.locator('.dash-history').inner_text()
         page.locator('#dash-search').fill('not-found-file')
-        assert 'No matching tasks' in page.locator('#dash-tasks').inner_text()
+        page.get_by_text('No matching tasks').wait_for()
         page.locator('#dash-search').fill('Academic_Audit')
+        page.locator('.dashboard-task').first.wait_for()
         assert page.locator('.dashboard-task').count()==1
         # Responsive HOD dashboard checks: metric grid, charts and task drilldown.
         for width in (320,390,768,1024,1366):
