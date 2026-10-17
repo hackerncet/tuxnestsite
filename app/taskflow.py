@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import json
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Literal
 
@@ -101,6 +101,31 @@ class AssignBody(BaseModel):
     deadline:datetime|None=None
 
 
+class DeadlineUpdate(BaseModel):
+    # Explicit offset required so deadline is consistent on mobile and desktop.
+    deadline:datetime|None
+
+
+def future_deadline(value:datetime|None)->datetime|None:
+    if value is None:
+        return None
+    if value.tzinfo is None or value.utcoffset() is None:
+        raise HTTPException(422,'Include a timezone offset for the deadline.')
+    deadline=value.astimezone(timezone.utc)
+    now=utcnow()
+    if deadline<=now:
+        raise HTTPException(422,'Deadline must be in the future.')
+    if deadline>now+timedelta(days=730):
+        raise HTTPException(422,'Deadline must be within the next two years.')
+    return deadline
+
+
+def deadline_iso(value:datetime|None)->str|None:
+    # SQLite may return naive timestamps despite timezone=True.
+    if value is None:return None
+    return value.replace(tzinfo=value.tzinfo or timezone.utc).astimezone(timezone.utc).isoformat()
+
+
 class DecisionBody(BaseModel):
     decision:Literal['approved','needs_correction']
     note:str=Field(min_length=10,max_length=1400)
@@ -113,7 +138,9 @@ def task_json(t, db):
             'notes':t.notes,'rules':json.loads(t.rules_json),'score':t.score,
             'report':json.loads(t.report_json or '{}'),
             'decisions':[{'decision':a.decision,'note':a.note,'at':a.created_at.isoformat()} for a in db.query(TaskDecision).filter(TaskDecision.task_id==t.id).order_by(TaskDecision.id).limit(50).all()],
-            'deadline':t.deadline.isoformat() if t.deadline else None,
+            'deadline':deadline_iso(t.deadline),
+            'overdue':bool(t.deadline and t.state not in ('approved','unassigned') and
+                           t.deadline.replace(tzinfo=t.deadline.tzinfo or timezone.utc)<utcnow()),
             'updated_at':t.updated_at.isoformat()}
 
 
@@ -209,8 +236,7 @@ def assign(body:AssignBody,user:User=Depends(csrf_required),db:DbSession=Depends
         if not rules:raise HTTPException(422,'Review or supply at least one validation rule.')
         if any(r.type not in ALLOWED_TYPES for r in rules):raise HTTPException(422,'Unsupported validation type.')
         if len({r.id for r in rules})!=len(rules):raise HTTPException(422,'Rule identifiers must be unique.')
-    if body.deadline and body.deadline.replace(tzinfo=body.deadline.tzinfo or utcnow().tzinfo)<utcnow():
-        raise HTTPException(422,'Deadline must be in the future.')
+    deadline=future_deadline(body.deadline)
     items=db.query(TaskItem).filter(TaskItem.id.in_(body.task_ids),TaskItem.department==user.department).with_for_update().all()
     if len(items)!=len(body.task_ids):raise HTTPException(404,'One or more tasks are unavailable.')
     if any(t.state!='unassigned' for t in items):raise HTTPException(409,'Only unassigned tasks may be allocated.')
@@ -230,12 +256,36 @@ def assign(body:AssignBody,user:User=Depends(csrf_required),db:DbSession=Depends
     for task in items:
         task_rules=selected_rules[task.id] if body.use_generated_rules else rules
         task.assigned_to=staff.id;task.assigned_by=user.id;task.notes=body.notes.strip()
-        task.rules_json=json.dumps([r.model_dump() for r in task_rules]);task.deadline=body.deadline
+        task.rules_json=json.dumps([r.model_dump() for r in task_rules]);task.deadline=deadline
         task.state='assigned';task.updated_at=utcnow()
-        notify(db,staff.id,f'New task: {task.filename}',task.id)
-    task_audit(db,user,'task.assigned',f'{len(items)} to {staff.id}')
+        notify(db,staff.id,f'New task: {task.filename}'+
+               (f' · due {deadline.strftime("%d %b %Y, %H:%M UTC")}' if deadline else ''),task.id)
+    task_audit(db,user,'task.assigned',f'{len(items)} to {staff.id}; due={deadline_iso(deadline)}')
     db.commit()
     return {'assigned':len(items)}
+
+
+@router.patch('/{task_id}/deadline')
+def change_deadline(task_id:int,body:DeadlineUpdate,
+                    user:User=Depends(csrf_required),db:DbSession=Depends(get_db)):
+    if user.role!='hod':
+        raise HTTPException(403,'Department HOD required to change task deadlines.')
+    new_deadline=future_deadline(body.deadline)
+    task=_get(db,user,task_id,lock=True)
+    if task.assigned_to is None or task.state in ('unassigned','approved'):
+        raise HTTPException(409,'Only active assigned tasks can have their deadline changed.')
+    old=deadline_iso(task.deadline)
+    if old==deadline_iso(new_deadline):
+        return {'deadline':old,'changed':False}
+    task.deadline=new_deadline
+    task.updated_at=utcnow()
+    notice=(f'Updated deadline for {task.filename}: '
+            + (new_deadline.strftime('%d %b %Y, %H:%M UTC') if new_deadline else 'No deadline'))
+    notify(db,task.assigned_to,notice,task.id)
+    task_audit(db,user,'task.deadline_updated',
+               f'{task.id}: {old} -> {deadline_iso(new_deadline)}')
+    db.commit()
+    return {'deadline':deadline_iso(new_deadline),'changed':True}
 
 
 @router.post('/{task_id}/hold')
