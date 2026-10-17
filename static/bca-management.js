@@ -43,7 +43,7 @@ $('quick-enroll').addEventListener('submit',async e=>{
   if(parts.length!==2&&parts.length!==3)return notify('Each line should contain USN, optional name, optional semester.',true);
   records.push({usn:parts[0],full_name:parts[1]||'',semester:Number(parts[2]||1)});
  }
- const button=e.target.querySelector('button[type=submit]');button.disabled=true;
+ const button=e.target.querySelector('button[type=submit]');button.disabled=true;button.setAttribute('aria-busy','true');
  try{
   const result=await api('/api/bca/students/enroll',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({students:records})});
   downloadCredentials(result);notify(result.created+' USNs registered. Share credentials privately; students must change their passwords.');
