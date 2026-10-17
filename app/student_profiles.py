@@ -41,6 +41,8 @@ class StudentShowcase(Base):
     skills_json: Mapped[str] = mapped_column(Text,default='[]')
     certificates_json: Mapped[str] = mapped_column(Text,default='[]')
     social_links_json: Mapped[str] = mapped_column(Text,default='{}')
+    projects_json: Mapped[str] = mapped_column(Text,default='[]')
+    interests_json: Mapped[str] = mapped_column(Text,default='[]')
     published: Mapped[bool] = mapped_column(Boolean,default=False,index=True)
     photo_bytes: Mapped[bytes | None] = mapped_column(LargeBinary,nullable=True)
     photo_mime: Mapped[str | None] = mapped_column(String(32),nullable=True)
@@ -65,6 +67,13 @@ class Certificate(BaseModel):
     issuer: str = Field(min_length=2,max_length=120)
     proof_url: str = Field(min_length=12,max_length=650)
 
+class StudentProject(BaseModel):
+    title: str = Field(min_length=3,max_length=105)
+    description: str = Field(default='',max_length=550)
+    technologies: list[str] = Field(default_factory=list,max_length=12)
+    github_url: str = Field(default='',max_length=400)
+    live_url: str = Field(default='',max_length=400)
+
 class ShowcaseEdit(BaseModel):
     full_name: str = Field(min_length=3,max_length=130)
     mobile: str = Field(default='',max_length=20)
@@ -72,6 +81,8 @@ class ShowcaseEdit(BaseModel):
     about: str = Field(default='',max_length=900)
     skills: list[str] = Field(default_factory=list,max_length=100)
     certificates: list[Certificate] = Field(default_factory=list,max_length=8)
+    interests: list[str] = Field(default_factory=list,max_length=20)
+    projects: list[StudentProject] = Field(default_factory=list,max_length=8)
     social_links: dict[str,str] = Field(default_factory=dict,max_length=12)
     publish: bool = False
 
@@ -234,6 +245,21 @@ def validate_proof(url:str)->str:
     return url
 
 
+def validate_public_link(raw:str,*,github_only:bool=False)->str:
+    url=raw.strip()
+    parsed=urlsplit(url)
+    host=(parsed.hostname or '').lower()
+    if (parsed.scheme!='https' or not host or parsed.username or parsed.password or
+        host in ('localhost','127.0.0.1','0.0.0.0','::1') or
+        host.endswith(('.local','.internal','.localhost')) or
+        any(ord(c)<32 for c in url)):
+        raise HTTPException(422,'Project links must be valid public HTTPS URLs.')
+    if github_only and host not in ('github.com','www.github.com'):
+        raise HTTPException(422,'Project GitHub URL must point to github.com.')
+    check_public_text(parsed.path)
+    return url
+
+
 def _showcase(db,user):
     return db.query(StudentShowcase).filter(StudentShowcase.student_id==user.id).first()
 
@@ -248,6 +274,8 @@ def my_showcase(user:User=Depends(current),db:DbSession=Depends(get_db)):
             'mobile':s.mobile_private if s else '', 'email':s.email_private if s else '',
             'about':s.about if s else '', 'skills':json.loads(s.skills_json) if s else [],
             'certificates':json.loads(s.certificates_json) if s else [],
+            'projects':json.loads(s.projects_json or '[]') if s else [],
+            'interests':json.loads(s.interests_json or '[]') if s else [],
             'social_links':json.loads(s.social_links_json or '{}') if s else {},
             'published':s.published if s else False,
             'photo_available':bool(s.photo_bytes) if s else False}
@@ -273,6 +301,28 @@ def edit_showcase(body:ShowcaseEdit,user:User=Depends(csrf_required),db:DbSessio
         if value.casefold() not in [x.casefold() for x in skills]:skills.append(value)
     if sum(len(v) for v in skills)>5000:raise HTTPException(422,'All skills combined must be under 5,000 characters.')
     social_links=validate_social_links(body.social_links)
+    interests=[]
+    for item in body.interests:
+        interest=item.strip()
+        if not 2<=len(interest)<=75 or any(ord(c)<32 for c in interest):
+            raise HTTPException(422,'Each interest must have 2–75 printable characters.')
+        check_public_text(interest)
+        if interest.casefold() not in [v.casefold() for v in interests]:interests.append(interest)
+    projects=[]
+    for item in body.projects:
+        title=item.title.strip();description=item.description.strip()
+        if not 3<=len(title)<=105:raise HTTPException(422,'Project titles must contain 3–105 characters.')
+        check_public_text(title);check_public_text(description)
+        tech=[]
+        for value in item.technologies:
+            entry=value.strip()
+            if not 1<=len(entry)<=50:raise HTTPException(422,'Project technologies must be 1–50 characters.')
+            check_public_text(entry)
+            if entry.casefold() not in [v.casefold() for v in tech]:tech.append(entry)
+        github=validate_public_link(item.github_url,github_only=True) if item.github_url else ''
+        live=validate_public_link(item.live_url) if item.live_url else ''
+        projects.append({'title':title,'description':description,'technologies':tech,
+                         'github_url':github,'live_url':live})
     check_public_text(name)
     check_public_text(body.about)
     for value in skills:check_public_text(value)
@@ -293,6 +343,8 @@ def edit_showcase(body:ShowcaseEdit,user:User=Depends(csrf_required),db:DbSessio
     profile.skills_json=json.dumps(skills)
     profile.certificates_json=json.dumps(certificates)
     profile.social_links_json=json.dumps(social_links)
+    profile.projects_json=json.dumps(projects)
+    profile.interests_json=json.dumps(interests)
     profile.published=bool(body.publish)
     profile.updated_at=utcnow()
     db.add(AuditLog(actor_id=user.id,event='bca.showcase_updated',
@@ -403,6 +455,8 @@ def public_record(user,student,showcase):
             'department':user.department,'semester':student.semester,
             'about':showcase.about,'skills':json.loads(showcase.skills_json),
             'certificates':json.loads(showcase.certificates_json),
+            'projects':json.loads(showcase.projects_json or '[]'),
+            'interests':json.loads(showcase.interests_json or '[]'),
             'social_links':json.loads(showcase.social_links_json or '{}'),
             'photo_url':f'/students/profile/{student.usn}/photo' if showcase.photo_bytes else None,
             'updated_at':showcase.updated_at.isoformat() if showcase.updated_at else None}
