@@ -25,8 +25,8 @@ async function loadDirectory(q='',pageOffset=0){
     '<p>'+ (p.skills?.length?'Skills: '+p.skills.slice(0,4).map(escapeHtml).join(', '):'Explore this student portfolio')+'</p>'+
     '<a class="btn" href="/students/profile/'+encodeURIComponent(p.usn)+'">View profile →</a></article>';
   }).join('');
-  const total=Number(data.total)||0;
-  const displayed=items.length ? 'Showing '+(offset+1)+'–'+(offset+items.length)+' of '+total : 'No published profiles match your search.';
+  const total=Number(data.total??items.length)||0;
+  const displayed=items.length ? (offset===0&&items.length===total ? 'Showing '+total+' published profiles' : 'Showing '+(offset+1)+'–'+(offset+items.length)+' of '+total+' published profiles') : 'No published profiles match your search.';
   $('directory-status').textContent=displayed;
   const pager=$('directory-pagination');
   if(pager){
