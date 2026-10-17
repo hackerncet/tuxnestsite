@@ -96,7 +96,7 @@ def test_browser():
         assert page.locator('.dash-history').is_visible()
         assert 'NCET hod' in page.locator('.dash-history').inner_text()
         page.locator('#dash-search').fill('not-found-file')
-        page.get_by_text('No matching tasks').wait_for()
+        page.locator('#dash-tasks .dashboard-empty').wait_for()
         page.locator('#dash-search').fill('Academic_Audit')
         page.locator('.dashboard-task').first.wait_for()
         assert page.locator('.dashboard-task').count()==1
