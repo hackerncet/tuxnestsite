@@ -169,7 +169,12 @@ def send_message(reference:str,body:CaseReply,user:User=Depends(csrf_required),d
     if case.status=='closed':raise HTTPException(409,'Closed requests cannot receive messages.')
     message=body.message.strip()
     if len(message)<2:raise HTTPException(422,'Message must not be empty.')
+    from .notifications import emit, hod_recipients
     db.add(StudentCaseMessage(case_id=case.id,actor_id=user.id,body=message))
+    if user.role=='student':
+        emit(db,hod_recipients(db),'A student replied to a BCA request.','/bca/manage','complaints')
+    else:
+        emit(db,[case.student_id],'The BCA HOD replied to your request.','/students/portal','complaints')
     case.updated_at=utcnow()
     db.add(AuditLog(actor_id=user.id,event='bca.case_replied',detail=case.reference))
     db.commit();return {'ok':True}
