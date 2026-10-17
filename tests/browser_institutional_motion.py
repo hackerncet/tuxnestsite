@@ -47,10 +47,20 @@ with sync_playwright() as p:
     page.wait_for_timeout(1100)
     assert [v.inner_text() for v in page.locator('[data-ncet-count]').all()]==['25+','6','3','4']
     # No artificial spinner: mark appears only while the slow API call is pending.
-    def slow_response(route):
-        time.sleep(.9)
-        route.fulfill(status=200,body='{}',headers={'Content-Type':'application/json'})
-    page.route('**/api/ui-motion-slow',slow_response)
+    # Stub the native fetch BEFORE application scripts wrap it. A synchronous
+    # Playwright route.sleep would block the test controller past the shimmer.
+    page.add_init_script("""() => {
+      const nativeFetch=window.fetch.bind(window);
+      window.fetch=(url,opts)=>{
+        if(String(url).includes('/api/ui-motion-slow')){
+          return new Promise(resolve=>setTimeout(()=>resolve(new Response('{}',{
+            status:200,headers:{'content-type':'application/json'}
+          })),1450));
+        }
+        return nativeFetch(url,opts);
+      };
+    }""")
+    page.reload(wait_until='domcontentloaded')
     page.evaluate("() => { window.__slowOperation=fetch('/api/ui-motion-slow',{method:'POST'}); }")
     page.locator('.ncet-network-loader:not([hidden])').wait_for(state='visible',timeout=1500)
     assert page.locator('.ncet-network-loader img').get_attribute('src')=='/static/ncet-brand.svg'
