@@ -19,7 +19,8 @@ def test_homepage_branding_terminology_and_footer_order(client):
     assert "Student services" not in html
     assert "student services" not in html
     assert "Student Portal" in html
-    assert "home-revamp.css?v=20261017d" in html\n    assert "homepage-polish.css" not in html
+    assert "home-revamp.css?v=20261017d" in html
+    assert "homepage-polish.css" not in html
     assert "/static/ncet-brand.svg?v=20261017c" in html
     assert 'width="455" height="225"' in html
     assert "NCET Student Portal</p>" in html
