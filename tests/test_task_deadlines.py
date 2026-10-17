@@ -90,7 +90,7 @@ def test_deadline_access_scope_and_finished_task_integrity(client,login):
     # An unassigned task cannot be given a deadline via the edit API.
     assert update(client,csrf,task,valid).status_code==409
     assert assign(client,csrf,task,staff_id).status_code==200
-    assert client.patch(f'/api/tasks/{task}/deadline',json={'deadline':valid}).status_code==401
+    assert client.patch(f'/api/tasks/{task}/deadline',json={'deadline':valid}).status_code==403
     with TestClient(app) as staff:
         st=login(staff,'staff')
         assert update(staff,st,task,valid).status_code==403
