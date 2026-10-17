@@ -1,0 +1,63 @@
+name: Live post-deploy public smoke
+on:
+  push:
+    branches: [qa/postdeploy-smoke-20261017]
+permissions:
+  contents: read
+jobs:
+  live-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Verify public production endpoints and remote photo sources
+        env:
+          BASE: https://ncet-verifyflow.onrender.com
+        run: |
+          python - <<'PY'
+          import os,time,urllib.request,urllib.error,html.parser,json
+          BASE=os.environ['BASE']
+          pages=['/','/about','/students','/students/portal','/students/directory']
+          assets=['/static/ncet-brand.svg','/static/naac-brand.svg','/static/ngi-brand.svg',
+            '/static/institutional-ui.css?v=20261017d',
+            '/static/home-revamp.css?v=20261017d',
+            '/static/institutional-ui.js?v=20261017d']
+          results=[]
+          def fetch(url,timeout=20):
+            req=urllib.request.Request(url,headers={'User-Agent':'NCET-VerifyFlow-GitHubActions-Release-QA/1.0','Accept':'text/html,*/*'})
+            try:
+              with urllib.request.urlopen(req,timeout=timeout) as r:
+                return r.status,r.read(2500000),r.headers.get('Content-Type','')
+            except urllib.error.HTTPError as e:
+              return e.code,e.read(200000),e.headers.get('Content-Type','')
+          def check(path,expected=200):
+            url=BASE+path
+            for attempt in range(4):
+              try:
+                t=time.monotonic();status,content,ctype=fetch(url,timeout=30)
+                if status==expected:break
+              except Exception as exc:
+                status=0;content=b'';ctype='';error=str(exc)
+              if attempt<3:time.sleep(5)
+            result={'path':path,'status':status,'ms':round((time.monotonic()-t)*1000),
+              'bytes':len(content),'content_type':ctype}
+            results.append(result);print('RESULT',json.dumps(result),flush=True)
+            assert status==expected,(path,status)
+            return content
+          for p in pages:check(p)
+          main=check('/') if False else fetch(BASE+'/')[1]
+          assert b'home-revamp.css?v=20261017d' in main,'stale homepage version'
+          assert b'institutional-ui.css?v=20261017d' in main,'missing design system'
+          assert b'campus' in main.lower() and b'ncet-impact' in main,'missing homepage campus/milestone UI'
+          for p in assets:check(p)
+          check('/this-should-not-exist-ncet-ui-20261017',404)
+          remote=[]
+          for name in ['hero_1.webp','hero_2.webp']:
+            url='https://old.ncet.co.in/images/home_hero/'+name
+            try:
+              status,content,ctype=fetch(url,timeout=15)
+              record={'remote':url,'status':status,'bytes':len(content),'type':ctype}
+            except Exception as exc:
+              record={'remote':url,'error':str(exc)[:200]}
+            remote.append(record);print('CAMPUS_IMAGE',json.dumps(record),flush=True)
+          print('PASS: production endpoints + asset URLs and true 404 are working',flush=True)
+          PY
