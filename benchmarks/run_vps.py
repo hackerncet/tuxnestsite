@@ -27,8 +27,9 @@ def docker_stats():
                          capture_output=True,text=True,timeout=8,check=True)
         for line in c.stdout.splitlines():
             row=json.loads(line)
-            try:mem=float(row.get('MemUsage','0').split('/')[0].strip().split()[0])
-            except ValueError:mem=0
+            raw_mem=row.get('MemUsage','0').split('/')[0].strip()
+            numbers=''.join(ch if ch.isdigit() or ch=='.' else ' ' for ch in raw_mem).split()
+            mem=float(numbers[0]) if numbers else 0
             unit=row.get('MemUsage','').split('/')[0].lower()
             if 'gib' in unit:mem*=1024
             if 'kib' in unit:mem/=1024
