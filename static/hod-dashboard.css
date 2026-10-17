@@ -114,3 +114,11 @@
 @media(max-width:410px){.stage-visual{flex-direction:column}.stage-legend{width:100%}
  .dashboard-metrics button strong{font-size:31px}}
 @media(prefers-reduced-motion:reduce){.dashboard-metrics button,.load-bar span{transition:none!important}}
+
+.dashboard-pagination{margin-top:16px;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 1px;border-top:1px solid #E1E7EF;color:#526781;font-size:12px}
+.dashboard-page-actions{display:flex;gap:9px}.dashboard-page-actions .btn{min-width:86px}
+.track-time-grid small{display:block;color:#697B90;margin-top:5px;font-size:11px}
+.track-time-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media(max-width:950px){.track-time-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:660px){.dashboard-pagination{align-items:stretch;flex-direction:column}.dashboard-page-actions .btn{flex:1}}
+@media(max-width:480px){.track-time-grid{grid-template-columns:1fr}}

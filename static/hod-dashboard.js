@@ -14,7 +14,8 @@
    submitted:'Staff submission received',on_hold:'On hold',resumed:'Work resumed',
    approved:'Approved by HOD',correction_requested:'Corrections requested',
    deadline_changed:'Deadline changed',verification_finished:'Verification completed'};
- let data=null,request=null,filter='all',lastExpanded=new Set();
+ let data=null,request=null,queued=false,filter='all',page=0,lastExpanded=new Set(),searchTimer=null;
+ const pageSize=50;
  const dateTime=value=>{
    if(!value)return 'Not yet recorded';
    const d=new Date(value);
@@ -112,17 +113,17 @@
      ${e.detail?'<p>'+escape(e.detail)+'</p>':''}</div></li>`).join('')}</ol>`;
  }
  function tasksView(){
-   const search=$('#dash-search').value.trim().toLocaleLowerCase();
-   const staff=$('#dash-staff-filter').value;
    const container=$('#dash-tasks');
    lastExpanded=new Set([...container.querySelectorAll('details[open]')].map(node=>node.dataset.taskId));
-   const shown=(data.tasks||[]).filter(t=>category(t,filter) &&
-     (staff==='all'||String(t.staff_id)===staff) &&
-     (!search||String(t.file+' '+(t.staff||'')).toLocaleLowerCase().includes(search)));
-   $('#dash-list-count').textContent=shown.length+' matching tasks';
+   const shown=data.tasks||[],offset=Number(data.task_list_offset||0);
+   const total=Number(data.task_list_total??shown.length);
+   $('#dash-list-count').textContent=total+' matching tasks';
+   $('#dash-page-label').textContent=total?(offset+1)+'–'+(offset+shown.length)+' of '+total+' tasks':'No matching tasks';
+   $('#dash-prev').disabled=offset===0;
+   $('#dash-next').disabled=offset+shown.length>=total;
    $('#dash-truncation').hidden=!data.task_list_truncated;
    if(!shown.length){container.innerHTML='<p class="dashboard-empty">No matching tasks yet. Choose another filter or assign a task to get started.</p>';return}
-   container.innerHTML=shown.slice(0,100).map(t=>`
+   container.innerHTML=shown.map(t=>`
      <details class="dashboard-task" data-task-id="${t.id}" ${lastExpanded.has(String(t.id))?'open':''}>
        <summary>
          <span class="track-file"><strong>${escape(t.file)}</strong><small>${escape(t.staff||'Not assigned')}</small></span>
@@ -131,15 +132,13 @@
          <span class="track-details-label">View history <span aria-hidden="true">⌄</span></span>
        </summary>
        <div class="track-expanded">
-         <div class="track-time-grid"><p>Submitted by staff<strong>${escape(dateTime(t.submitted_at))}</strong></p>
-           <p>Approved by HOD<strong>${escape(dateTime(t.approved_at))}</strong></p>
+         <div class="track-time-grid"><p>Assigned to staff<strong>${escape(dateTime((t.history||[]).find(e=>e.event==='assigned')?.at))}</strong></p>
+           <p>Submitted by staff<strong>${escape(dateTime(t.submitted_at))}</strong></p>
+           <p>Approved by HOD<strong>${escape(dateTime(t.approved_at))}</strong><small>${escape((t.history||[]).find(e=>e.event==='approved')?.actor||'')}</small></p>
            <p>Last updated<strong>${escape(dateTime(t.updated_at))}</strong></p></div>
          <h4>Activity timeline</h4>${history(t)}
        </div>
      </details>`).join('');
-   if(shown.length>100){
-     container.insertAdjacentHTML('beforeend','<p class="subtle">Showing 100 matching tasks. Refine your search for more specific results.</p>');
-   }
  }
  function options(){
    const target=$('#dash-staff-filter'),previous=target.value;
@@ -153,32 +152,45 @@
    $('#dash-synced').textContent='Updated '+dateTime(data.as_of);
  }
  async function reload(){
-   if(request)return request;
+   if(request){queued=true;return request}
    request=(async()=>{
      try{
-       const res=await fetch('/api/tasks/dashboard',{credentials:'same-origin',headers:{Accept:'application/json'}});
+       const params=new URLSearchParams({offset:String(page*pageSize),limit:String(pageSize),status:filter});
+       const search=$('#dash-search').value.trim();
+       const staff=$('#dash-staff-filter').value;
+       if(search)params.set('search',search);
+       if(staff!=='all')params.set('staff_id',staff);
+       const res=await fetch('/api/tasks/dashboard?'+params,{credentials:'same-origin',headers:{Accept:'application/json'}});
        if(!res.ok)throw Error('Tracking unavailable ('+res.status+').');
-       data=await res.json();
-       render();
+       data=await res.json();render();
      }catch(error){
        $('#dash-synced').textContent=error.message||'Dashboard temporarily unavailable';
-     }finally{request=null}
+     }finally{
+       request=null;
+       if(queued){queued=false;void reload()}
+     }
    })();
    return request;
  }
  document.addEventListener('click',event=>{
    const card=event.target.closest('[data-dash-status]');
-   if(card && data){filter=card.dataset.dashStatus;render();
+   if(card && data){filter=card.dataset.dashStatus;page=0;void reload();
      $('#dash-task-title').scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'auto':'smooth'});
    }
    const staff=event.target.closest('[data-staff]');
-   if(staff){$('#dash-staff-filter').value=staff.dataset.staff;tasksView();
+   if(staff && data){$('#dash-staff-filter').value=staff.dataset.staff;page=0;void reload();
      $('#dash-task-title').scrollIntoView({block:'start',behavior:'auto'});
    }
  });
  $('#dash-refresh').addEventListener('click',reload);
- $('#dash-filter').addEventListener('change',e=>{filter=e.target.value;if(data){cards();tasksView()}});
- $('#dash-staff-filter').addEventListener('change',()=>{if(data)tasksView()});
- $('#dash-search').addEventListener('input',()=>{if(data)tasksView()});
+ $('#dash-filter').addEventListener('change',e=>{filter=e.target.value;page=0;void reload()});
+ $('#dash-staff-filter').addEventListener('change',()=>{page=0;void reload()});
+ $('#dash-search').addEventListener('input',()=>{
+   page=0;clearTimeout(searchTimer);searchTimer=setTimeout(()=>void reload(),260);
+ });
+ $('#dash-prev').addEventListener('click',()=>{if(page>0){page--;void reload()}});
+ $('#dash-next').addEventListener('click',()=>{
+   if(data && (page+1)*pageSize<Number(data.task_list_total||0)){page++;void reload()}
+ });
  window.addEventListener('ncet-hod-tasks-refreshed',reload);
 })();
