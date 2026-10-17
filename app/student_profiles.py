@@ -38,6 +38,7 @@ class StudentShowcase(Base):
     about: Mapped[str] = mapped_column(Text,default='')
     skills_json: Mapped[str] = mapped_column(Text,default='[]')
     certificates_json: Mapped[str] = mapped_column(Text,default='[]')
+    social_links_json: Mapped[str] = mapped_column(Text,default='{}')
     published: Mapped[bool] = mapped_column(Boolean,default=False,index=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),default=utcnow)
 
@@ -63,10 +64,37 @@ class ShowcaseEdit(BaseModel):
     mobile: str = Field(default='',max_length=20)
     email: str = Field(default='',max_length=180)
     about: str = Field(default='',max_length=900)
-    skills: list[str] = Field(default_factory=list,max_length=15)
+    skills: list[str] = Field(default_factory=list,max_length=100)
     certificates: list[Certificate] = Field(default_factory=list,max_length=8)
+    social_links: dict[str,str] = Field(default_factory=dict,max_length=12)
     publish: bool = False
 
+
+SOCIAL_HOSTS={
+ 'github':'github.com','linkedin':'linkedin.com','leetcode':'leetcode.com',
+ 'codechef':'codechef.com','hackerrank':'hackerrank.com','kaggle':'kaggle.com',
+ 'codeforces':'codeforces.com','stackoverflow':'stackoverflow.com',
+ 'gitlab':'gitlab.com','devto':'dev.to'
+}
+def validate_social_links(links):
+    selected={}
+    for platform,raw in links.items():
+        if platform not in (*SOCIAL_HOSTS,'portfolio'):
+            raise HTTPException(422,'Unsupported coding profile platform.')
+        link=raw.strip()
+        if not link:continue
+        if len(link)>400:raise HTTPException(422,'Profile link is too long.')
+        url=urlsplit(link)
+        host=(url.hostname or '').lower()
+        if url.scheme!='https' or not host or url.username or url.password:
+            raise HTTPException(422,'Profile links must use HTTPS.')
+        if platform!='portfolio' and host not in (SOCIAL_HOSTS[platform],'www.'+SOCIAL_HOSTS[platform]):
+            raise HTTPException(422,'Use the official '+platform+' site for that link.')
+        if platform=='portfolio' and (host in ('localhost','127.0.0.1') or host.endswith(('.local','.internal'))):
+            raise HTTPException(422,'Portfolio must be publicly accessible.')
+        check_public_text(url.path)
+        selected[platform]=link
+    return selected
 
 def valid_name(name:str)->bool:
     return 3<=len(name)<=130 and name[0] not in '=+-@' and not any(ord(c)<32 for c in name)
@@ -203,6 +231,7 @@ def my_showcase(user:User=Depends(current),db:DbSession=Depends(get_db)):
             'mobile':s.mobile_private if s else '', 'email':s.email_private if s else '',
             'about':s.about if s else '', 'skills':json.loads(s.skills_json) if s else [],
             'certificates':json.loads(s.certificates_json) if s else [],
+            'social_links':json.loads(s.social_links_json or '{}') if s else {},
             'published':s.published if s else False}
 
 
@@ -221,9 +250,11 @@ def edit_showcase(body:ShowcaseEdit,user:User=Depends(csrf_required),db:DbSessio
     skills=[]
     for item in body.skills:
         value=item.strip()
-        if not 2<=len(value)<=45 or any(ord(c)<32 for c in value):
-            raise HTTPException(422,'Each skill must contain 2–45 printable characters.')
+        if not 1<=len(value)<=80 or any(ord(c)<32 for c in value):
+            raise HTTPException(422,'Each skill must contain 1–80 printable characters.')
         if value.casefold() not in [x.casefold() for x in skills]:skills.append(value)
+    if sum(len(v) for v in skills)>5000:raise HTTPException(422,'All skills combined must be under 5,000 characters.')
+    social_links=validate_social_links(body.social_links)
     check_public_text(name)
     check_public_text(body.about)
     for value in skills:check_public_text(value)
@@ -243,6 +274,7 @@ def edit_showcase(body:ShowcaseEdit,user:User=Depends(csrf_required),db:DbSessio
     profile.about=body.about.strip()
     profile.skills_json=json.dumps(skills)
     profile.certificates_json=json.dumps(certificates)
+    profile.social_links_json=json.dumps(social_links)
     profile.published=bool(body.publish)
     profile.updated_at=utcnow()
     db.add(AuditLog(actor_id=user.id,event='bca.showcase_updated',
@@ -264,7 +296,8 @@ def public_record(user,student,showcase):
     return {'name':user.display_name,'usn':student.usn,
             'department':'Bachelor of Computer Applications','semester':student.semester,
             'about':showcase.about,'skills':json.loads(showcase.skills_json),
-            'certificates':json.loads(showcase.certificates_json)}
+            'certificates':json.loads(showcase.certificates_json),
+            'social_links':json.loads(showcase.social_links_json or '{}')}
 
 
 @router.get('/api/bca/directory')
@@ -297,6 +330,7 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
     certs=''.join('<li><strong>'+escape(x['title'])+'</strong> · '+escape(x['issuer'])+
                   ' — <a rel="noopener noreferrer nofollow" target="_blank" href="'+escape(x['proof_url'],quote=True)+'">Public proof</a></li>'
                   for x in info['certificates']) or '<li>No certificates listed yet</li>'
+    socials=''.join('<li><a href="'+escape(url,quote=True)+'" rel="noopener noreferrer nofollow" target="_blank">'+escape(site.title())+'</a></li>' for site,url in info['social_links'].items())
     canonical=f'{URL_ROOT}/students/profile/{sid}'
     return HTMLResponse(f'''<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -309,7 +343,7 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
 <main class="shell"><div class="panel"><span class="eyebrow">Student portfolio · voluntary publication</span>
 <h1>{name}</h1><p class="muted">USN: {sid} · Bachelor of Computer Applications · Semester {info['semester']}</p>
 <h2>About</h2><p>{escape(info['about']) or 'The student has not provided a description.'}</p>
-<h2>Skills</h2><ul>{skills}</ul><h2>Certificates & proof</h2><ul>{certs}</ul>
+<h2>Skills</h2><ul>{skills}</ul><h2>Portfolio & coding profiles</h2><ul>{socials or '<li>No links added yet</li>'}</ul><h2>Certificates & proof</h2><ul>{certs}</ul>
 <p class="muted">This profile is published by the student. NCET does not independently endorse linked credentials.</p>
 <a class="btn" href="/students/directory">Back to student directory</a></div></main>
 </body></html>''',headers={'Cache-Control':'public, max-age=120'})
