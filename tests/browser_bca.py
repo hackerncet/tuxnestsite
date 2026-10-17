@@ -15,11 +15,11 @@ STATIC = ROOT / 'static'
 def load_page(page, html_file, script=None, mock_denied=False):
     page.goto('about:blank')  # reset the previous page's global JavaScript scope
     html = (STATIC / html_file).read_text(encoding='utf-8')
-    for asset in ('ncet-brand.png','ngi-brand.png','naac-brand.png',
+    for asset in ('ncet-brand.svg','ngi-brand.svg','naac-brand.svg',
                   'ncet-official.webp','ncms-emblem.webp','ngi-logo.webp'):
         image = STATIC / asset
         if image.is_file():
-            mime = 'image/png' if asset.endswith('.png') else 'image/webp'
+            mime = 'image/svg+xml' if asset.endswith('.svg') else ('image/png' if asset.endswith('.png') else 'image/webp')
             uri = 'data:' + mime + ';base64,' + base64.b64encode(image.read_bytes()).decode()
             html = html.replace('/static/' + asset, uri)
     for css in ('bca.css', 'community.css','experience.css'):
