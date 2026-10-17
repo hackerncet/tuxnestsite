@@ -560,34 +560,32 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
 {og_image}<link rel="canonical" href="{canonical}">
 <link rel="icon" href="/static/ncet-brand.svg">
 <script type="application/ld+json">{json_ld}</script>
-<link rel="stylesheet" href="/static/bca.css">
-<link rel="stylesheet" href="/static/experience.css">
-<link rel="stylesheet" href="/static/responsive-upgrade.css?v=20261017">
-<link rel="stylesheet" href="/static/ncet-brand-system.css?v=20261017">
-<link rel="stylesheet" href="/static/resume-profile.css?v=20261017">
-<script src="/static/ncet-loading.js?v=20261017" defer></script>
+<link rel="preload" as="image" href="/static/ncet-brand.svg" fetchpriority="high">
+<link rel="stylesheet" href="/static/resume-profile.css?v=20261017-2">
+<script src="/static/student-profile-tabs.js?v=20261017" defer></script>
 </head><body class="ncet-profile-page">
 <a class="skip-link" href="#student-resume">Skip to portfolio</a>
 <header class="resume-site-header">
 <div class="resume-site-inner">
 <a class="resume-college" href="/students" aria-label="NCET Student Services">
-<img src="/static/ncet-brand.svg" alt="Nagarjuna College of Engineering and Technology" width="178" height="88">
+<img src="/static/ncet-brand.svg" alt="Nagarjuna College of Engineering and Technology" width="178" height="88" fetchpriority="high" decoding="async">
 <span>Student portfolios<small>Official NCET student services</small></span></a>
 <nav aria-label="Profile navigation"><a href="/students/directory">Student directory</a><a href="/students">Student services</a></nav>
-<img class="resume-group-logo" src="/static/ngi-brand.svg" alt="Nagarjuna Group of Institutions" width="78" height="70">
+<img class="resume-group-logo" src="/static/ngi-brand.svg" alt="Nagarjuna Group of Institutions" width="78" height="70" decoding="async">
 </div></header>
 <main id="student-resume" class="resume-container">
 <div class="resume-paper">
 <div class="resume-accreditation"><span>NCET · STUDENT PORTFOLIO</span>
-<img src="/static/naac-brand.svg" alt="Institutional accreditation: NAAC A+" width="61" height="61"></div>
+<img src="/static/naac-brand.svg" alt="Institutional accreditation: NAAC A+" width="61" height="61" decoding="async"></div>
 <div class="resume-heading">{avatar}<div class="resume-heading-copy">
 <p class="resume-overline">Student profile · Voluntarily published</p>
 <h1>{name}</h1><p class="resume-subtitle">{branch} <span aria-hidden="true">·</span> Semester {info['semester']}</p>
 <p class="resume-usn"><strong>USN</strong> {sid}</p></div></div>
 <nav class="resume-anchors" aria-label="Portfolio sections">
-<a href="#about">About</a><a href="#skills">Skills</a><a href="#projects">Projects</a>
-<a href="#certifications">Certifications</a><a href="#interests">Interests</a><a href="#links">Links</a>
+<a href="#about" id="profile-tab-about">About</a><a href="#skills" id="profile-tab-skills">Skills</a><a href="#projects" id="profile-tab-projects">Projects</a>
+<a href="#certifications" id="profile-tab-certifications">Certifications</a><a href="#interests" id="profile-tab-interests">Interests</a><a href="#links" id="profile-tab-links">Links</a>
 </nav>
+<div class="resume-tab-stage" id="resume-tab-stage" aria-live="off">
 <section id="about" class="resume-section"><h2>About</h2>
 <p class="resume-about">{escape(info['about']) or 'This student has not yet added a summary.'}</p></section>
 <section id="skills" class="resume-section"><h2>Technical skills</h2>{skill_section}</section>
@@ -595,11 +593,12 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
 <section id="certifications" class="resume-section"><h2>Certifications</h2>{cert_html}</section>
 <section id="interests" class="resume-section"><h2>Areas of interest</h2>{interests}</section>
 <section id="links" class="resume-section"><h2>GitHub, live work & professional links</h2>{social_html}</section>
+</div>
 <div class="resume-disclaimer"><p>Published by the student. NCET has not independently verified personal projects, skills or linked credentials.</p>
 <a href="/students/directory">← Browse student directory</a></div>
 </div>
 </main>
-<footer class="resume-footer"><img src="/static/ngi-brand.svg" alt="Nagarjuna Group of Institutions" width="53" height="47">
+<footer class="resume-footer"><img src="/static/ngi-brand.svg" alt="Nagarjuna Group of Institutions" width="53" height="47" loading="lazy" decoding="async">
 <span>NCET VerifyFlow · Academic collaboration & student success</span>
 <a href="/students">Student Services</a></footer>
 </body></html>''',headers={'Cache-Control':'no-store'})
