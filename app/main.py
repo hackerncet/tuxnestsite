@@ -36,6 +36,8 @@ from .student_services import router as bca_router
 app.include_router(bca_router)
 from .student_profiles import router as showcase_router
 app.include_router(showcase_router)
+from .departments import router as department_router
+app.include_router(department_router)
 from .notifications import router as alert_router
 app.include_router(alert_router)
 from .community import router as community_router
