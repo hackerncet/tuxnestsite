@@ -20,6 +20,7 @@ async function loadShowcase(){
  try{
   const p=await api('/api/bca/showcase/me');
   $('showcase-name').value=p.full_name;
+  $('showcase-dept').value=p.department||'Computer Applications';
   $('showcase-mobile').value=p.mobile;
   $('showcase-email').value=p.email;
   $('showcase-about').value=p.about;
