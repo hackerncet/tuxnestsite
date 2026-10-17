@@ -154,7 +154,11 @@ def create_case(body:NewCase,user:User=Depends(as_role_mutation('student')),db:D
     if len(case.subject)<6 or len(case.description)<15:raise HTTPException(422,'Add a detailed subject and description.')
     from .notifications import emit, hod_recipients
     db.add(case);db.add(AuditLog(actor_id=user.id,event='bca.case_submitted',detail=case.reference))
-    emit(db,hod_recipients(db),'New BCA student request awaiting review.','/bca/manage','complaints')
+    recipients=hod_recipients(db)
+    emit(db,recipients,'New BCA student request awaiting review.','/bca/manage','complaints')
+    if not recipients:
+        admins=[u.id for u in db.query(User.id).filter(User.active.is_(True),User.role=='admin').all()]
+        emit(db,admins,'A BCA student request needs an authorized Computer Applications HOD. Assign a BCA HOD in User Management.','/app','setup')
     db.commit()
     return {'reference':case.reference,'status':case.status}
 
