@@ -76,7 +76,7 @@ def test_complaint_notification_principal_summary_and_project_alert(client,login
             inbox=hod.get('/api/alerts/inbox').json()
             complaints=[n for n in inbox['items'] if n['category']=='complaints']
             assert len(complaints)==1
-            assert complaints[0]['link']=='/bca/complaints'
+            assert complaints[0]['link']=='/complaints'
             mark=hod.post('/api/alerts/'+complaints[0]['id']+'/read',headers={'X-CSRF-Token':h})
             assert mark.status_code==200
             assert hod.get('/api/alerts/inbox').json()['unread']==0

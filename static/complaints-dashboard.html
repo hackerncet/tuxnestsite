@@ -7,7 +7,7 @@
 <title>BCA Complaint Management | NCET VerifyFlow</title>
 <link rel="icon" href="/static/ncet-brand.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/static/bca.css">
-<link rel="stylesheet" href="/static/complaints-dashboard.css?v=20261017">
+<link rel="stylesheet" href="/static/complaints-dashboard.css?v=20261018a">
 </head>
 <body>
 <header class="topnav">
@@ -15,7 +15,7 @@
     <a class="brand" href="/app"><img src="/static/ncet-brand.svg" alt="NCET emblem" width="52" height="43"><span>NCET VerifyFlow<small>BCA · Confidential student services</small></span></a>
     <nav class="navlinks" aria-label="Workspace navigation">
       <a href="/app">Workspace</a><a href="/tasks">HOD tasks</a><a href="/bca/manage">Student enrollment</a>
-      <a class="nav-current" href="/bca/complaints" aria-current="page">Complaints</a>
+      <a class="nav-current" href="/complaints" aria-current="page">Complaints</a>
     </nav>
   </div>
 </header>
@@ -38,11 +38,19 @@
       <button class="case-kpi" data-status="resolved" type="button"><span>Resolved</span><strong id="kpi-resolved">0</strong><small>Resolution recorded</small></button>
       <button class="case-kpi" data-status="closed" type="button"><span>Closed</span><strong id="kpi-closed">0</strong><small>Completed cases</small></button>
     </section>
+    <section class="complaints-priority" aria-label="Requests needing attention">
+      <div><span class="eyebrow">PRIORITY QUEUE</span><h2>Needs your attention</h2><p>Focus on student follow-ups and older unresolved requests.</p></div>
+      <div class="priority-actions">
+        <button type="button" id="priority-waiting" data-attention="awaiting_reply" aria-pressed="false"><span>Awaiting HOD reply</span><strong id="priority-count-waiting">0</strong></button>
+        <button type="button" id="priority-aged" data-attention="older_than_7d" aria-pressed="false"><span>Open over 7 days</span><strong id="priority-count-aged">0</strong></button>
+      </div>
+    </section>
     <div class="case-main">
       <section class="case-panel case-index" aria-labelledby="case-list-title">
         <div class="case-section-head"><div><h2 id="case-list-title">Student requests</h2><p class="muted">Search or filter without loading confidential case details.</p></div><span class="case-count" id="case-count">0 results</span></div>
         <form id="case-filters" class="case-filters" autocomplete="off" role="search">
           <label class="filter-search">Search reference or subject<input name="search" type="search" maxlength="120" placeholder="Search reference or subject"></label>
+          <label>Attention<select name="attention"><option value="all">All requests</option><option value="awaiting_reply">Awaiting HOD reply</option><option value="older_than_7d">Open longer than 7 days</option></select></label>
           <label>Status<select name="status"><option value="all">All statuses</option><option value="submitted">New submissions</option><option value="in_review">In review</option><option value="resolved">Resolved</option><option value="closed">Closed</option></select></label>
           <label>Category<select name="category"><option value="all">All categories</option><option value="academics">Academics</option><option value="faculty">Faculty</option><option value="examinations">Examinations</option><option value="facilities">Facilities</option><option value="fees">Fees</option><option value="documentation">Documentation</option><option value="request">General request</option><option value="other">Other</option></select></label>
           <label>From date<input type="date" name="from_date"></label>
@@ -83,6 +91,6 @@
   </section>
   <p id="case-dialog-message" role="status" aria-live="polite"></p>
 </dialog>
-<script defer src="/static/complaints-dashboard.js?v=20261017"></script>
+<script defer src="/static/complaints-dashboard.js?v=20261018a"></script>
 </body>
 </html>
