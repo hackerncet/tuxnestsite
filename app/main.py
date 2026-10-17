@@ -12,6 +12,8 @@ from urllib.parse import quote
 from fastapi import FastAPI, Request, Response, UploadFile, File, Form, Depends, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from fastapi.exception_handlers import http_exception_handler
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware.gzip import GZipMiddleware
 from sqlalchemy import func, or_, select, delete
@@ -31,6 +33,23 @@ ENV = os.getenv('APP_ENV', 'development')
 app = FastAPI(title='NCET VerifyFlow', docs_url=None if ENV == 'production' else '/api/docs',
               redoc_url=None, openapi_url=None if ENV == 'production' else '/api/openapi.json')
 app.mount('/static', StaticFiles(directory=STATIC), name='static')
+
+@app.exception_handler(StarletteHTTPException)
+async def render_not_found(request:Request,exc:StarletteHTTPException):
+    """Real 404 HTML for navigation; API, XML, and asset errors remain machine-readable."""
+    path=request.url.path
+    leaf=path.rsplit('/',1)[-1]
+    is_navigation=(request.method in ('GET','HEAD') and
+                   not path.startswith(('/api/','/static/','/sitemap/')) and
+                   not path.endswith(('.xml','.txt','.json','.js','.css','.png','.svg','.webp','.ico')) and
+                   not leaf.startswith('.'))
+    wants_json='application/json' in request.headers.get('accept','')
+    if exc.status_code==404 and is_navigation and not wants_json:
+        return FileResponse(STATIC/'404.html',status_code=404,media_type='text/html',
+                            headers={'Cache-Control':'no-store',
+                                     'X-Robots-Tag':'noindex, nofollow, noarchive'})
+    return await http_exception_handler(request,exc)
+
 app.add_middleware(GZipMiddleware, minimum_size=1024)
 from .student_services import router as bca_router
 app.include_router(bca_router)
