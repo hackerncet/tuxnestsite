@@ -86,6 +86,7 @@ def test_approved_pdfs_require_backup_confirmation(client, login, create_doc):
     with DBSession() as db:
         assert db.query(Document).filter(Document.public_id == doc_id).count() == 1
     body["backup_confirmed"] = True
+    body["admin_password"] = "SecurePassword-123!"
     r = client.post("/api/admin/cleanup/execute",
                     headers={"X-CSRF-Token": admin_csrf}, json=body)
     assert r.status_code == 200, r.text
