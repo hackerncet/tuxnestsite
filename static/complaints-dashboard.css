@@ -97,3 +97,12 @@
 @media(max-width:900px){.complaints-priority{align-items:flex-start;flex-direction:column}.priority-actions{width:100%}.priority-actions button{flex:1}}
 @media(max-width:410px){.priority-actions{flex-direction:column}.priority-actions button{min-width:0;width:100%}}
 @media(prefers-reduced-motion:reduce){.priority-actions button{transition:none}}
+
+/* Navigation remains readable at phone width; avoid fixed 78px header overflow. */
+@media(max-width:740px){
+  .topnav{height:auto;min-height:78px;padding:10px 0}
+  .nav-inner{flex-wrap:wrap}
+  .navlinks{width:100%;gap:3px}
+  .navlinks a{font-size:12px;padding:7px 8px}
+  .complaints-priority{padding:18px}
+}
