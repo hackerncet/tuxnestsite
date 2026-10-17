@@ -18,8 +18,9 @@ def csrf_for(i):
 def main():
     with DBSession() as db:
         assert db.query(User.id).count() == 0, "Database must be brand-new; refusing to replace accounts."
-        db.add(AcademicDepartment(code="Computer Applications",name="Computer Applications",active=True))
-        db.flush()
+        if not db.query(AcademicDepartment.id).filter(AcademicDepartment.code=="Computer Applications").first():
+            db.add(AcademicDepartment(code="Computer Applications",name="Computer Applications",active=True))
+            db.flush()
         pwd_hash=hash_password("Benchmark-Password-Not-For-Production-2026!")
         db.add(User(username="hodbench",display_name="Test HOD",role="hod",
                     department="Computer Applications",active=True,password_hash=pwd_hash))
