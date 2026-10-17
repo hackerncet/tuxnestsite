@@ -24,7 +24,7 @@ with sync_playwright() as playwright:
         errors = []
         page.on("pageerror", lambda err: errors.append(str(err)))
         for route in PAGES:
-            response = page.goto(BASE + route, wait_until="networkidle", timeout=25000)
+            response = page.goto(BASE + route, wait_until="domcontentloaded", timeout=25000)
             if not response or response.status >= 400:
                 issues.append((width, route, "HTTP " + str(response.status if response else "no response")))
                 continue
