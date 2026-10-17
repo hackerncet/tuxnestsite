@@ -69,6 +69,24 @@ with sync_playwright() as p:
         assert report['sections']==['about','skills','projects','certifications','interests','links']
         assert all(x['loaded'] for x in report['images']),(width,report['images'])
         assert not errors,(width,errors)
+        # Once JS initializes, the portfolio is a single in-page accessible tab view.
+        assert page.locator('.resume-anchors[role="tablist"]').count()==1
+        assert page.locator('.resume-section:not([hidden])').count()==1
+        assert page.locator('#about').is_visible()
+        page.locator('a[href="#projects"]').click()
+        assert page.url.endswith('#projects'),page.url
+        assert page.locator('#projects').is_visible()
+        assert page.locator('#about').is_hidden()
+        assert page.locator('#projects').get_attribute('aria-labelledby')=='profile-tab-projects'
+        page.locator('a[href="#projects"]').press('ArrowRight')
+        assert page.locator('#certifications').is_visible()
+        assert page.locator('a[href="#certifications"]').get_attribute('aria-selected')=='true'
+        page.go_back(wait_until='domcontentloaded')
+        assert page.locator('#projects').is_visible()
+        page.goto('http://ncet.test/students/profile/1NC24CS150#links',wait_until='load')
+        assert page.locator('#links').is_visible()
+        assert page.locator('.resume-section:not([hidden])').count()==1
+        assert not errors,(width,errors)
         page.close()
     browser.close()
 os.unlink(path)
