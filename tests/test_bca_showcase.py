@@ -102,7 +102,7 @@ def test_public_profile_can_be_unpublished_and_inputs_are_validated(client,login
 
 def test_excel_and_bulk_enrollment_are_scoped_and_atomic(client,login):
     setup_bca()
-    assert client.post('/api/bca/students/enroll',json={'students':[{'usn':'1NC24BCA303'}]}).status_code in (401,403)
+    assert client.post('/api/bca/students/enroll',json={'students':[{'usn':'1NC24BCA303','full_name':'Candidate Name','branch':'Computer Applications','semester':3}]}).status_code in (401,403)
     staff_csrf=login(client,'staff')
     good={'students':[{'usn':'1NC24BCA303','full_name':'Excel Student','branch':'Computer Applications','semester':3},
                       {'usn':'1NC24BCA304','full_name':'Second Excel Student','branch':'Computer Applications','semester':1}]}
