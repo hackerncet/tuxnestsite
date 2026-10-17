@@ -58,6 +58,7 @@ def test_all_registration_fields_required_and_admin_transfer(client,login):
     assert changed.status_code==200,changed.text
     with DBSession() as db:
         assert db.query(User).filter(User.username=='1nc24bca930').one().department=='Mechanical Engineering'
+    scoped=bca_faculty(client,login)
     assert not any(s['usn']=='1NC24BCA930' for s in client.get('/api/bca/students').json()['items'])
     # Admin sees every student, nonadmin only authorized branch.
     admin=login(client,'admin')
