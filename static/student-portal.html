@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="/static/notifications.css">
 <link rel="stylesheet" href="/static/responsive-upgrade.css?v=20261017">
 <link rel="stylesheet" href="/static/student-redesign.css?v=20261017b">
-</head><body class="student-modern">
+<link rel="stylesheet" href="/static/ncet-brand-system.css?v=20261017"></head><body class="student-modern">
 <header class="topnav"><div class="container nav-inner">
 <a class="brand" href="/students"><img src="/static/ncet-official.webp" alt="NCET emblem"><span>NCET VerifyFlow<small>BCA student services</small></span></a>
 <nav class="navlinks" aria-label="Student navigation"><a href="/students">Student home</a><a href="/students/directory">Directory</a><button type="button" id="logout" class="btn hidden">Sign out</button></nav>
@@ -55,6 +55,14 @@
 <div class="field"><label for="showcase-dept">Department</label><input id="showcase-dept" readonly value="Bachelor of Computer Applications"></div></div>
 <div class="field"><label for="showcase-about">About me & academic interests</label><textarea id="showcase-about" rows="3" maxlength="900" placeholder="Tell visitors what you are building, learning or interested in"></textarea></div>
 <div class="field"><label for="showcase-skills">Skills (comma separated, up to 100)</label><textarea id="showcase-skills" rows="3" maxlength="8500" placeholder="Python, C, C++, Java, AI, Web Development…"></textarea><p id="skill-count" class="small muted" role="status">0 / 100 skills.</p></div>
+<div class="field"><label for="showcase-interests">Areas of interest</label>
+<textarea id="showcase-interests" rows="2" maxlength="1500" placeholder="Artificial Intelligence, Cloud Engineering, Design Systems, Cybersecurity…"></textarea>
+<p class="small muted">Comma-separated interests. Up to 20 interests, each 2–75 characters.</p></div>
+<details class="student-details" open><summary>Projects & live work <span>Optional · up to 8 projects</span></summary>
+<p class="small muted">Add a project title and optional description, technologies, GitHub repository and live demo link.</p>
+<div class="resume-project-form-list" id="showcase-projects"></div>
+<button class="btn" type="button" id="add-showcase-project">+ Add project</button>
+</details>
 <details class="student-details"><summary>Private contact details <span>Never displayed publicly</span></summary><div class="split student-details-body"><div class="field"><label for="showcase-mobile">Private mobile</label><input id="showcase-mobile" type="tel" inputmode="tel" autocomplete="tel" maxlength="20"></div>
 <div class="field"><label for="showcase-email">Private email</label><input id="showcase-email" type="email" autocomplete="email" maxlength="180"></div></div></details>
 <details class="student-details"><summary>Coding & social links <span>Optional · 11 sites</span></summary>
