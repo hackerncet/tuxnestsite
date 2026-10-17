@@ -186,7 +186,10 @@ def create_post(body:PostCreate,user:User=Depends(writer),db:DbSession=Depends(g
     count=db.query(func.count(CollaborationPost.id)).filter(CollaborationPost.student_id==user.id,CollaborationPost.created_at>=utcnow()-timedelta(days=1)).scalar()
     if count>=MAX_POSTS_PER_DAY:raise HTTPException(429,'Daily project posting limit reached.')
     post=CollaborationPost(student_id=user.id,title=values[0],description=values[1],help_needed=values[2])
-    db.add(post);db.flush();moderation_audit(db,user,'community.post_created',post.id);db.commit()
+    from .notifications import emit, all_members
+    db.add(post);db.flush();moderation_audit(db,user,'community.post_created',post.id)
+    emit(db,all_members(db),'New student project collaboration opportunity.','/community','projects',exclude=user.id)
+    db.commit()
     return {'id':post.id,'ok':True}
 
 
