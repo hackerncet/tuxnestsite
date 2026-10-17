@@ -31,7 +31,7 @@ MOCK=r"""() => {
      categories:{facilities:1,fees:1,examinations:1}};
   }else if(url.startsWith('/api/bca/cases/') && method==='GET'){
    const ref=decodeURIComponent(url.split('/').pop()),item=items.find(x=>x.reference===ref);
-   body={...item,description:'Confidential student request.',messages:[{author:'Student',body:'Please help with this issue.',created_at:item.created_at}]};
+   body={...item,description:'Confidential student request. <img src=x onerror=alert(1)>',messages:[{author:'Student',body:'Please help <svg onload=alert(1)>',created_at:item.created_at}]};
   }else if(url.startsWith('/api/bca/cases/') && (method==='PATCH'||method==='POST')){
    window.__messages.push({url,method,body:opts.body});
    if(method==='PATCH'){const item=items.find(x=>x.reference===url.split('/')[4]);if(item)item.status=JSON.parse(opts.body).status;}
@@ -77,7 +77,8 @@ def main():
    page.wait_for_function("document.querySelectorAll('#case-results .complaint-row').length===1 && document.querySelector('#case-results').textContent.includes('Semester examination')")
    page.locator('#case-results .complaint-row').click()
    assert page.locator('#case-dialog').is_visible()
-   page.get_by_text('Confidential student request.',exact=True).wait_for()
+   page.get_by_text('Confidential student request.',exact=False).wait_for()
+   assert page.locator('#detail-content img, #detail-content svg').count()==0
    page.locator('#close-dialog').click()
    assert page.locator('#case-dialog').is_hidden()
    page.locator('#case-filters [name=search]').fill('')
