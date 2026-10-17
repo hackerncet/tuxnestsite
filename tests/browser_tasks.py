@@ -43,13 +43,31 @@ def test_browser():
         page.locator('#staff-id').select_option('5')
         page.locator('#notes').fill('Complete the academic document following the reference PDF.')
         page.locator('#review-confirm').check()
+        assert page.locator('#assignment-deadline[type="datetime-local"]').is_visible()
+        date_value=page.evaluate("""() => {
+          const d=new Date(Date.now()+3*86400000);
+          const pad=n=>String(n).padStart(2,'0');
+          return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes());
+        }""")
+        page.locator('#assignment-deadline').fill(date_value)
         page.locator('#assign-form button[type=submit]').click()
         page.wait_for_function('window.__assigned && window.__assigned.use_generated_rules===true')
         data=page.evaluate('window.__assigned')
         assert data['confirmed_task_ids']==[1]
         assert data['task_ids']==[1]
+        assert data['deadline'] and data['deadline'].startswith(date_value[:10])
+        page.locator('button[data-op="deadline"]').wait_for(state='visible')
+        page.locator('button[data-op="deadline"]').click()
+        assert page.locator('#deadline-dialog').is_visible()
+        page.locator('#edit-deadline').fill(date_value)
+        page.locator('#deadline-form button[type=submit]').click()
+        page.wait_for_function('window.__changedDeadline !== undefined')
+        assert page.locator('#deadline-dialog').is_hidden()
       else:assert page.locator('#hod-section').is_hidden()
-      if role=='staff':assert page.evaluate('document.documentElement.scrollWidth <= innerWidth + 2')
+      if role=='staff':
+        assert page.evaluate('document.documentElement.scrollWidth <= innerWidth + 2')
+        assert page.locator('.deadline-cell').count()==1
+        assert page.locator('button[data-op="deadline"]').count()==0
       assert not errors,errors
       page.close()
     browser.close()
