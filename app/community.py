@@ -212,7 +212,10 @@ def add_comment(post_id:int,body:CommentCreate,user:User=Depends(writer),db:DbSe
         CollaborationComment.created_at>=utcnow()-timedelta(days=1)).scalar()
     if count>=MAX_COMMENTS_PER_DAY:raise HTTPException(429,'Daily discussion limit reached.')
     comment=CollaborationComment(post_id=post_id,author_id=user.id,message=message)
-    db.add(comment);db.flush();moderation_audit(db,user,'community.comment_added',comment.id);db.commit()
+    from .notifications import emit
+    db.add(comment);db.flush();moderation_audit(db,user,'community.comment_added',comment.id)
+    emit(db,[post.student_id],'A member replied to your project discussion.','/community','projects',exclude=user.id)
+    db.commit()
     return {'id':comment.id,'ok':True}
 
 
