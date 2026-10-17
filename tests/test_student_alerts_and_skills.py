@@ -105,3 +105,33 @@ def test_complaint_notification_principal_summary_and_project_alert(client,login
     with TestClient(app) as anonymous:
         assert anonymous.get('/api/alerts/inbox').status_code==401
         assert anonymous.get('/bca/oversight').status_code==401
+
+
+def test_missing_bca_hod_routes_setup_alert_to_admin_not_private_complaint(client,login):
+    # Preserve department boundaries; escalate to admin rather than exposing
+    # the student's confidential request to an unrelated department's HOD.
+    with DBSession() as db:
+        db.query(User).filter_by(username='hod').one().department='Computer Science & Engineering'
+        db.commit()
+    admin_csrf=login(client,'admin')
+    with DBSession() as db:
+        from app.student_models import BCAStudent
+        student=db.query(User).filter_by(username='student').first()
+        if student is None:
+            from app.security import hash_password
+            student=User(username='1nc24bca713',display_name='Student Example',role='student',
+                department='Computer Applications',password_hash=hash_password('StrongStudentPassword2026!'),active=True)
+            db.add(student);db.flush()
+            db.add(BCAStudent(user_id=student.id,usn='1NC24BCA713',semester=3,must_change_password=False))
+            db.commit()
+    with TestClient(app) as student_client:
+        logged=student_client.post('/api/auth/login',json={'username':'1nc24bca713',
+            'password':'StrongStudentPassword2026!','role':'student'})
+        assert logged.status_code==200
+        token=logged.json()['csrf']
+        result=student_client.post('/api/bca/cases',headers={'X-CSRF-Token':token},json={
+            'category':'academics','subject':'Private laboratory issue','description':'This request contains private classroom details.'})
+        assert result.status_code==201
+    alerts=client.get('/api/alerts/inbox').json()['items']
+    assert any(n['category']=='setup' and n['link']=='/app' for n in alerts)
+    assert 'Private laboratory issue' not in str(alerts)
