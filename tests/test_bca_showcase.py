@@ -25,10 +25,10 @@ def enroll(client,login,records):
 
 
 def test_single_usn_enrollment_and_private_student_profile(client,login):
-    response,token=enroll(client,login,[{'usn':'1NC24BCA301'}])
+    response,token=enroll(client,login,[{'usn':'1NC24BCA301','full_name':'Student Example','branch':'Computer Applications','semester':1}])
     assert response.status_code==200,response.text
     credentials=response.json()['credentials'][0]
-    assert credentials['name']==''
+    assert credentials['name']=='Student Example'
     assert credentials['temporary_password']!='Ncet@1nc24bca301'
     assert len(credentials['temporary_password'])>=24
     assert client.get('/api/bca/directory').json()['items']==[]
@@ -40,7 +40,7 @@ def test_single_usn_enrollment_and_private_student_profile(client,login):
         student_token=login_result.json()['csrf']
         private=student_client.get('/api/bca/showcase/me').json()
         assert private['usn']=='1NC24BCA301'
-        assert private['full_name']==''
+        assert private['full_name']=='Student Example'
         assert student_client.put('/api/bca/showcase/me',headers={'X-CSRF-Token':student_token},json={
             'full_name':'Student Example','publish':True}).status_code==403
         changed=student_client.post('/api/auth/change-password',headers={'X-CSRF-Token':student_token},
@@ -77,7 +77,7 @@ def test_single_usn_enrollment_and_private_student_profile(client,login):
 
 
 def test_public_profile_can_be_unpublished_and_inputs_are_validated(client,login):
-    reply,token=enroll(client,login,[{'usn':'1NC24BCA302','full_name':'Second Student','semester':4}])
+    reply,token=enroll(client,login,[{'usn':'1NC24BCA302','full_name':'Second Student','branch':'Computer Applications','semester':4}])
     assert reply.status_code==200
     pwd=reply.json()['credentials'][0]['temporary_password']
     with TestClient(app) as student:
@@ -104,32 +104,32 @@ def test_excel_and_bulk_enrollment_are_scoped_and_atomic(client,login):
     setup_bca()
     assert client.post('/api/bca/students/enroll',json={'students':[{'usn':'1NC24BCA303'}]}).status_code in (401,403)
     staff_csrf=login(client,'staff')
-    good={'students':[{'usn':'1NC24BCA303','full_name':'Excel Student','semester':3},
-                      {'usn':'1NC24BCA304','full_name':'','semester':1}]}
+    good={'students':[{'usn':'1NC24BCA303','full_name':'Excel Student','branch':'Computer Applications','semester':3},
+                      {'usn':'1NC24BCA304','full_name':'Second Excel Student','branch':'Computer Applications','semester':1}]}
     response=client.post('/api/bca/students/enroll',headers={'X-CSRF-Token':staff_csrf},json=good)
     assert response.status_code==200
     assert response.json()['created']==2
     dup=client.post('/api/bca/students/enroll',headers={'X-CSRF-Token':staff_csrf},
-                    json={'students':[{'usn':'1NC24BCA304'},{'usn':'1NC24BCA305'}]})
+                    json={'students':[{'usn':'1NC24BCA304','full_name':'Already Enrolled','branch':'Computer Applications','semester':1},{'usn':'1NC24BCA305','full_name':'New Candidate','branch':'Computer Applications','semester':1}]})
     assert dup.status_code==409
     assert client.get('/api/bca/students').status_code==200
     assert len(client.get('/api/bca/students').json()['items'])==2
-    wb=Workbook();ws=wb.active;ws.append(['usn','full_name','semester'])
-    ws.append(['1NC24BCA306','Spreadsheet Student',2]);ws.append(['1NC24BCA307','Another Student',3])
+    wb=Workbook();ws=wb.active;ws.append(['usn','full_name','branch','semester'])
+    ws.append(['1NC24BCA306','Spreadsheet Student','Computer Applications',2]);ws.append(['1NC24BCA307','Another Student','Computer Applications',3])
     raw=io.BytesIO();wb.save(raw)
     excel=client.post('/api/bca/students/import-excel',headers={'X-CSRF-Token':staff_csrf},
                       files={'file':('students.xlsx',raw.getvalue(),'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')})
     assert excel.status_code==200,excel.text
     assert excel.json()['created']==2
     edit=client.patch('/api/bca/students/1NC24BCA307',headers={'X-CSRF-Token':staff_csrf},
-                      json={'full_name':'Corrected Student Name','semester':5})
+                      json={'full_name':'Corrected Student Name','branch':'Computer Applications','semester':5})
     assert edit.status_code==200
     assert 'Corrected Student Name' in str(client.get('/api/bca/students').json())
 
 
 
 def test_public_profiles_reject_contact_details_in_public_fields(client,login):
-    response,token=enroll(client,login,[{'usn':'1NC24BCA311','full_name':'Profile Student','semester':3}])
+    response,token=enroll(client,login,[{'usn':'1NC24BCA311','full_name':'Profile Student','branch':'Computer Applications','semester':3}])
     assert response.status_code==200
     password=response.json()['credentials'][0]['temporary_password']
     with TestClient(app) as student:
