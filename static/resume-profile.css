@@ -138,3 +138,13 @@ body.ncet-profile-page{margin:0;background:#F4F6F9;color:#172033;font-family:Int
  .resume-tab-stage.tabs-enhanced .resume-section{min-height:0!important;padding-block:17px}
  .resume-tab-stage{height:auto!important;overflow:visible!important}
 }
+
+/* Opt-in on BOTH ends for a subtle same-origin navigation transition. */
+@view-transition{navigation:auto}
+::view-transition-old(root){animation:.14s ease-out both resume-page-out}
+::view-transition-new(root){animation:.2s ease-out both resume-page-in}
+@keyframes resume-page-out{to{opacity:.96}}
+@keyframes resume-page-in{from{opacity:.93;transform:translateY(4px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){
+ ::view-transition-old(root),::view-transition-new(root){animation-duration:.01ms!important}
+}
