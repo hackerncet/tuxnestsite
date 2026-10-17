@@ -145,3 +145,12 @@
  .topnav .brand span strong{font-size:13px}
  .topnav .brand{gap:7px}
 }
+
+/* Progressive enhancement: nav remains readable and wraps if JS is disabled. */
+@media(max-width:700px){
+ .topnav:not(.ncet-menu-enhanced) .nav-inner{flex-wrap:wrap!important;gap:7px}
+ .topnav:not(.ncet-menu-enhanced) .navlinks{display:flex!important;width:100%;
+  flex-wrap:wrap!important;gap:3px;padding:4px 0}
+ .topnav:not(.ncet-menu-enhanced) .navlinks a{min-height:40px;padding:8px!important}
+ .topnav:not(.ncet-menu-enhanced) .nav-accreditation{margin-right:0}
+}
