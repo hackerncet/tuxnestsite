@@ -61,7 +61,7 @@ jobs:
           echo "LIMITS: app 0.8 vCPU/608MiB; PostgreSQL 0.2 vCPU/224MiB; host OS reserved ~192MiB; total 1.0 vCPU, ~1GiB."
       - name: Seed 150 synthetic students, 300 requests, and synthetic sessions
         run: |
-          docker exec ncet-bench-web python benchmarks/seed_vps.py
+          docker exec ncet-bench-web python -m benchmarks.seed_vps
       - name: Measure realistic and stressed virtual student sessions
         run: python benchmarks/run_vps.py
       - name: Publish measured results as artifact
