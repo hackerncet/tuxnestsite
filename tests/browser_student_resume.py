@@ -3,6 +3,8 @@ import os
 import tempfile
 from pathlib import Path
 from urllib.parse import urlsplit
+import sys
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 
 fd,path=tempfile.mkstemp(prefix='ncet-resume-',suffix='.sqlite3')
 os.close(fd)
