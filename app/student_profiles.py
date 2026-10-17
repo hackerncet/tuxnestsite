@@ -558,7 +558,7 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
 <meta property="og:type" content="profile"><meta property="og:title" content="{name} — NCET Student Portfolio">
 <meta property="og:description" content="{summary}"><meta property="og:url" content="{canonical}">
 {og_image}<link rel="canonical" href="{canonical}">
-<link rel="icon" href="/static/ncet-brand.png">
+<link rel="icon" href="/static/ncet-brand.svg">
 <script type="application/ld+json">{json_ld}</script>
 <link rel="stylesheet" href="/static/bca.css">
 <link rel="stylesheet" href="/static/experience.css">
@@ -571,15 +571,15 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
 <header class="resume-site-header">
 <div class="resume-site-inner">
 <a class="resume-college" href="/students" aria-label="NCET Student Services">
-<img src="/static/ncet-brand.png" alt="Nagarjuna College of Engineering and Technology" width="178" height="88">
+<img src="/static/ncet-brand.svg" alt="Nagarjuna College of Engineering and Technology" width="178" height="88">
 <span>Student portfolios<small>Official NCET student services</small></span></a>
 <nav aria-label="Profile navigation"><a href="/students/directory">Student directory</a><a href="/students">Student services</a></nav>
-<img class="resume-group-logo" src="/static/ngi-brand.png" alt="Nagarjuna Group of Institutions" width="78" height="70">
+<img class="resume-group-logo" src="/static/ngi-brand.svg" alt="Nagarjuna Group of Institutions" width="78" height="70">
 </div></header>
 <main id="student-resume" class="resume-container">
 <div class="resume-paper">
 <div class="resume-accreditation"><span>NCET · STUDENT PORTFOLIO</span>
-<img src="/static/naac-brand.png" alt="Institutional accreditation: NAAC A+" width="61" height="61"></div>
+<img src="/static/naac-brand.svg" alt="Institutional accreditation: NAAC A+" width="61" height="61"></div>
 <div class="resume-heading">{avatar}<div class="resume-heading-copy">
 <p class="resume-overline">Student profile · Voluntarily published</p>
 <h1>{name}</h1><p class="resume-subtitle">{branch} <span aria-hidden="true">·</span> Semester {info['semester']}</p>
@@ -599,7 +599,7 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
 <a href="/students/directory">← Browse student directory</a></div>
 </div>
 </main>
-<footer class="resume-footer"><img src="/static/ngi-brand.png" alt="Nagarjuna Group of Institutions" width="53" height="47">
+<footer class="resume-footer"><img src="/static/ngi-brand.svg" alt="Nagarjuna Group of Institutions" width="53" height="47">
 <span>NCET VerifyFlow · Academic collaboration & student success</span>
 <a href="/students">Student Services</a></footer>
 </body></html>''',headers={'Cache-Control':'no-store'})
