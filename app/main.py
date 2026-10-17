@@ -162,7 +162,7 @@ def doc_json(d):
 
 @app.get('/favicon.ico', include_in_schema=False)
 def favicon_compat():
-    return RedirectResponse('/static/ncet-official.webp',status_code=302)
+    return RedirectResponse('/static/ncet-brand.png',status_code=302)
 
 @app.get('/healthz')
 def health():
