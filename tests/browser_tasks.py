@@ -14,26 +14,29 @@ def test_browser():
       errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
       html=(BASE/'tasks.html').read_text().replace('<link rel="stylesheet" href="/static/tasks.css">','<style>'+ (BASE/'tasks.css').read_text()+'</style>')
       html=html.replace('<script src="/static/tasks.js" defer></script>','')
-      html=html.replace('<script src="/static/hod-dashboard.js?v=20261017" defer></script>','')
-      html=html.replace('<link rel="stylesheet" href="/static/hod-dashboard.css?v=20261017">',
+      html=html.replace('<script src="/static/hod-dashboard.js?v=20261017e" defer></script>','')
+      html=html.replace('<link rel="stylesheet" href="/static/hod-dashboard.css?v=20261017e">',
         '<style>'+ (BASE/'hod-dashboard.css').read_text()+'</style>')
       page.set_content(html)
       page.evaluate("""(role)=>{window.fetch=async(url,opts)=>{
         const u=String(url);let data={};
         if(u.includes('/auth/me'))data={user:{id:1,name:'Faculty Example',role,department:'Computer Applications'},csrf:'demo-token'};
         else if(u.endsWith('/tasks'))data={items:[{id:1,batch_id:1,file:'Academic_Audit.pdf',state:role==='hod'&&!window.__assigned?'unassigned':'assigned',department:'Computer Applications',assigned_to:'Faculty Example',assigned_staff_id:5,deadline:window.__changedDeadline||window.__assigned?.deadline||null,overdue:false,score:null,report:{},notes:'Please follow requirements',rules:[]}]};
-        else if(u.endsWith('/tasks/dashboard')){
+        else if(u.includes('/tasks/dashboard')){
           const assigned=Boolean(window.__assigned);
           const eventTime='2026-10-17T10:00:00+00:00';
           const history=assigned?[{event:'assigned',at:eventTime,actor:'NCET hod',detail:'Assigned to Faculty Example',state:'assigned'}]:[];
           data={counts:{total:1,working:assigned?1:0,reviewing:0,approved:0,overdue:0,unassigned:assigned?0:1},
-            as_of:eventTime,daily_approvals:[],task_list_truncated:false,
+            as_of:eventTime,daily_approvals:[],task_list_truncated:false,task_list_offset:0,task_list_total:1,
             staff:assigned?[{id:5,name:'Faculty Example',total:1,working:1,reviewing:0,approved:0,overdue:0}]:[],
             activity:assigned?[{...history[0],task_id:1,file:'Academic_Audit.pdf',staff:'Faculty Example'}]:[],
             tasks:[{id:1,file:'Academic_Audit.pdf',staff:assigned?'Faculty Example':null,
               staff_id:assigned?5:null,state:assigned?'assigned':'unassigned',score:null,
               submitted_at:null,approved_at:null,deadline:window.__assigned?.deadline||null,
               updated_at:eventTime,overdue:false,history}]};
+          const query=new URL(u,'https://ncet.test').searchParams;
+          if(query.get('search') && !'academic_audit.pdf faculty example'.includes(query.get('search').toLowerCase())){data.tasks=[];data.task_list_total=0;}
+          if(query.get('status')==='working'&&!assigned){data.tasks=[];data.task_list_total=0;}
         }
         else if(u.endsWith('/staff'))data={items:[{id:5,name:'Faculty Example',username:'faculty',department:'Computer Applications'}]};
         else if(u.includes('/notifications/inbox'))data={unread:1,items:[{id:10,text:'Academic audit assigned',at:'2026-10-16T10:00:00Z',seen:false}]};
