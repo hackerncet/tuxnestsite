@@ -28,6 +28,7 @@ async function loadShowcase(){
   updateSkillCount();
   $('showcase-certs').value=p.certificates.map(c=>[c.title,c.issuer,c.proof_url].join(' | ')).join('\n');
   $('showcase-public').checked=p.published;
+  setProfilePhoto(Boolean(p.photo_available));
   show('my-public-profile',p.published);
   $('my-public-profile').href='/students/profile/'+encodeURIComponent(p.usn);
  }catch(err){notify(err.message,true)}
@@ -64,3 +65,70 @@ function updateSkillCount(){
  $('skill-count').className=values.length>100?'error':'small muted';
 }
 $('showcase-skills').addEventListener('input',updateSkillCount);
+
+
+function selectStudentTab(name){
+ const active=name==='profile'?'profile':'requests';
+ for(const tab of ['requests','profile']){
+  const visible=tab===active;
+  show('student-tab-'+tab,visible);
+  const button=$('student-tab-'+tab+'-button');
+  button.classList.toggle('active',visible);
+  button.setAttribute('aria-selected',String(visible));
+  button.tabIndex=visible?0:-1;
+ }
+}
+for(const tab of document.querySelectorAll('[data-student-tab]')){
+ tab.addEventListener('click',()=>selectStudentTab(tab.dataset.studentTab));
+ tab.addEventListener('keydown',e=>{
+  if(e.key!=='ArrowLeft'&&e.key!=='ArrowRight')return;
+  e.preventDefault();
+  const next=tab.dataset.studentTab==='requests'?'profile':'requests';
+  selectStudentTab(next);
+  $('student-tab-'+next+'-button').focus();
+ });
+}
+function setProfilePhoto(available){
+ const img=$('showcase-photo-preview');
+ if(available){
+  img.src='/api/bca/showcase/me/photo?ts='+Date.now();
+  img.alt='Your saved student profile photo';
+ }else{
+  img.src='/static/ncet-official.webp';
+  img.alt='NCET emblem placeholder for your profile photo';
+ }
+ show('remove-showcase-photo',available);
+ show('showcase-photo-fallback',!available);
+}
+$('showcase-photo-form').addEventListener('submit',async e=>{
+ e.preventDefault();
+ const file=$('showcase-photo').files[0];
+ if(!file)return notify('Choose a photo to upload.',true);
+ const acceptable=['image/png','image/jpeg','image/webp'];
+ if(!acceptable.includes(file.type))return notify('Use JPEG, PNG or WebP.',true);
+ if(file.size===0 || file.size>=150*1024)return notify('Choose a photo strictly under 150 KB.',true);
+ const btn=e.target.querySelector('[type=submit]');
+ btn.disabled=true;btn.setAttribute('aria-busy','true');
+ $('photo-upload-status').textContent='Uploading and optimizing photo…';
+ try{
+  const data=new FormData();data.set('file',file);
+  await api('/api/bca/showcase/me/photo',{method:'PUT',body:data});
+  $('showcase-photo').value='';
+  setProfilePhoto(true);
+  $('photo-upload-status').textContent='Photo saved. It appears publicly only while your profile is published.';
+  notify('Profile photo uploaded.');
+ }catch(err){$('photo-upload-status').textContent=err.message;notify(err.message,true)}
+ finally{btn.disabled=false;btn.removeAttribute('aria-busy')}
+});
+$('remove-showcase-photo').addEventListener('click',async ()=>{
+ if(!confirm('Remove your saved profile photo?'))return;
+ const btn=$('remove-showcase-photo');
+ btn.disabled=true;btn.setAttribute('aria-busy','true');
+ try{
+  await api('/api/bca/showcase/me/photo',{method:'DELETE'});
+  setProfilePhoto(false);
+  $('photo-upload-status').textContent='Photo removed.';
+  notify('Photo removed from your student profile.');
+ }catch(err){notify(err.message,true)}
+ finally{btn.disabled=false;btn.removeAttribute('aria-busy')}
+});
