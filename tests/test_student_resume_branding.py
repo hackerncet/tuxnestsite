@@ -24,7 +24,7 @@ def test_brand_assets_are_supplied_and_svg(client):
     for name in ("ncet-brand.png","ngi-brand.png","naac-brand.png"):
         file=BASE/"static"/name
         assert file.is_file(), name
-        assert file.read_bytes().startswith(b"\\x89PNG\\r\\n\\x1a\\n"), name
+        assert file.read_bytes().startswith(bytes.fromhex('89504e470d0a1a0a')), name
         response=client.get("/static/"+name)
         assert response.status_code==200
         assert response.headers["content-type"]=="image/png"
