@@ -4,6 +4,19 @@
 const reduced=window.matchMedia('(prefers-reduced-motion: reduce)');
 function init(){
  document.documentElement.classList.add('ncet-motion-ready');
+ // The official college photo source can be temporarily unavailable.
+ // Show the verified transparent institutional wordmark instead of a broken image.
+ document.querySelectorAll('.ncet-campus-photo img,.about-photo img').forEach(img=>{
+  const fallback=()=>{
+   if(img.dataset.ncetFallback)return;
+   img.dataset.ncetFallback='1';
+   img.classList.add('ncet-campus-fallback');
+   img.src='/static/ncet-brand.svg';
+   img.alt='Nagarjuna College of Engineering and Technology official emblem';
+  };
+  img.addEventListener('error',fallback,{once:true});
+  if(img.complete && img.naturalWidth===0)fallback();
+ });
  // On scroll, reveal content with a one-time lightweight transform (never hidden).
  if('IntersectionObserver' in window && !reduced.matches){
   const io=new IntersectionObserver(entries=>{
