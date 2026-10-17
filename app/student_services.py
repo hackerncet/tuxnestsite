@@ -13,7 +13,7 @@ from .database import User, AuditLog, DBSession, get_db, utcnow
 from .student_models import BCAStudent, StudentCase, StudentCaseMessage
 from .security import current, csrf_required, as_role, as_role_mutation, hash_password
 
-router=APIRouter(prefix='/api/bca', tags=['BCA student services'])
+router=APIRouter(prefix='/api/bca', tags=['BCA student portal'])
 BCA_DEPARTMENT='Computer Applications'
 BCA_DEPARTMENT_NAMES={'bca','computer applications','bachelor of computer applications'}
 USN_RE=re.compile(r'^1NC[A-Z0-9]{5,14}$')
