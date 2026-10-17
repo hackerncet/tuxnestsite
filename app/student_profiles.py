@@ -17,7 +17,7 @@ from urllib.parse import urlsplit
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Request
 from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel, Field
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, LargeBinary, or_
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, LargeBinary, or_, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session as DbSession, Mapped, mapped_column, defer
 
@@ -470,7 +470,7 @@ def public_directory(q:str='',limit:int=30,offset:int=0,db:DbSession=Depends(get
         term='%'+q.strip().replace('%','\\%').replace('_','\\_')+'%'
         query=query.filter(or_(BCAStudent.usn.ilike(term,escape='\\'),
                                 User.display_name.ilike(term,escape='\\')))
-    total=query.count()
+    total=query.with_entities(func.count(StudentShowcase.id)).scalar() or 0
     # Never download up to 50 stored images just to render a public roster.
     rows=(query.options(defer(StudentShowcase.photo_bytes))
           .order_by(BCAStudent.usn).offset(offset).limit(limit).all())
@@ -618,7 +618,7 @@ def directory_page(page:int=1,db:DbSession=Depends(get_db)):
     static=Path(__file__).resolve().parents[1]/'static'
     html=(static/'student-directory.html').read_text(encoding='utf-8')
     per_page=18
-    total=public_query(db).count()
+    total=public_query(db).with_entities(func.count(StudentShowcase.id)).scalar() or 0
     pages=max(1,(total+per_page-1)//per_page)
     if page>pages:raise HTTPException(404,'Directory page not found.')
     rows=(public_query(db).options(defer(StudentShowcase.photo_bytes))
