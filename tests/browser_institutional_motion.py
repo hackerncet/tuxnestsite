@@ -49,7 +49,7 @@ with sync_playwright() as p:
     # No artificial spinner: mark appears only while the slow API call is pending.
     # Stub the native fetch BEFORE application scripts wrap it. A synchronous
     # Playwright route.sleep would block the test controller past the shimmer.
-    page.add_init_script("""() => {
+    page.add_init_script("""(() => {
       const nativeFetch=window.fetch.bind(window);
       window.fetch=(url,opts)=>{
         if(String(url).includes('/api/ui-motion-slow')){
@@ -59,7 +59,7 @@ with sync_playwright() as p:
         }
         return nativeFetch(url,opts);
       };
-    }""")
+    })()""")
     page.reload(wait_until='domcontentloaded')
     page.evaluate("() => { window.__slowOperation=fetch('/api/ui-motion-slow',{method:'POST'}); }")
     page.locator('.ncet-network-loader:not([hidden])').wait_for(state='visible',timeout=1500)
