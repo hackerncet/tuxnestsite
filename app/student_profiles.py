@@ -568,6 +568,7 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
 <script type="application/ld+json">{json_ld}</script>
 <link rel="preload" as="image" href="/static/ncet-brand.svg" fetchpriority="high">
 <link rel="stylesheet" href="/static/resume-profile.css?v=20261017-2">
+<link rel="stylesheet" href="/static/institutional-ui.css?v=20261017d">
 <script src="/static/student-profile-tabs.js?v=20261017" defer></script>
 </head><body class="ncet-profile-page">
 <a class="skip-link" href="#student-resume">Skip to portfolio</a>
@@ -607,6 +608,7 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
 <footer class="resume-footer"><img src="/static/ngi-brand.svg" alt="Nagarjuna Group of Institutions" width="53" height="47" loading="lazy" decoding="async">
 <span>NCET VerifyFlow · Academic collaboration & student success</span>
 <a href="/students">Student Portal</a></footer>
+<script src="/static/institutional-ui.js?v=20261017d" defer></script>
 </body></html>''',headers={'Cache-Control':'no-store'})
 
 

@@ -23,7 +23,7 @@ def load_page(page, html_file, script=None, mock_denied=False):
             uri = 'data:' + mime + ';base64,' + base64.b64encode(image.read_bytes()).decode()
             html = re.sub(r'/static/' + re.escape(asset) + r'(?:\?v=[a-zA-Z0-9_-]+)?', lambda _match: uri, html)
     for css in ('bca.css', 'community.css','experience.css','responsive-upgrade.css',
-                'student-redesign.css','ncet-brand-system.css','homepage-polish.css'):
+                'student-redesign.css','ncet-brand-system.css','homepage-polish.css','institutional-ui.css','home-revamp.css'):
         file=STATIC/css
         if not file.is_file():continue
         html=re.sub(r'<link rel="stylesheet" href="/static/' + re.escape(css) + r'(?:\?v=[a-zA-Z0-9_-]+)?"\s*/?>',
@@ -54,7 +54,7 @@ def main():
         desktop.set_default_timeout(8000)
 
         load_page(desktop, 'public-home.html', 'public-home.js')
-        assert desktop.locator('h1').inner_text().startswith('Your academic journey.')
+        assert desktop.locator('h1').inner_text().startswith('Your campus.')
         assert desktop.locator('.identity-crest').evaluate('(img) => img.naturalWidth') > 0
         assert desktop.locator('.film-frames').count() == 0
         assert desktop.locator('#toggle-animation').count() == 0

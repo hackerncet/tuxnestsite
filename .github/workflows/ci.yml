@@ -27,6 +27,7 @@ jobs:
           node-version: '22'
       - run: node --check static/app.js && node --check static/tasks.js
       - run: node --check static/notifications.js && node --check static/bca-oversight.js && node --check static/community.js && node --check static/student-portal.js && node --check static/bca-management.js && node --check static/public-home.js && node --check static/student-directory.js && node --check static/ncet-loading.js
+      - run: node --check static/institutional-ui.js
 
   browser:
     name: Chromium multi-role UI smoke
@@ -62,3 +63,4 @@ jobs:
           sleep 4
           NCET_BASE_URL=http://127.0.0.1:8878 python tests/browser_responsive_audit.py
           NCET_BASE_URL=http://127.0.0.1:8878 python tests/browser_not_found.py
+          NCET_BASE_URL=http://127.0.0.1:8878 python tests/browser_institutional_motion.py
