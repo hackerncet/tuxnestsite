@@ -68,7 +68,7 @@ def main():
    page.wait_for_function("document.querySelectorAll('#case-results .complaint-row').length===1 && document.querySelector('#case-results').textContent.includes('Semester examination')")
    page.locator('#case-results .complaint-row').click()
    assert page.locator('#case-dialog').is_visible()
-   assert 'Confidential student request' in page.locator('#detail-content').inner_text()
+   page.get_by_text('Confidential student request.',exact=True).wait_for()
    page.locator('#close-dialog').click()
    assert page.locator('#case-dialog').is_hidden()
    page.locator('#case-filters [name=search]').fill('')
