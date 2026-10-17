@@ -9,7 +9,38 @@ async function start(){try{const me=await api('/api/auth/me');if(me.user.role!==
 $('login-form').addEventListener('submit',async e=>{e.preventDefault();let fd=new FormData(e.target);let usn=String(fd.get('usn')||'').trim().toLowerCase();try{let login=await api('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:usn,password:fd.get('password'),role:'student'})});if(login.user.role!=='student')throw new Error('Not a student account.');csrf=login.csrf;e.target.reset();notify('Signed in.');await start()}catch(err){notify(err.message,true);$('login-password').value=''}});
 $('logout').addEventListener('click',async()=>{try{await api('/api/auth/logout',{method:'POST'})}catch{}csrf='';selected=null;location.replace('/students/portal')});
 $('password-form').addEventListener('submit',async e=>{e.preventDefault();const fd=new FormData(e.target);const button=e.target.querySelector('button[type=submit]');button.disabled=true;button.setAttribute('aria-busy','true');try{await api('/api/auth/change-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({old_password:fd.get('old_password'),new_password:fd.get('new_password')})});e.target.reset();notify('Password updated. You can now submit requests.');await start()}catch(err){notify(err.message,true)}finally{button.disabled=false;button.removeAttribute('aria-busy')}});
-async function loadCases(){try{let x=await api('/api/bca/cases');$('case-list').innerHTML=x.items.map(item=>`<button type="button" class="entry" data-ref="${escapeHtml(item.reference)}"><span class="row"><strong>${escapeHtml(item.subject)}</strong><span class="status ${escapeHtml(item.status)}">${escapeHtml(item.status.replaceAll('_',' '))}</span></span><span class="small muted">${escapeHtml(item.reference)} · ${escapeHtml(new Date(item.created_at).toLocaleDateString())}</span></button>`).join('')||'<p class="muted">No requests yet. Start with the form.</p>';for(const btn of $('case-list').querySelectorAll('[data-ref]'))btn.addEventListener('click',()=>openCase(btn.dataset.ref));}catch(err){notify(err.message,true)}}
+let studentCaseOffset=0,studentCaseTimer=null,studentCaseRequest=0,studentCaseTotal=0;
+async function loadCases(){
+ const request=++studentCaseRequest,query=new URLSearchParams({offset:String(studentCaseOffset),limit:'12'});
+ for(const [key,value] of new FormData($('student-case-filters'))){
+  if(String(value).trim())query.set(key,String(value).trim());
+ }
+ $('student-case-page').textContent='Loading…';
+ try{
+  const x=await api('/api/bca/cases?'+query);
+  if(request!==studentCaseRequest)return;
+  const stats=x.counts||{},total=Number(x.all_total||0);
+  studentCaseTotal=x.total;
+  $('student-case-stats').textContent=total+' total · '+(stats.submitted||0)+' new · '+(stats.in_review||0)+' in review · '+(stats.resolved||0)+' resolved · '+(stats.closed||0)+' closed';
+  $('student-case-page').textContent=x.total?(studentCaseOffset+1)+'–'+(studentCaseOffset+x.items.length)+' of '+x.total:'No matching requests';
+  $('student-case-prev').disabled=studentCaseOffset===0;
+  $('student-case-next').disabled=!x.has_more;
+  $('case-list').innerHTML=x.items.map(item=>`<button type="button" class="entry" data-ref="${escapeHtml(item.reference)}"><span class="row"><strong>${escapeHtml(item.subject)}</strong><span class="status ${escapeHtml(item.status)}">${escapeHtml(item.status.replaceAll('_',' '))}</span></span><span class="small muted">${escapeHtml(item.reference)} · ${escapeHtml(item.category)} · ${escapeHtml(new Date(item.created_at).toLocaleDateString())}</span></button>`).join('')||'<p class="muted">No matching requests. Change your filters or submit a new request.</p>';
+  for(const btn of $('case-list').querySelectorAll('[data-ref]'))btn.addEventListener('click',()=>openCase(btn.dataset.ref));
+ }catch(err){if(request===studentCaseRequest)notify(err.message,true)}
+}
+function resetStudentCases(){studentCaseOffset=0;void loadCases()}
+$('student-case-filters').addEventListener('submit',e=>{e.preventDefault();resetStudentCases()});
+$('student-case-filters').addEventListener('change',resetStudentCases);
+$('student-case-filters').elements.search.addEventListener('input',()=>{
+ clearTimeout(studentCaseTimer);studentCaseTimer=setTimeout(resetStudentCases,300);
+});
+$('student-case-clear').addEventListener('click',()=>{
+ $('student-case-filters').reset();clearTimeout(studentCaseTimer);resetStudentCases();
+});
+$('student-case-prev').addEventListener('click',()=>{studentCaseOffset=Math.max(0,studentCaseOffset-12);void loadCases()});
+$('student-case-next').addEventListener('click',()=>{if(studentCaseOffset+12<studentCaseTotal){studentCaseOffset+=12;void loadCases()}});
+
 $('new-case').addEventListener('submit',async e=>{e.preventDefault();let data=Object.fromEntries(new FormData(e.target));let button=e.target.querySelector('button[type=submit]');button.disabled=true;button.setAttribute('aria-busy','true');try{let result=await api('/api/bca/cases',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});notify(`Request ${result.reference} submitted to the BCA HOD.`);e.target.reset();await loadCases();await openCase(result.reference);window.dispatchEvent(new Event('ncet:notifications-refresh'))}catch(err){notify(err.message,true)}finally{button.disabled=false;button.removeAttribute('aria-busy')}});
 async function openCase(ref){try{let c=await api('/api/bca/cases/'+encodeURIComponent(ref));selected=ref;show('case-detail',true);$('case-heading').textContent=c.subject;$('case-info').innerHTML=`<p><span class="status ${escapeHtml(c.status)}">${escapeHtml(c.status.replaceAll('_',' '))}</span> <span class="muted small">${escapeHtml(ref)} · ${escapeHtml(c.category)}</span></p><p>${escapeHtml(c.description)}</p><h3>Conversation</h3>${c.messages.map(m=>`<div class="thread"><strong>${escapeHtml(m.author)}</strong> <span class="small muted">${escapeHtml(new Date(m.created_at).toLocaleString())}</span><p>${escapeHtml(m.body)}</p></div>`).join('')||'<p class="muted">No replies yet.</p>'}`;show('message-form',c.status!=='closed');$('case-detail').scrollIntoView({behavior:'smooth'});}catch(err){notify(err.message,true)}}
 $('close-case').addEventListener('click',()=>{show('case-detail',false);selected=null});
