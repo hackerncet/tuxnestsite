@@ -102,5 +102,6 @@ def test_complaint_notification_principal_summary_and_project_alert(client,login
         assert 'Class scheduling concern' not in str(data)
         assert principal.get('/api/bca/cases/'+ref).status_code==403
         assert any(n['category']=='projects' for n in principal.get('/api/alerts/inbox').json()['items'])
-    assert client.get('/api/alerts/inbox').status_code==401
-    assert client.get('/bca/oversight').status_code==401
+    with TestClient(app) as anonymous:
+        assert anonymous.get('/api/alerts/inbox').status_code==401
+        assert anonymous.get('/bca/oversight').status_code==401
