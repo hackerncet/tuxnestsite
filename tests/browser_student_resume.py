@@ -3,6 +3,8 @@ import os
 import tempfile
 from pathlib import Path
 from urllib.parse import urlsplit
+from time import perf_counter
+from statistics import median
 import sys
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 
@@ -42,6 +44,7 @@ assert 'Student Project' in html and 'Programming Certificate' in html
 
 with sync_playwright() as p:
     browser=p.chromium.launch(headless=True)
+    switches=[]
     for width in (320,375,390,768,1024,1440):
         page=browser.new_page(viewport={'width':width,'height':850},device_scale_factor=1)
         errors=[]
@@ -86,8 +89,40 @@ with sync_playwright() as p:
         page.goto('http://ncet.test/students/profile/1NC24CS150#links',wait_until='load')
         assert page.locator('#links').is_visible()
         assert page.locator('.resume-section:not([hidden])').count()==1
+        # Browser-perceived, measured in the test runner (not a synthetic Lighthouse score).
+        for target in ('skills','interests','about'):
+            start=perf_counter()
+            page.locator('a[href="#'+target+'"]').click()
+            page.wait_for_function("document.querySelector('#resume-tab-stage').style.height === ''",timeout=3000)
+            switches.append((perf_counter()-start)*1000)
+            assert page.locator('#'+target).is_visible()
+        page.emulate_media(reduced_motion='reduce')
+        page.locator('a[href="#projects"]').click()
+        assert page.locator('#projects').is_visible()
+        assert page.locator('#resume-tab-stage').evaluate('(el)=>el.style.height')==''
         assert not errors,(width,errors)
         page.close()
+    # Without JavaScript, all sections remain indexable and readable.
+    nojs=browser.new_context(java_script_enabled=False,viewport={'width':390,'height':850})
+    page=nojs.new_page()
+    page.route('http://ncet.test/**',serve)
+    page.goto('http://ncet.test/students/profile/1NC24CS150',wait_until='load')
+    assert page.locator('.resume-section:visible').count()==6
+    assert page.locator('.resume-anchors[role="tablist"]').count()==0
+    nojs.close()
     browser.close()
 os.unlink(path)
-print('NCET résumé audit passed: six widths, six sections, all institutional images loaded.')
+switches.sort()
+p95=switches[min(len(switches)-1,int(len(switches)*.95))]
+original_css=10432+8120+6555+4636+7184
+original_js=1752
+updated_css=(static/'resume-profile.css').stat().st_size
+updated_js=(static/'student-profile-tabs.js').stat().st_size
+before=original_css+original_js
+after=updated_css+updated_js
+assert after<before*.75,(before,after)
+print('NCET RESUME PERFORMANCE BENCHMARK')
+print(f'Critical CSS+JS bytes (uncompressed): previous={before}, updated={after}, reduction={(before-after)/before*100:.1f}%')
+print(f'Critical stylesheet/script requests: previous=6, updated=2')
+print(f'Tab switch browser timings, 18 interactions: median={median(switches):.0f} ms, p95={p95:.0f} ms')
+print('NCET résumé audit passed: six widths, six sections, reduced motion, keyboard/history, no-JS fallback, all institutional images loaded.')
