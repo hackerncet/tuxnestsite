@@ -25,6 +25,7 @@ from .database import Base, User, AuditLog, utcnow, get_db
 from .student_models import BCAStudent
 from .student_services import BCA_DEPARTMENT, USN_RE, can_manage_bca
 from .security import current, csrf_required, hash_password
+from .departments import branch_option, branch_name
 
 router = APIRouter(tags=['NCET student enrollment and showcase'])
 URL_ROOT = 'https://ncet-verifyflow.onrender.com'
@@ -46,15 +47,17 @@ class StudentShowcase(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),default=utcnow)
 
 class EnrollmentItem(BaseModel):
-    usn: str
-    full_name: str = Field(default='',max_length=130)
-    semester: int = Field(default=1,ge=1,le=8)
+    usn: str = Field(min_length=8,max_length=24)
+    full_name: str = Field(min_length=3,max_length=130)
+    branch: str = Field(min_length=2,max_length=160)
+    semester: int = Field(ge=1,le=8)
 
 class EnrollmentBody(BaseModel):
     students: list[EnrollmentItem] = Field(min_length=1,max_length=MAX_BATCH)
 
 class FacultyUpdate(BaseModel):
     full_name: str = Field(min_length=3,max_length=130)
+    branch: str = Field(min_length=2,max_length=160)
     semester: int = Field(ge=1,le=8)
 
 class Certificate(BaseModel):
@@ -103,35 +106,38 @@ def valid_name(name:str)->bool:
     return 3<=len(name)<=130 and name[0] not in '=+-@' and not any(ord(c)<32 for c in name)
 
 
-def validate_enrollment(items:list[EnrollmentItem])->list[tuple[str,str,int]]:
+def validate_enrollment(db:DbSession,actor:User,items:list[EnrollmentItem])->list[tuple[str,str,str,int]]:
     result=[];seen=set()
     for i,item in enumerate(items,1):
         usn=item.usn.strip().upper()
         name=item.full_name.strip()
         if not USN_RE.fullmatch(usn):raise HTTPException(422,f'Invalid USN at entry {i}; expected 1NC followed by letters or digits.')
-        if name and not valid_name(name):raise HTTPException(422,f'Invalid student name at entry {i}.')
+        if not valid_name(name):raise HTTPException(422,f'Student name is required at entry {i}.')
         if usn in seen:raise HTTPException(422,f'Duplicate USN at entry {i}.')
-        seen.add(usn);result.append((usn,name,item.semester))
+        branch=branch_option(db,item.branch).code
+        if actor.role!='admin' and branch!=BCA_DEPARTMENT:
+            raise HTTPException(403,'BCA faculty may register students only in Computer Applications.')
+        seen.add(usn);result.append((usn,name,branch,item.semester))
     return result
 
 
 def create_students(db, actor, items:list[EnrollmentItem]):
     can_manage_bca(actor)
-    values=validate_enrollment(items)
-    if db.query(User.id).filter(User.username.in_([u.lower() for u,n,s in values])).first() or \
+    values=validate_enrollment(db,actor,items)
+    if db.query(User.id).filter(User.username.in_([u.lower() for u,n,b,s in values])).first() or \
        db.query(BCAStudent.id).filter(BCAStudent.usn.in_([u for u,n,s in values])).first():
         raise HTTPException(409,'One or more USNs are already enrolled. No accounts were created.')
     creds=[]
     try:
-        for usn,name,semester in values:
+        for usn,name,branch,semester in values:
             password=secrets.token_urlsafe(24)
             # This is deliberately not a guessable USN-derived password.
-            user=User(username=usn.lower(),display_name=name or 'Registration pending',
-                      role='student',department=BCA_DEPARTMENT,
+            user=User(username=usn.lower(),display_name=name,
+                      role='student',department=branch,
                       password_hash=hash_password(password),active=True)
             db.add(user);db.flush()
             db.add(BCAStudent(user_id=user.id,usn=usn,semester=semester,must_change_password=True))
-            creds.append({'usn':usn,'name':name,'semester':semester,'temporary_password':password})
+            creds.append({'usn':usn,'name':name,'branch':branch,'semester':semester,'temporary_password':password})
         db.add(AuditLog(actor_id=actor.id,event='bca.flexible_enrollment',detail=f'{len(values)} new USNs'))
         db.commit()
     except IntegrityError:
@@ -158,18 +164,23 @@ async def import_excel(file:UploadFile=File(...),actor:User=Depends(csrf_require
         sheet=book.active
         iterator=sheet.iter_rows(min_row=1,max_row=102,values_only=True)
         header=tuple(str(c or '').strip().lower() for c in next(iterator))
-        if header not in (('usn','full_name','semester'),('usn','name','semester'),('usn','full_name'),('usn','name'),('usn',)):
-            raise ValueError('First row must contain USN, optional full_name, optional semester.')
+        aliases={'name':'full_name','department':'branch','sem':'semester'}
+        normalized=tuple(aliases.get(h,h) for h in header)
+        if normalized!=('usn','full_name','branch','semester'):
+            raise ValueError('Columns must be USN, Name, Branch, Sem in that order.')
         parsed=[]
         for row in iterator:
             if not row or not any(c is not None and str(c).strip() for c in row):continue
             if len(parsed)>=100:raise ValueError('Maximum 100 student rows per spreadsheet.')
-            usn=str(row[0] or '').strip()
-            name=str(row[1] or '').strip() if len(row)>1 else ''
-            semester=int(row[2] or 1) if len(row)>2 else 1
-            parsed.append(EnrollmentItem(usn=usn,full_name=name,semester=semester))
+            if len(row)!=4 or any(c is None or not str(c).strip() for c in row):
+                raise ValueError('All four fields are required for each student.')
+            try:semester=int(row[3])
+            except (TypeError,ValueError):raise ValueError('Semester must be a whole number between 1 and 8.')
+            parsed.append(EnrollmentItem(usn=str(row[0]).strip(),
+                                         full_name=str(row[1]).strip(),
+                                         branch=str(row[2]).strip(),semester=semester))
     except Exception as exc:
-        raise HTTPException(422,'Invalid Excel roster. Check the headers, USNs and semesters.') from exc
+        raise HTTPException(422,'Invalid Excel roster. Use required USN, Name, Branch, Sem (1–8).') from exc
     finally:
         if 'book' in locals():book.close()
     if not parsed:raise HTTPException(422,'The spreadsheet is empty.')
@@ -185,13 +196,16 @@ def faculty_edit(usn:str,body:FacultyUpdate,actor:User=Depends(csrf_required),db
     name=body.full_name.strip()
     if not valid_name(name):raise HTTPException(422,'Enter a valid student name.')
     user,student=found
-    user.display_name=name;student.semester=body.semester
+    target=branch_option(db,body.branch)
+    if actor.role!='admin' and (user.department!=actor.department or target.code!=user.department):
+        raise HTTPException(403,'Faculty cannot transfer students between departments.')
+    user.display_name=name;student.semester=body.semester;user.department=target.code
     # Changing official enrollment data requires the student to explicitly republish.
     showcase=db.query(StudentShowcase).filter(StudentShowcase.student_id==user.id).first()
     if showcase:showcase.published=False
     db.add(AuditLog(actor_id=actor.id,event='bca.student_details_updated',detail=student.usn))
     db.commit()
-    return {'ok':True,'publication_review_required':bool(showcase)}
+    return {'ok':True,'branch':user.department,'publication_review_required':bool(showcase)}
 
 
 def _my_student(db,user):
@@ -229,7 +243,7 @@ def my_showcase(user:User=Depends(current),db:DbSession=Depends(get_db)):
     student=_my_student(db,user)
     s=_showcase(db,user)
     return {'usn':student.usn,'full_name':user.display_name if user.display_name!='Registration pending' else '',
-            'department':'Bachelor of Computer Applications','semester':student.semester,
+            'department':branch_name(db,user.department),'semester':student.semester,
             'must_change_password':student.must_change_password,
             'mobile':s.mobile_private if s else '', 'email':s.email_private if s else '',
             'about':s.about if s else '', 'skills':json.loads(s.skills_json) if s else [],
@@ -386,7 +400,7 @@ def public_query(db):
 def public_record(user,student,showcase):
     """Deliberate allowlist; private mobile and email never leave this function."""
     return {'name':user.display_name,'usn':student.usn,
-            'department':'Bachelor of Computer Applications','semester':student.semester,
+            'department':user.department,'semester':student.semester,
             'about':showcase.about,'skills':json.loads(showcase.skills_json),
             'certificates':json.loads(showcase.certificates_json),
             'social_links':json.loads(showcase.social_links_json or '{}'),
@@ -404,7 +418,7 @@ def public_directory(q:str='',limit:int=30,offset:int=0,db:DbSession=Depends(get
                                 User.display_name.ilike(term,escape='\\')))
     total=query.count()
     rows=query.order_by(BCAStudent.usn).offset(offset).limit(limit).all()
-    return {'total':total,'offset':offset,'limit':limit,'items':[{'name':u.display_name,'usn':p.usn,'department':'Bachelor of Computer Applications',
+    return {'total':total,'offset':offset,'limit':limit,'items':[{'name':u.display_name,'usn':p.usn,'department':branch_name(db,u.department),
                        'skills':json.loads(s.skills_json),
                        'photo_url':f'/students/profile/{p.usn}/photo' if s.photo_bytes else None} for u,p,s in rows]}
 
@@ -414,7 +428,9 @@ def public_one(usn:str,db:DbSession=Depends(get_db)):
     if not USN_RE.fullmatch(usn.strip().upper()):raise HTTPException(404,'Profile unavailable.')
     record=public_query(db).filter(BCAStudent.usn==usn.strip().upper()).first()
     if not record:raise HTTPException(404,'Profile unavailable.')
-    return public_record(*record)
+    result=public_record(*record)
+    result['department']=branch_name(db,record[0].department)
+    return result
 
 
 @router.get('/students/profile/{usn}',response_class=HTMLResponse,include_in_schema=False)
@@ -422,7 +438,7 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
     info=public_one(usn,db)
     name=escape(info['name'])
     sid=escape(info['usn'])
-    description=escape((info['about'] or f"{info['name']} studies Bachelor of Computer Applications at NCET.")[:155],quote=True)
+    description=escape((info['about'] or f"{info['name']} studies at NCET.")[:155],quote=True)
     canonical=f"{URL_ROOT}/students/profile/{sid}"
     photo_url=info.get('photo_url')
     image_full=URL_ROOT+photo_url if photo_url else ''
@@ -468,7 +484,7 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
 <main class="shell">
 <div class="student-portfolio-hero">{photo_html}<div>
 <span class="eyebrow">NCET · Student published portfolio</span>
-<h1>{name}</h1><p>{sid} · Bachelor of Computer Applications · Semester {info['semester']}</p>
+<h1>{name}</h1><p>{sid} · {escape(info['department'])} · Semester {info['semester']}</p>
 </div></div>
 <div class="student-portfolio-columns"><div>
 <section class="panel"><span class="eyebrow">ABOUT</span><h2>About me</h2>
