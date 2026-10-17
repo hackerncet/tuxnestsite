@@ -5,14 +5,18 @@
 <section class="metrics" id="metrics" aria-label="Task performance overview"></section>
 <section class="grid" id="hod-section" hidden>
  <article class="panel"><header><h2>Upload reference files</h2><span class="tag">Up to 50 PDFs / 60 MB total</span></header><form id="batch-form"><label>Batch title<input type="text" id="batch-title" minlength="5" maxlength="140" required placeholder="e.g. October academic audit records"></label><label>Reference PDF files<input type="file" id="batch-files" accept=".pdf,application/pdf" multiple required></label><div class="form-footer"><span id="selected-count" class="subtle">No files selected · AI extracts draft rules after upload</span><button type="submit" class="btn">Upload reference files</button></div></form></article>
- <article class="panel"><header><h2>Allocate selected tasks</h2><span class="tag">HOD only</span></header><form id="assign-form"><p id="selected-ids" class="subtle">Select unassigned PDF rows below.</p><label>Assign to staff member<select id="staff-id" required><option value="">Choose staff</option></select></label><label>Instructions for staff<textarea id="notes" minlength="10" maxlength="3000" required placeholder="Explain the expected output and any special conditions."></textarea></label><div class="draft-review" aria-label="AI reference rules"><h3 style="margin:12px 0">AI-generated requirements</h3>
+ <article class="panel"><header><h2>Allocate selected tasks</h2><span class="tag">HOD only</span></header><form id="assign-form"><p id="selected-ids" class="subtle">Select unassigned PDF rows below.</p><label>Assign to staff member<select id="staff-id" required><option value="">Choose staff</option></select></label><label>Instructions for staff<textarea id="notes" minlength="10" maxlength="3000" required placeholder="Explain the expected output and any special conditions."></textarea></label>
+<label for="assignment-deadline">Submission deadline <span class="subtle">(optional)</span>
+<input id="assignment-deadline" type="datetime-local" aria-describedby="assignment-deadline-help">
+<span class="subtle" id="assignment-deadline-help">Uses your device's local time. Staff will see the deadline and overdue status in their task queue.</span>
+</label><div class="draft-review" aria-label="AI reference rules"><h3 style="margin:12px 0">AI-generated requirements</h3>
 <p class="subtle">Each uploaded reference PDF is analyzed individually. Review the suggestions against the original PDF before assignment. DeepSeek findings may be incomplete and are not automatically approved.</p>
 <div id="draft-preview" aria-live="polite"><p class="subtle">Select an unassigned PDF to see rule suggestions.</p></div>
 <p><button class="btn secondary" id="retry-rules" type="button">Analyze / retry selected PDFs</button></p>
 <label class="confirmation"><input type="checkbox" id="review-confirm" disabled required> <span id="review-label">Wait for AI analysis and review every selected PDF.</span></label></div><button class="btn" type="submit">Assign selected tasks</button></form></article>
 </section>
 <section class="panel" id="admin-ai" hidden><header><h2>DeepSeek integration</h2><span id="ai-state" class="tag">Checking…</span></header><p>Use your own DeepSeek API key for document analysis. Keys are encrypted, never displayed back, and are not included in uploaded source code.</p><form id="ai-form" class="inline"><label class="fill">New DeepSeek key<input id="ai-key" name="api_key" type="password" minlength="15" autocomplete="new-password" required></label><button type="submit" class="btn">Save key</button></form></section>
-<section class="panel"><header><div><h2 id="queue-title">Assigned document tasks</h2><p class="subtle">Select a reference PDF, review its rules, and follow its verification status.</p></div><span id="queue-count" class="tag">0 tasks</span></header><div class="scroll"><table><thead><tr><th id="check-header">Select</th><th>Reference document</th><th>Assigned staff</th><th>Status</th><th>Score</th><th>Actions</th></tr></thead><tbody id="tasks"><tr><td colspan="6">Loading…</td></tr></tbody></table></div></section>
+<section class="panel"><header><div><h2 id="queue-title">Assigned document tasks</h2><p class="subtle">Select a reference PDF, review its rules, and follow its verification status.</p></div><span id="queue-count" class="tag">0 tasks</span></header><div class="scroll"><table><thead><tr><th id="check-header">Select</th><th>Reference document</th><th>Assigned staff</th><th>Status</th><th>Due date</th><th>Score</th><th>Actions</th></tr></thead><tbody id="tasks"><tr><td colspan="7">Loading…</td></tr></tbody></table></div></section>
 <div class="grid bottom">
 <section class="panel" id="notifications-box"><header><h2>In-app notifications</h2><span class="tag" id="unread">0 unread</span></header><div id="inbox" class="feed">No notifications yet.</div></section>
 <section class="panel" id="oversight" hidden><header><h2>Workload & quality overview</h2><span class="tag">Operational indicators</span></header><div id="leaderboard" class="scroll"></div><button id="ai-brief" class="btn secondary" type="button">Generate AI workflow suggestions</button><div id="ai-brief-content" class="feed" role="status" aria-live="polite"></div><p class="subtle">Counts and quality scores support workflow improvement, not personnel decisions. HOD approval is a separate human step.</p></section>
@@ -20,5 +24,16 @@
 </div>
 </div></main>
 <footer><span>© 2026 Nagarjuna College of Engineering and Technology · Authorized users only</span><span>Document verification → HOD decision → Institutional oversight</span></footer>
+<dialog id="deadline-dialog" aria-labelledby="deadline-title">
+  <form id="deadline-form">
+    <h2 id="deadline-title">Update task deadline</h2>
+    <p id="deadline-task-name" class="subtle"></p>
+    <label for="edit-deadline">Due date and time <span class="subtle">(local time)</span>
+      <input type="datetime-local" id="edit-deadline" aria-describedby="edit-deadline-note">
+    </label>
+    <p class="subtle" id="edit-deadline-note">Changes are sent to the assigned staff member. Leave empty to remove the deadline.</p>
+    <div class="deadline-dialog-actions"><button class="btn secondary" id="deadline-cancel" type="button">Cancel</button><button class="btn" type="submit">Save deadline</button></div>
+  </form>
+</dialog>
 <div id="toast" role="status" aria-live="polite" hidden></div>
 <script src="/static/tasks.js" defer></script><script src="/static/notifications.js" defer></script></body></html>
