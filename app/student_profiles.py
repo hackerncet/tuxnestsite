@@ -287,7 +287,7 @@ def edit_showcase(body:ShowcaseEdit,user:User=Depends(csrf_required),db:DbSessio
     return {'ok':True,'published':profile.published,'public_url':f'/students/profile/{student.usn}' if profile.published else None}
 
 
-PHOTO_LIMIT=150*1024  # uploaded file must be strictly smaller than 150 KiB
+PHOTO_LIMIT=150_000  # uploaded file must be strictly smaller than 150 KB (decimal)
 ALLOWED_PHOTO_FORMATS={'PNG','JPEG','WEBP'}
 
 
