@@ -332,9 +332,29 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
                   for x in info['certificates']) or '<li>No certificates listed yet</li>'
     socials=''.join('<li><a href="'+escape(url,quote=True)+'" rel="noopener noreferrer nofollow" target="_blank">'+escape(site.title())+'</a></li>' for site,url in info['social_links'].items())
     canonical=f'{URL_ROOT}/students/profile/{sid}'
+    schema = {
+        "@context": "https://schema.org", "@type": "ProfilePage",
+        "url": f"{URL_ROOT}/students/profile/{info['usn']}",
+        "mainEntity": {
+            "@type": "Person", "name": info["name"],
+            "identifier": info["usn"],
+            "description": info["about"] or f"{info['name']} is an NCET BCA student.",
+            "affiliation": {"@type": "CollegeOrUniversity",
+                            "name": "Nagarjuna College of Engineering and Technology"},
+            "knowsAbout": info["skills"][:40],
+            "sameAs": list(info["social_links"].values())[:10],
+        },
+    }
+    # Protect HTML parser from student-authored strings inside JSON-LD.
+    schema_script = json.dumps(schema, ensure_ascii=False).replace("<", "\\u003c")
     return HTMLResponse(f'''<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{name} ({sid}) | NCET BCA</title><meta name="description" content="{description}">
+<title>{name} ({sid}) | NCET BCA Student Portfolio</title><meta name="description" content="{description}">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<meta property="og:type" content="profile"><meta property="og:title" content="{name} | NCET BCA">
+<meta property="og:description" content="{description}">
+<meta property="og:url" content="{canonical}">
+<script type="application/ld+json">{schema_script}</script>
 <link rel="canonical" href="{canonical}"><link rel="icon" href="/static/ncet-official.webp">
 <link rel="stylesheet" href="/static/bca.css"><link rel="stylesheet" href="/static/experience.css"></head><body>
 <header class="topnav"><div class="container nav-inner"><a class="brand" href="/students">
@@ -350,11 +370,30 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
 
 
 @router.get('/students/directory',include_in_schema=False)
-def directory_page():
+def directory_page(db:DbSession=Depends(get_db)):
+    """Server-rendered profile links complement interactive client-side search.
+
+    Google and other crawlers can find published profiles without executing JS.
+    Do not show records that the student did not explicitly publish.
+    """
     from pathlib import Path
-    from fastapi.responses import FileResponse
-    static=Path(__file__).resolve().parents[1]/'static'
-    return FileResponse(static/'student-directory.html')
+    static = Path(__file__).resolve().parents[1] / 'static'
+    html = (static / 'student-directory.html').read_text(encoding='utf-8')
+    rows = public_query(db).order_by(BCAStudent.usn).limit(1000).all()
+    items = ''.join(
+        '<li><a href="/students/profile/' + escape(student.usn,quote=True) + '">' +
+        escape(user.display_name) + '</a> <span class="muted">' +
+        escape(student.usn) + '</span></li>'
+        for user, student, showcase in rows
+    )
+    links = ('<section class="panel server-profile-links" aria-label="Published student profiles">'
+             '<h2>Browse published NCET BCA student portfolios</h2>'
+             '<p>Only profiles students have chosen to publish are listed.</p>'
+             '<ul>' + items + '</ul></section>') if rows else ''
+    html = html.replace('</main>', links + '</main>')
+    return HTMLResponse(html,headers={'Cache-Control':'public,max-age=60'})
+
+
 
 
 def published_sitemap_paths(db:DbSession)->list[str]:
