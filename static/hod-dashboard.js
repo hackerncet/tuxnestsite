@@ -160,6 +160,11 @@
        const staff=$('#dash-staff-filter').value;
        if(search)params.set('search',search);
        if(staff!=='all')params.set('staff_id',staff);
+       const due=$('#dash-deadline').value,sort=$('#dash-sort').value;
+       if(due!=='all')params.set('deadline_filter',due);
+       if(sort!=='updated')params.set('sort',sort);
+       if($('#dash-from').value)params.set('from_date',$('#dash-from').value);
+       if($('#dash-to').value)params.set('to_date',$('#dash-to').value);
        const res=await fetch('/api/tasks/dashboard?'+params,{credentials:'same-origin',headers:{Accept:'application/json'}});
        if(!res.ok)throw Error('Tracking unavailable ('+res.status+').');
        data=await res.json();render();
@@ -185,6 +190,15 @@
  $('#dash-refresh').addEventListener('click',reload);
  $('#dash-filter').addEventListener('change',e=>{filter=e.target.value;page=0;void reload()});
  $('#dash-staff-filter').addEventListener('change',()=>{page=0;void reload()});
+ for(const id of ['#dash-deadline','#dash-from','#dash-to','#dash-sort'])
+   $(id).addEventListener('change',()=>{page=0;void reload()});
+ $('#dash-reset').addEventListener('click',()=>{
+   filter='all';page=0;
+   $('#dash-search').value='';$('#dash-filter').value='all';
+   $('#dash-staff-filter').value='all';$('#dash-deadline').value='all';
+   $('#dash-from').value='';$('#dash-to').value='';$('#dash-sort').value='updated';
+   clearTimeout(searchTimer);void reload();
+ });
  $('#dash-search').addEventListener('input',()=>{
    page=0;clearTimeout(searchTimer);searchTimer=setTimeout(()=>void reload(),260);
  });

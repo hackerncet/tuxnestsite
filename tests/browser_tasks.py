@@ -14,8 +14,8 @@ def test_browser():
       errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
       html=(BASE/'tasks.html').read_text().replace('<link rel="stylesheet" href="/static/tasks.css">','<style>'+ (BASE/'tasks.css').read_text()+'</style>')
       html=html.replace('<script src="/static/tasks.js" defer></script>','')
-      html=html.replace('<script src="/static/hod-dashboard.js?v=20261017e" defer></script>','')
-      html=html.replace('<link rel="stylesheet" href="/static/hod-dashboard.css?v=20261017e">',
+      html=html.replace('<script src="/static/hod-dashboard.js?v=20261017f" defer></script>','')
+      html=html.replace('<link rel="stylesheet" href="/static/hod-dashboard.css?v=20261017f">',
         '<style>'+ (BASE/'hod-dashboard.css').read_text()+'</style>')
       page.set_content(html)
       page.evaluate("""(role)=>{window.fetch=async(url,opts)=>{
@@ -99,6 +99,16 @@ def test_browser():
         page.locator('#dash-tasks .dashboard-empty').wait_for()
         page.locator('#dash-search').fill('Academic_Audit')
         page.locator('.dashboard-task').first.wait_for()
+        assert page.locator('#dash-deadline').is_visible()
+        assert page.locator('#dash-sort').is_visible()
+        page.locator('#dash-deadline').select_option('due_set')
+        page.locator('#dash-sort').select_option('due_soon')
+        page.locator('#dash-from').fill('2026-10-01')
+        page.locator('#dash-reset').click()
+        assert page.locator('#dash-deadline').input_value()=='all'
+        assert page.locator('#dash-from').input_value()==''
+        assert page.locator('#dash-search').input_value()==''
+        assert page.locator('#dash-sort').input_value()=='updated'
         assert page.locator('.dashboard-task').count()==1
         # Responsive HOD dashboard checks: metric grid, charts and task drilldown.
         for width in (320,390,768,1024,1366):

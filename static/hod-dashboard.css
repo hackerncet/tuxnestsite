@@ -122,3 +122,23 @@
 @media(max-width:950px){.track-time-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:660px){.dashboard-pagination{align-items:stretch;flex-direction:column}.dashboard-page-actions .btn{flex:1}}
 @media(max-width:480px){.track-time-grid{grid-template-columns:1fr}}
+
+/* Extended task filters: resilient desktop grid and accessible compact mobile layout. */
+.dashboard-filters{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.dashboard-filters label:first-child{grid-column:span 2}
+.dashboard-filter-actions{align-self:end}
+.dashboard-filter-actions .btn{min-height:44px;width:100%}
+.track-status.approved{font-weight:800}
+.track-status:not(.approved){box-shadow:inset 3px 0 #f6872a}
+.dashboard-task summary:focus-visible{outline:3px solid #f6872a;outline-offset:-3px}
+@media(max-width:1000px){
+  .dashboard-filters{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media(max-width:660px){
+  .dashboard-filters{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .dashboard-filters label:first-child{grid-column:1/-1}
+}
+@media(max-width:440px){
+  .dashboard-filters{grid-template-columns:1fr}
+  .dashboard-filters label:first-child{grid-column:auto}
+}

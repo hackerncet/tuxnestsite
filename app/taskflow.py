@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import json
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, date, time
 from pathlib import Path
 from typing import Literal
 
@@ -380,6 +380,9 @@ def hod_dashboard(offset:int=Query(0,ge=0),
                   status:str=Query('all',pattern='^(all|working|reviewing|approved|overdue|unassigned)$'),
                   staff_id:int|None=Query(None,ge=1),
                   search:str=Query('',max_length=120),
+                  deadline_filter:str=Query('all',pattern='^(all|due_soon|no_deadline|due_set)$'),
+                  sort:str=Query('updated',pattern='^(updated|oldest|due_soon|score_high)$'),
+                  from_date:date|None=None,to_date:date|None=None,
                   user:User=Depends(current),db:DbSession=Depends(get_db)):
     """HOD-only department dashboard with authoritative totals, server-side
     search/pagination and durable per-task history. No document bytes are read."""
@@ -413,11 +416,31 @@ def hod_dashboard(offset:int=Query(0,ge=0),
         user_ids=db.query(User.id).filter(User.display_name.ilike(term))
         listing=listing.filter(or_(TaskItem.filename.ilike(term),
                                   TaskItem.assigned_to.in_(user_ids)))
+    if from_date and to_date and from_date>to_date:
+        raise HTTPException(422,'Start date must not be after end date.')
+    # Date filters apply to the last task update, not original upload.
+    if from_date:
+        listing=listing.filter(TaskItem.updated_at>=datetime.combine(from_date,time.min,tzinfo=timezone.utc))
+    if to_date:
+        listing=listing.filter(TaskItem.updated_at<datetime.combine(to_date,time.max,tzinfo=timezone.utc))
+    if deadline_filter=='due_soon':
+        listing=listing.filter(TaskItem.deadline>=now,TaskItem.deadline<=now+timedelta(days=7),
+                               TaskItem.state!='approved')
+    elif deadline_filter=='no_deadline':
+        listing=listing.filter(TaskItem.deadline.is_(None))
+    elif deadline_filter=='due_set':
+        listing=listing.filter(TaskItem.deadline.isnot(None))
+    order={
+        'updated':(TaskItem.updated_at.desc(),TaskItem.id.desc()),
+        'oldest':(TaskItem.updated_at.asc(),TaskItem.id.asc()),
+        'due_soon':(TaskItem.deadline.is_(None).asc(),TaskItem.deadline.asc(),TaskItem.id.desc()),
+        'score_high':(TaskItem.score.is_(None).asc(),TaskItem.score.desc(),TaskItem.id.desc())
+    }[sort]
     matching=(listing.with_entities(func.count(TaskItem.id)).scalar() or 0)
     rows=(listing.options(load_only(TaskItem.id,TaskItem.batch_id,TaskItem.filename,
         TaskItem.department,TaskItem.state,TaskItem.assigned_to,TaskItem.deadline,
         TaskItem.updated_at,TaskItem.score))
-          .order_by(TaskItem.updated_at.desc(),TaskItem.id.desc())
+          .order_by(*order)
           .offset(offset).limit(limit).all())
     ids=[t.id for t in rows]
 
