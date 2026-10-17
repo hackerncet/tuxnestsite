@@ -33,7 +33,7 @@ def test_photo_private_until_publish_and_remove(client):
     result=client.put("/api/bca/showcase/me/photo",headers=headers,
                       files={"file":("profile.png",sample_photo(),"image/png")})
     assert result.status_code==200,result.text
-    assert result.json()["size_bytes"]<150*1024
+    assert result.json()["size_bytes"]<150000
     private=client.get("/api/bca/showcase/me/photo")
     assert private.status_code==200
     assert private.headers["content-type"]=="image/webp"
@@ -63,7 +63,7 @@ def test_photo_private_until_publish_and_remove(client):
 def test_photo_rejects_oversize_and_malformed(client):
     headers=setup_student(client)
     huge=client.put("/api/bca/showcase/me/photo",headers=headers,
-        files={"file":("large.png",b"x"*(150*1024),"image/png")})
+        files={"file":("large.png",b"x"*(150000),"image/png")})
     assert huge.status_code==413
     malformed=client.put("/api/bca/showcase/me/photo",headers=headers,
         files={"file":("fake.png",b"not-a-real-image","image/png")})
