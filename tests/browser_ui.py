@@ -67,6 +67,9 @@ with sync_playwright() as p:
     page.locator('[data-page=integrations]').first.click();page.get_by_text('DeepSeek AI settings').wait_for();assert page.locator('#deepseek-key').count()==1;assert page.get_by_text('New OpenRouter API key').count()==0
     page.screenshot(path=str(ROOT/'tests/ui-admin.png'),full_page=True)
     signout();signin('hod')
+    # The default test HOD belongs to CSE and cannot open private BCA cases.
+    assert page.locator('a[href="/bca/oversight"]').count()==0
+    assert page.locator('a[href="/tasks"]').count()==1
     page.locator('[data-page=rules]').first.click();page.locator('[data-action=add-rule]').click()
     page.locator('.rule-entry [name=title]').fill('Executive summary heading')
     page.locator('.rule-entry [name=value]').fill('Executive Summary')
@@ -85,6 +88,7 @@ with sync_playwright() as p:
     page.screenshot(path=str(ROOT/'tests/ui-report.png'),full_page=True)
     page.locator('[data-action=close-modal]').first.click()
     signout();signin('principal')
+    assert page.locator('a[href="/bca/oversight"]').count()==1
     assert page.locator('[data-page=users]').count()==0
     signout();signin('iqac')
     assert page.locator('[data-page=users]').count()==0
