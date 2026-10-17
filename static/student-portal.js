@@ -50,12 +50,12 @@ $('showcase-form').addEventListener('submit',async e=>{
  const body={full_name:$('showcase-name').value,mobile:$('showcase-mobile').value,
   email:$('showcase-email').value,about:$('showcase-about').value,
   skills,certificates,social_links,publish:$('showcase-public').checked};
- const btn=e.target.querySelector('button[type=submit]');btn.disabled=true;
+ const btn=e.target.querySelector('button[type=submit]');btn.disabled=true;btn.setAttribute('aria-busy','true');
  try{
   const response=await api('/api/bca/showcase/me',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   notify(response.published?'Public profile published. Private contact information is hidden.':'Profile saved privately.');
   await loadShowcase();
- }catch(err){notify(err.message,true)}finally{btn.disabled=false}
+ }catch(err){notify(err.message,true)}finally{btn.disabled=false;btn.removeAttribute('aria-busy')}
 });
 
 function updateSkillCount(){

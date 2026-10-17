@@ -67,6 +67,8 @@
   let toastTimer = null;
   let accounts = [];
   let auditEntries = [];
+  let cleanupActions = [];
+  let aiOverview = {};
   let rulebook={version:0,rules:[],history:[]};
   let integrations={configured:false,deepseek_configured:false,openrouter_configured:false,provider:null,model:null};
   let verifyReport=null;
@@ -104,7 +106,7 @@
   const statusHTML = status => `<span class="status ${esc(status)}"><span class="s-dot"></span>${{verifying:'Verification in progress',pending:'Pending HOD',manual_review:'Manual review',needs_correction:'Needs correction',approved:'Approved',rejected:'Rejected'}[status] || esc(status)}</span>`;
   const fmtSize = bytes => !bytes ? '—' : bytes > 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
   const initials = str => String(str).split(/\s+/).slice(0,2).map(x=>x[0]).join('').toUpperCase();
-  const titleFor = p => ({ overview:'Dashboard',documents:role === 'hod' ? 'Review submissions' : role === 'staff' ? 'My documents' : 'Approved documents',upload:'Submit a document',activity:'Activity & history',insights:'Reports & insights',guide:'How it works',rules:'Verification rules',integrations:'AI configuration',users:role==='hod'?'Department staff':'User management',audit:'Security audit',account:'My account' })[p] || 'Dashboard';
+  const titleFor = p => ({ overview:'Dashboard',documents:role === 'hod' ? 'Review submissions' : role === 'staff' ? 'My documents' : 'Approved documents',upload:'Submit a document',activity:'Activity & history',insights:'Reports & insights',guide:'How it works',rules:'Verification rules',integrations:'AI configuration',cleanup:'Database cleanup',users:role==='hod'?'Department staff':'User management',audit:'Security audit',account:'My account' })[p] || 'Dashboard';
   const crest = `<div class="crest ncms-crest"><img src="/static/ncet-official.webp" alt="NCET tree and open-book emblem" /></div>`;
   const campus = `<svg viewBox="0 0 560 195" xmlns="http://www.w3.org/2000/svg" fill="none"><path d="M70 165h426" stroke="#D6BE91" stroke-opacity=".42" stroke-width="1.5"/><path d="M124 161V87L280 30l156 57v74" stroke="#E3CEA6" stroke-width="1.7" fill="#D9BB8B" fill-opacity=".045"/><path d="m115 90 165-68 165 68" stroke="#F5D5A1" stroke-width="2.5"/><path d="M154 161V95h252v66M177 95V72m206 23V72" stroke="#E3CEA6" stroke-opacity=".7" stroke-width="1.5"/><path d="M256 161v-44h48v44" stroke="#E3CEA6" stroke-width="2"/><path d="M268 161v-33h24v33M149 115h82m98 0h82M149 133h82m98 0h82" stroke="#C7D8CF" stroke-opacity=".38"/><path d="M205 95v66m150-66v66" stroke="#E3CEA6" stroke-opacity=".6"/><circle cx="280" cy="82" r="14" stroke="#F0D6A8"/><path d="M280 75v14m-7-7h14" stroke="#F0D6A8"/><path d="M92 164V99m0 7c-36-10-31-45-3-55 31-9 53 29 22 52M468 164V99m0 7c-36-10-31-45-3-55 31-9 53 29 22 52" stroke="#7EADA3" stroke-opacity=".6" stroke-width="1.5"/><path d="M46 174h468" stroke="#A9CEBB" stroke-opacity=".33" stroke-width="1"/></svg>`;
   const txt = str => esc(str || '');
@@ -130,7 +132,7 @@
   }
   function sidebarHTML() {
     const count = role === 'hod' ? docs.filter(d=>['pending','manual_review'].includes(d.status)).length : 0;
-    const nav = role==='admin' ? [['overview','home','Overview'],['users','users','User management'],['integrations','sparkle','AI configuration'],['audit','shield','Security audit'],['account','user','My account']] : [['overview','home','Overview'],['documents',role==='hod'?'checkCircle':'folder',role==='hod'?'Review queue':role==='staff'?'My documents':'Approved records'],...(role==='staff'?[['upload','upload','Submit document']]:[]),...(role==='hod'?[['rules','shield','Verification rules'],['users','users','Department staff']]:[]),['activity','clock','Activity log'],...(role==='principal'||role==='iqac'?[['insights','chart','Reports & insights']]:[]),['account','user','My account'],['guide','info','Help & process']];
+    const nav = role==='admin' ? [['overview','home','Overview'],['users','users','User management'],['integrations','sparkle','AI configuration'],['cleanup','trash','Database cleanup'],['audit','shield','Security audit'],['account','user','My account']] : [['overview','home','Overview'],['documents',role==='hod'?'checkCircle':'folder',role==='hod'?'Review queue':role==='staff'?'My documents':'Approved records'],...(role==='staff'?[['upload','upload','Submit document']]:[]),...(role==='hod'?[['rules','shield','Verification rules'],['users','users','Department staff']]:[]),['activity','clock','Activity log'],...(role==='principal'||role==='iqac'?[['insights','chart','Reports & insights']]:[]),['account','user','My account'],['guide','info','Help & process']];
     return `<aside class="sidebar ${mobileOpen?'open':''}" id="sidebar"><div class="sidebar-brand">${crest}<div><div class="brand-name">NCET VerifyFlow</div><div class="brand-sub">Institutional workspace</div></div></div>
       <div class="nav-group"><div class="nav-heading">Workspace</div>${nav.map(([k,i,t])=>`<button class="nav-item ${page===k?'active':''}" data-page="${k}" aria-current="${page===k?'page':'false'}">${icon(i)}${t}${k==='documents'&&count ? `<span class="count">${count}</span>`:''}</button>`).join('')}</div>
       ${(role==='admin'||(['hod','staff'].includes(role) && ['computer applications','bca','bachelor of computer applications'].includes(String(user?.department||'').trim().toLowerCase()))) ? `<div class="nav-group"><div class="nav-heading">BCA SERVICES</div><a class="nav-item" href="/bca/manage" style="text-decoration:none">${icon('users')} Student enrollment & requests</a><a class="nav-item" href="/community" style="text-decoration:none">${icon('folder')} Projects & contributions</a></div>` : ''}
@@ -254,7 +256,7 @@
     <div class="field"><label class="field-label">Guidelines for review</label><textarea name="instructions" class="form-control textarea" maxlength="1300" placeholder="Explain the college standard or what evidence is expected">${txt(r.instructions||'')}</textarea></div>
     <label class="rule-required"><input name="required" type="checkbox" ${r.required?'checked':''}/> Mandatory requirement</label><input type="hidden" name="rule_id" value="${esc(r.id)}" /></div>`).join('')||'<div class="empty-rules">No rules yet. Add your first rule to begin.</div>'}
     <div class="rule-form-actions"><button type="button" class="btn" data-action="add-rule">${icon('checkCircle','sm')} Add requirement</button><button type="submit" class="btn btn-primary">${icon('shield','sm')} Save new rule version</button></div></form></section>
-    <aside class="panel info-panel"><h3>How verification works</h3><p>Measurable rules are checked deterministically. Gemma 4 analyzes language, context and college guidelines, and suggests corrections with evidence.</p>
+    <aside class="panel info-panel"><h3>How verification works</h3><p>Measurable rules are checked deterministically. The configured AI provider reviews language, context and college guidelines, then suggests evidence-based corrections.</p>
     <div class="notice"><strong>${icon('info','sm')} Confidence first</strong> Uncertain findings are marked for manual HOD review instead of automatically rejecting faculty uploads.</div>
     <h3 style="margin-top:28px">Rule history</h3><div class="rule-history">${(rulebook.history||[]).map(h=>`<span>v${h.version} · ${prettyDate(h.created)}</span>`).join('')||'<span>Rule versions will appear after you save.</span>'}</div>
     <p class="small muted" style="margin-top:20px">Rule changes apply to future submissions; historical verification reports remain tied to their original version.</p></aside></div>`;
@@ -304,6 +306,50 @@
       <div class="modal-actions"><button class="btn btn-primary" data-action="close-modal">Close report</button></div></section></div>`;
   }
 
+function cleanupHTML() {
+  if(role!=='admin')return overviewHTML();
+  const provider=aiOverview.provider || 'Not configured';
+  const docCounts=aiOverview.document_statuses || {};
+  const states=aiOverview.verification_states || {};
+  return `${pageHeader('SUPER ADMINISTRATION','Database cleanup & AI overview','Preview the impact before changing data. Existing audit history is preserved.')}
+    <section class="panel" aria-labelledby="ai-usage-heading">
+      <div class="panel-header"><div><h3 class="panel-title" id="ai-usage-heading">AI verification operations</h3><p class="panel-subtitle">Live database counts · no document content exposed</p></div></div>
+      <div class="metrics">${kpi('Active provider',aiOverview.provider_configured?'Connected':'Not configured',txt(provider),'sparkle','blue')}
+      ${kpi('In verification',docCounts.verifying||0,'Queued or processing','clock','blue')}
+      ${kpi('Manual review',docCounts.manual_review||0,'Needs human decision','shield','orange')}</div>
+      <p class="small muted">Model: ${txt(aiOverview.model||'No active model')}. Verification jobs: ${Object.entries(states).map(([k,v])=>txt(k)+': '+v).join(', ')||'No jobs'}. AI never grants final approval.</p>
+    </section>
+    <div class="notice" role="note"><strong>Before changing production data:</strong> Check that you have a restorable database backup. Removing approved PDF records also removes their review revisions. Disabling users does not delete historical academic records.</div>
+    <div class="cleanup-grid">${cleanupActions.map(action=>`
+      <section class="cleanup-card"><h3>${txt(action.label)}</h3>
+      <p>${txt(action.description)}</p>
+      ${action.requires_backup?'<span class="cleanup-risk">Irreversible document deletion</span>':''}
+      <div class="cleanup-footer"><span class="cleanup-count">${Number(action.count)||0} <small class="muted">affected</small></span>
+      <button class="btn ${action.requires_backup?'btn-danger':'btn-secondary'}" data-action="cleanup-confirm" data-cleanup="${esc(action.id)}" ${!action.count?'disabled':''}>${icon(action.requires_backup?'trash':'shield','sm')} Review action</button></div></section>`).join('')||'<p>No cleanup actions are available.</p>'}</div>
+    <p class="small muted">Public search results may retain cached student profiles after unpublishing. Request removal through Search Console when necessary.</p>`;
+}
+  function cleanupConfirmHTML() {
+  const action=cleanupActions.find(x=>x.id===modal.action);
+  if(!action)return '';
+  return `<div class="modal-layer" data-action="close-modal-bg">
+    <section class="modal cleanup-dialog" role="dialog" aria-modal="true" aria-labelledby="cleanup-dialog-heading" tabindex="-1">
+    <div class="modal-top"><div><h2 id="cleanup-dialog-heading">Confirm database change</h2><p>${txt(action.label)}</p></div>
+    <button type="button" class="icon-button" data-action="close-modal" aria-label="Close dialog">${icon('close')}</button></div>
+    <form id="cleanup-confirm-form" data-cleanup="${esc(action.id)}">
+      <div class="modal-body"><p>${txt(action.description)}</p>
+      <p><strong>Preview: ${Number(action.count)||0} records will be affected.</strong></p>
+      <p>Type the exact confirmation phrase:</p>
+      <div class="cleanup-confirm-phrase">${txt(action.confirmation)}</div>
+      <div class="field"><label class="field-label" for="cleanup-phrase">Confirmation phrase *</label>
+      <input class="form-control" id="cleanup-phrase" name="confirmation" required autocomplete="off" spellcheck="false" /></div>
+      ${action.requires_backup?`<label class="rule-required"><input type="checkbox" name="backup_confirmed" required /> I verified a recent recoverable offline backup of these records.</label>
+      <div class="field"><label class="field-label" for="cleanup-admin-password">Current administrator password *</label>
+      <input id="cleanup-admin-password" class="form-control" type="password" name="admin_password" autocomplete="current-password" required /></div>`:''}
+      </div>
+      <div class="modal-actions"><button type="button" class="btn" data-action="close-modal">Cancel</button>
+      <button type="submit" class="btn ${action.requires_backup?'btn-danger':'btn-primary'}">Confirm ${Number(action.count)||0} affected records</button></div>
+    </form></section></div>`;
+}
   function usersHTML() {
     if(role!=='admin'&&role!=='hod') return overviewHTML();
     return `${pageHeader('ACCESS MANAGEMENT',role==='hod'?'Department staff':'Institutional accounts',role==='hod'?'Add faculty and manage access for your department.':'Manage institutional account access.')}
@@ -341,8 +387,8 @@
     const focus=document.activeElement;
     const inSearch=focus?.id==='search-docs';const pos=inSearch?focus.selectionStart:null;
     if(!role){app.innerHTML=loginHTML();return;}
-    const body={overview:overviewHTML,documents:documentsHTML,upload:uploadHTML,activity:activityHTML,insights:insightsHTML,guide:guideHTML,users:usersHTML,audit:auditHTML,account:accountHTML,rules:rulesHTML,integrations:integrationsHTML};
-    app.innerHTML=`<div class="app-shell">${sidebarHTML()}<div class="mobile-scrim ${mobileOpen?'open':''}" data-action="close-menu"></div><main class="main">${headerHTML()}<div class="content">${(body[page]||overviewHTML)()}<footer class="footer"><span><img src="/static/ngi-logo.webp" alt="Nagarjuna Group" class="footer-ngi"/> © ${new Date().getFullYear()} Nagarjuna College of Engineering and Technology</span><span><a href="https://ncet.co.in/" target="_blank" rel="noopener noreferrer">College website</a> · Authorized access only · <a href="/students">BCA Students</a> · <a href="/community">Project community</a> · <a href="https://www.linkedin.com/in/bhargava-r-a08b8182/" target="_blank" rel="noopener noreferrer">HOD Bhargava</a> · <a href="https://www.linkedin.com/in/dr-thippeswamy-gangappa-686b3822/" target="_blank" rel="noopener noreferrer">Principal</a> · <a href="https://www.linkedin.com/in/paladuguganeshnaidu/" target="_blank" rel="noopener noreferrer">Developer</a></span></footer></div></main></div>${modal ? (modal.type==='report'?reportHTML():modal.type==='detail'?detailHTML(docs.find(d=>d.id===modal.id)||{}):modal.type==='review'?reviewHTML(modal.id,modal.decision):modal.type==='resubmit'?revisionHTML(docs.find(d=>d.id===modal.id)||{}):modal.type==='resetpwd'?resetPasswordHTML(modal.id):''):''}`;
+    const body={overview:overviewHTML,documents:documentsHTML,upload:uploadHTML,activity:activityHTML,insights:insightsHTML,guide:guideHTML,users:usersHTML,cleanup:cleanupHTML,audit:auditHTML,account:accountHTML,rules:rulesHTML,integrations:integrationsHTML};
+    app.innerHTML=`<div class="app-shell">${sidebarHTML()}<div class="mobile-scrim ${mobileOpen?'open':''}" data-action="close-menu"></div><main class="main">${headerHTML()}<div class="content">${(body[page]||overviewHTML)()}<footer class="footer"><span><img src="/static/ngi-logo.webp" alt="Nagarjuna Group" class="footer-ngi"/> © ${new Date().getFullYear()} Nagarjuna College of Engineering and Technology</span><span><a href="https://ncet.co.in/" target="_blank" rel="noopener noreferrer">College website</a> · Authorized access only · <a href="/students">BCA Students</a> · <a href="/community">Project community</a> · <a href="https://www.linkedin.com/in/bhargava-r-a08b8182/" target="_blank" rel="noopener noreferrer">HOD Bhargava</a> · <a href="https://www.linkedin.com/in/dr-thippeswamy-gangappa-686b3822/" target="_blank" rel="noopener noreferrer">Principal</a> · <a href="https://www.linkedin.com/in/paladuguganeshnaidu/" target="_blank" rel="noopener noreferrer">Developer</a></span></footer></div></main></div>${modal ? (modal.type==='report'?reportHTML():modal.type==='detail'?detailHTML(docs.find(d=>d.id===modal.id)||{}):modal.type==='review'?reviewHTML(modal.id,modal.decision):modal.type==='resubmit'?revisionHTML(docs.find(d=>d.id===modal.id)||{}):modal.type==='resetpwd'?resetPasswordHTML(modal.id):modal.type==='cleanup'?cleanupConfirmHTML():''):''}`;
     if(inSearch){const el=document.getElementById('search-docs');if(el){el.focus();if(pos!==null) el.setSelectionRange(pos,pos);}}
     if(modal) app.querySelector('.modal')?.focus?.();
   }
@@ -369,10 +415,11 @@
   function exportCsv() {const records=available();const headings=['ID','Title','Category','Department','Academic Year','Status','Submitted Date','Submitted By','Last Reviewer Note'];const wrap=v=>`"${String(v??'').replace(/^[=+\-@\t\r]/,'\u0027$&').replace(/"/g,'""')}"`;const rows=records.map(d=>[d.id,d.title,d.category,d.department,d.year,d.status,prettyDate(d.submitted),d.author,d.history?.at(-1)?.note||'']);const csv='\uFEFF'+[headings,...rows].map(r=>r.map(wrap).join(',')).join('\r\n');const obj=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=obj;a.download=`ncms-verifyflow-${role}-${new Date().toISOString().slice(0,10)}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(obj),1000);notify('CSV report exported.');}
   document.addEventListener('click',async e=>{
     const t=e.target.closest('[data-action],[data-page],[data-open],[data-filter]');if(!t)return;
-    if(t.hasAttribute('data-page')){page=t.dataset.page;filter='all';query='';mobileOpen=false;modal=null;try{if(page==='users'&&(role==='admin'||role==='hod'))accounts=(await api('/api/users')).items;if(page==='audit'&&role==='admin')auditEntries=(await api('/api/audit')).items;if(page==='rules'&&role==='hod')rulebook=await api('/api/rules');if(page==='integrations'&&role==='admin')integrations=await api('/api/admin/integrations');}catch(err){notify(err.message,'error');}render();window.scrollTo(0,0);return;}
+    if(t.hasAttribute('data-page')){page=t.dataset.page;filter='all';query='';mobileOpen=false;modal=null;try{if(page==='users'&&(role==='admin'||role==='hod'))accounts=(await api('/api/users')).items;if(page==='audit'&&role==='admin')auditEntries=(await api('/api/audit')).items;if(page==='rules'&&role==='hod')rulebook=await api('/api/rules');if(page==='integrations'&&role==='admin')integrations=await api('/api/admin/integrations');if(page==='cleanup'&&role==='admin'){const values=await Promise.all([api('/api/admin/cleanup/preview'),api('/api/admin/ai/overview')]);cleanupActions=values[0].actions;aiOverview=values[1];}}catch(err){notify(err.message,'error');}render();window.scrollTo(0,0);return;}
     if(t.hasAttribute('data-open')){const d=docs.find(x=>x.id===t.dataset.open);if(d&&canSee(d)){modal={type:'detail',id:d.id};render();}return;}
     if(t.hasAttribute('data-filter')){filter=t.dataset.filter;document.querySelectorAll('[data-filter]').forEach(x=>x.classList.toggle('active',x.dataset.filter===filter));const pane=document.getElementById('docs-results');if(pane)pane.innerHTML=tableHTML();return;}
     const a=t.dataset.action;
+    if(a==='cleanup-confirm'&&role==='admin'){const item=cleanupActions.find(x=>x.id===t.dataset.cleanup);if(!item)return;modal={type:'cleanup',action:item.id};render();return;}
     if(a==='pick-role'){selectedRole=t.dataset.role;authError='';render();return;}
     if(a==='toggle-password'){const user=document.getElementById('login-user')?.value;const pass=document.getElementById('login-pass')?.value;showPassword=!showPassword;render();document.getElementById('login-user').value=user||'';document.getElementById('login-pass').value=pass||'';return;}
     if(a==='logout'){try{await api('/api/auth/logout',{method:'POST'});}catch(_){}role=null;user=null;csrf='';docs=[];page='overview';modal=null;pickedFile=null;render();return;}
@@ -400,6 +447,24 @@
     if(a==='clear-form'){pickedFile=null;setTimeout(render,0);return;}
   });
   document.addEventListener('submit',async e=>{
+    if(e.target.id==='cleanup-confirm-form'){
+      e.preventDefault();if(role!=='admin')return;
+      const item=cleanupActions.find(x=>x.id===e.target.dataset.cleanup);
+      if(!item)return notify('Refresh the cleanup preview first.','error');
+      const fields=new FormData(e.target);
+      const button=e.target.querySelector('[type=submit]');
+      button.disabled=true;button.setAttribute('aria-busy','true');
+      try{
+        const result=await api('/api/admin/cleanup/execute',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+          action:item.id,confirmation:String(fields.get('confirmation')||''),
+          expected_count:item.count,backup_confirmed:fields.get('backup_confirmed')==='on',admin_password:String(fields.get('admin_password')||'')
+        })});
+        const values=await Promise.all([api('/api/admin/cleanup/preview'),api('/api/admin/ai/overview')]);
+        cleanupActions=values[0].actions;aiOverview=values[1];modal=null;render();
+        notify('Action completed. '+result.affected+' records affected.'+(result.storage_cleanup_failures?' Some files need storage cleanup.':''));
+      }catch(err){button.disabled=false;button.removeAttribute('aria-busy');notify(err.message,'error');}
+      return;
+    }
     if(e.target.id==='rule-form'){e.preventDefault();if(role!=='hod')return;syncRuleForm();try{const result=await api('/api/rules',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({rules:rulebook.rules})});rulebook=await api('/api/rules');render();notify(`Rules saved as version ${result.version}.`);}catch(err){notify(err.message,'error');}return;}
     if(e.target.id==='integration-form'||e.target.id==='fallback-form'){e.preventDefault();if(role!=='admin')return;const fallback=e.target.id==='fallback-form';const val=e.target.querySelector('[name=api_key]').value.trim();try{await api(fallback?'/api/admin/integrations/openrouter':'/api/tasks/ai/key',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({api_key:val})});integrations=await api('/api/admin/integrations');render();notify(fallback?'Fallback key encrypted and saved.':'DeepSeek key encrypted and saved. Provider connectivity must be tested with a document review.');}catch(err){notify(err.message,'error');}return;}
     if(e.target.id==='login-form'){
@@ -429,11 +494,11 @@
       if(description.length<10)return fail('description','Description must contain at least 10 characters.');
       if(description.length>2000)return fail('description','Description cannot exceed 2,000 characters.');
       if(!pickedFile)return fail(null,'Attach a document before submitting.');
-      const button=form.querySelector('button[type=submit]');button.disabled=true;
+      const button=form.querySelector('button[type=submit]');button.disabled=true;button.setAttribute('aria-busy','true');
       const data=new FormData(form);data.set('file',pickedFile);
       try{await api('/api/documents',{method:'POST',body:data});pickedFile=null;page='documents';filter='verifying';modal=null;
         await refreshDocs();celebrate('Document received','Your document has been queued for verification.');notify('Verification queued. See status in My documents.');}
-      catch(err){notify(err.message,'error');button.disabled=false;}return;
+      catch(err){notify(err.message,'error');button.disabled=false;button.removeAttribute('aria-busy');}return;
     }
     if(e.target.id==='revision-form'){
       e.preventDefault();if(role!=='staff')return;
