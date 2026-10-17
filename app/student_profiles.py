@@ -573,10 +573,10 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
 <a class="skip-link" href="#student-resume">Skip to portfolio</a>
 <header class="resume-site-header">
 <div class="resume-site-inner">
-<a class="resume-college" href="/students" aria-label="NCET Student Services">
+<a class="resume-college" href="/students" aria-label="NCET Student Portal">
 <img src="/static/ncet-brand.svg" alt="Nagarjuna College of Engineering and Technology" width="178" height="88" fetchpriority="high" decoding="async">
-<span>Student portfolios<small>Official NCET student services</small></span></a>
-<nav aria-label="Profile navigation"><a href="/students/directory">Student directory</a><a href="/students">Student services</a></nav>
+<span>Student portfolios<small>Official NCET student portal</small></span></a>
+<nav aria-label="Profile navigation"><a href="/students/directory">Student directory</a><a href="/students">Student Portal</a></nav>
 <img class="resume-group-logo" src="/static/ngi-brand.svg" alt="Nagarjuna Group of Institutions" width="78" height="70" decoding="async">
 </div></header>
 <main id="student-resume" class="resume-container">
@@ -606,7 +606,7 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
 </main>
 <footer class="resume-footer"><img src="/static/ngi-brand.svg" alt="Nagarjuna Group of Institutions" width="53" height="47" loading="lazy" decoding="async">
 <span>NCET VerifyFlow · Academic collaboration & student success</span>
-<a href="/students">Student Services</a></footer>
+<a href="/students">Student Portal</a></footer>
 </body></html>''',headers={'Cache-Control':'no-store'})
 
 

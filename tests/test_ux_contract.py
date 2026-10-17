@@ -8,7 +8,7 @@ def test_public_home_links_actions_and_without_rotating_hero(client):
     response=client.get('/')
     assert response.status_code==200
     html=response.text
-    assert 'Academic support.' in html
+    assert 'Your academic journey.' in html
     assert 'Guidance</span>' not in html
     assert 'film-frames' not in html
     assert 'toggle-animation' not in html

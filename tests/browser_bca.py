@@ -21,10 +21,13 @@ def load_page(page, html_file, script=None, mock_denied=False):
         if image.is_file():
             mime = 'image/svg+xml' if asset.endswith('.svg') else ('image/png' if asset.endswith('.png') else 'image/webp')
             uri = 'data:' + mime + ';base64,' + base64.b64encode(image.read_bytes()).decode()
-            html = html.replace('/static/' + asset, uri)
-    for css in ('bca.css', 'community.css','experience.css'):
-        html = html.replace('<link rel="stylesheet" href="/static/' + css + '">',
-                            '<style>' + (STATIC / css).read_text(encoding='utf-8') + '</style>')
+            html = re.sub(r'/static/' + re.escape(asset) + r'(?:\?v=[a-zA-Z0-9_-]+)?', lambda _match: uri, html)
+    for css in ('bca.css', 'community.css','experience.css','responsive-upgrade.css',
+                'student-redesign.css','ncet-brand-system.css','homepage-polish.css'):
+        file=STATIC/css
+        if not file.is_file():continue
+        html=re.sub(r'<link rel="stylesheet" href="/static/' + re.escape(css) + r'(?:\?v=[a-zA-Z0-9_-]+)?"\s*/?>',
+                    lambda _m: '<style>' + file.read_text(encoding='utf-8') + '</style>', html)
     html = re.sub(r'<script src="/static/[^"]+" defer></script>', '', html)
     page.set_content(html, wait_until='load')
     if mock_denied:
@@ -51,7 +54,7 @@ def main():
         desktop.set_default_timeout(8000)
 
         load_page(desktop, 'public-home.html', 'public-home.js')
-        assert desktop.locator('h1').inner_text().startswith('Academic support.')
+        assert desktop.locator('h1').inner_text().startswith('Your academic journey.')
         assert desktop.locator('.identity-crest').evaluate('(img) => img.naturalWidth') > 0
         assert desktop.locator('.film-frames').count() == 0
         assert desktop.locator('#toggle-animation').count() == 0
@@ -61,9 +64,9 @@ def main():
         assert desktop.locator('form[role="search"]').get_attribute('action') == '/students/directory'
         desktop.locator('.guide-grid summary').first.click()
         assert desktop.locator('.guide-grid details').first.get_attribute('open') == ''
-        assert desktop.locator('header a[href="/students"]').inner_text().strip() == 'Students'
+        assert desktop.locator('header a[href="/students"]').inner_text().strip() == 'Student Portal'
         assert desktop.locator('header a[href="/app"]').count() == 0
-        assert desktop.locator('header small').count() == 0
+        assert desktop.locator('header small').count() == 1
 
         load_page(desktop, 'student-services.html')
         assert 'BACHELOR OF COMPUTER APPLICATIONS' in desktop.locator('main').inner_text().upper()

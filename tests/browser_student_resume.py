@@ -63,6 +63,9 @@ with sync_playwright() as p:
             else:route.fulfill(status=404,body='Not found')
         page.route('http://ncet.test/**',serve)
         page.goto('http://ncet.test/students/profile/1NC24CS150',wait_until='load')
+        # The footer image is intentionally lazy. Scroll it into view before checking naturalWidth.
+        page.locator('.resume-footer img').scroll_into_view_if_needed()
+        page.wait_for_function('Array.from(document.images).every(img=>img.complete&&img.naturalWidth>0)',timeout=6000)
         report=page.evaluate("""() => ({
             width: document.documentElement.scrollWidth,viewport:innerWidth,
             sections:[...document.querySelectorAll('.resume-section')].map(x=>x.id),

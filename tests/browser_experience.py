@@ -27,6 +27,21 @@ def main():
         # accordion and a direct profile-search form, not rotating ad graphics.
         load_page(page,"public-home.html","public-home.js")
         assert page.locator(".film-frames").count()==0
+        assert page.locator('.identity-crest').evaluate('(img)=>img.complete && img.naturalWidth>0')
+        assert page.locator('.topnav .brand img').evaluate('(img)=>img.complete && img.naturalWidth>0')
+        assert page.locator('.identity-crest').get_attribute('src').startswith('data:image/svg+xml;base64,')
+        assert page.locator('body').inner_text().lower().find('student services')==-1
+        assert page.locator('.identity-crest').evaluate(
+            '(img)=>Math.abs(img.getBoundingClientRect().width / img.getBoundingClientRect().height - 455/225)<.15')
+        assert page.locator('.identity-panel').evaluate(
+            '(el)=>getComputedStyle(el).backgroundColor')=='rgb(255, 255, 255)'
+        people=page.locator('.footer-credits a').all()
+        assert [a.inner_text().split(' · ')[-1].replace(' ↗','') for a in people]==['Principal','HOD','Developer']
+        assert [a.get_attribute('href') for a in people]==[
+            'https://www.linkedin.com/in/dr-thippeswamy-gangappa-686b3822/',
+            'https://www.linkedin.com/in/bhargava-r-a08b8182/',
+            'https://www.linkedin.com/in/paladuguganeshnaidu/'
+        ]
         assert page.locator("a.service-card").count()==3
         for card in page.locator("a.service-card").all():
             assert card.get_attribute("href") in ("/students/portal","/students/directory")
@@ -84,6 +99,10 @@ def main():
             load_page(page,"public-home.html","public-home.js")
             overflow=page.evaluate("document.documentElement.scrollWidth > window.innerWidth + 1")
             assert not overflow, f"Horizontal overflow at {width}px"
+            assert page.locator('.identity-crest').is_visible(),width
+            assert page.locator('.identity-crest').evaluate('(img)=>img.naturalWidth>0'),width
+            assert page.locator('.footer-credits a').count()==3,width
+            assert page.locator('.identity-panel').evaluate('(el)=>getComputedStyle(el).backgroundColor')=='rgb(255, 255, 255)'
         page.emulate_media(reduced_motion="reduce")
         load_page(page,"public-home.html","public-home.js")
         assert page.locator(".identity-crest").is_visible()

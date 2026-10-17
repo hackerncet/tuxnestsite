@@ -8,7 +8,7 @@ def test_public_students_navigation_hides_faculty(client):
     student=client.get('/students')
     assert home.status_code==200 and student.status_code==200
     assert '<small>College services</small>' not in home.text
-    assert '<a href="/students">Students</a>' in home.text
+    assert '<a href="/students">Student Portal</a>' in home.text
     assert 'href="/app"' not in home.text
     assert 'href="/app"' not in student.text
 
