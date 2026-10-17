@@ -149,10 +149,17 @@ def create_case(body:NewCase,user:User=Depends(as_role_mutation('student')),db:D
     if body.category not in CATEGORIES:raise HTTPException(422,'Select a valid category.')
     recent=db.query(func.count(StudentCase.id)).filter(StudentCase.student_id==user.id,StudentCase.created_at>=utcnow()-timedelta(hours=24)).scalar()
     if recent>=10:raise HTTPException(429,'You have reached the daily request limit. Follow up on an existing request instead.')
-    case=StudentCase(reference='NCMS-BCA-'+secrets.token_hex(6).upper(),student_id=user.id,
+    case=StudentCase(reference='NCET-BCA-'+secrets.token_hex(6).upper(),student_id=user.id,
                      department=BCA_DEPARTMENT,category=body.category,subject=body.subject.strip(),description=body.description.strip(),status='submitted')
     if len(case.subject)<6 or len(case.description)<15:raise HTTPException(422,'Add a detailed subject and description.')
-    db.add(case);db.add(AuditLog(actor_id=user.id,event='bca.case_submitted',detail=case.reference));db.commit()
+    from .notifications import emit, hod_recipients
+    db.add(case);db.add(AuditLog(actor_id=user.id,event='bca.case_submitted',detail=case.reference))
+    recipients=hod_recipients(db)
+    emit(db,recipients,'New BCA student request awaiting review.','/bca/manage','complaints')
+    if not recipients:
+        admins=[u.id for u in db.query(User.id).filter(User.active.is_(True),User.role=='admin').all()]
+        emit(db,admins,'A BCA student request needs an authorized Computer Applications HOD. Assign a BCA HOD in User Management.','/app','setup')
+    db.commit()
     return {'reference':case.reference,'status':case.status}
 
 @router.get('/cases/{reference}')
@@ -166,7 +173,12 @@ def send_message(reference:str,body:CaseReply,user:User=Depends(csrf_required),d
     if case.status=='closed':raise HTTPException(409,'Closed requests cannot receive messages.')
     message=body.message.strip()
     if len(message)<2:raise HTTPException(422,'Message must not be empty.')
+    from .notifications import emit, hod_recipients
     db.add(StudentCaseMessage(case_id=case.id,actor_id=user.id,body=message))
+    if user.role=='student':
+        emit(db,hod_recipients(db),'A student replied to a BCA request.','/bca/manage','complaints')
+    else:
+        emit(db,[case.student_id],'The BCA HOD replied to your request.','/students/portal','complaints')
     case.updated_at=utcnow()
     db.add(AuditLog(actor_id=user.id,event='bca.case_replied',detail=case.reference))
     db.commit();return {'ok':True}
@@ -179,7 +191,9 @@ def update_case_status(reference:str,body:CaseStatus,user:User=Depends(as_role_m
     note=body.note.strip()
     if body.status in {'resolved','closed'} and len(note)<5:
         raise HTTPException(422,'Provide an explanation of at least five characters.')
+    from .notifications import emit
     case.status=body.status;case.updated_at=utcnow()
+    emit(db,[case.student_id],'Your BCA request status changed to '+body.status.replace('_',' ')+'.','/students/portal','complaints')
     if note:db.add(StudentCaseMessage(case_id=case.id,actor_id=user.id,body=note))
     db.add(AuditLog(actor_id=user.id,event='bca.case_status',detail=f'{case.reference}: {body.status}'))
     db.commit();return {'ok':True,'status':case.status}
