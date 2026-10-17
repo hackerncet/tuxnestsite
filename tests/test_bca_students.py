@@ -149,5 +149,5 @@ def test_csv_import_rejects_spreadsheet_formulas(client,login):
 def test_browser_favicon_compatibility(client):
     response=client.get('/favicon.ico',follow_redirects=False)
     assert response.status_code==302
-    assert response.headers['location']=='/static/ncet-official.webp'
+    assert response.headers['location']=='/static/ncet-brand.png'
     assert client.get('/favicon.ico').status_code==200
