@@ -152,7 +152,10 @@ def create_case(body:NewCase,user:User=Depends(as_role_mutation('student')),db:D
     case=StudentCase(reference='NCET-BCA-'+secrets.token_hex(6).upper(),student_id=user.id,
                      department=BCA_DEPARTMENT,category=body.category,subject=body.subject.strip(),description=body.description.strip(),status='submitted')
     if len(case.subject)<6 or len(case.description)<15:raise HTTPException(422,'Add a detailed subject and description.')
-    db.add(case);db.add(AuditLog(actor_id=user.id,event='bca.case_submitted',detail=case.reference));db.commit()
+    from .notifications import emit, hod_recipients
+    db.add(case);db.add(AuditLog(actor_id=user.id,event='bca.case_submitted',detail=case.reference))
+    emit(db,hod_recipients(db),'New BCA student request awaiting review.','/bca/manage','complaints')
+    db.commit()
     return {'reference':case.reference,'status':case.status}
 
 @router.get('/cases/{reference}')
