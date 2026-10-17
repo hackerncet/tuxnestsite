@@ -342,7 +342,9 @@ function cleanupHTML() {
       <div class="cleanup-confirm-phrase">${txt(action.confirmation)}</div>
       <div class="field"><label class="field-label" for="cleanup-phrase">Confirmation phrase *</label>
       <input class="form-control" id="cleanup-phrase" name="confirmation" required autocomplete="off" spellcheck="false" /></div>
-      ${action.requires_backup?`<label class="rule-required"><input type="checkbox" name="backup_confirmed" required /> I verified a recent recoverable offline backup of these records.</label>`:''}
+      ${action.requires_backup?`<label class="rule-required"><input type="checkbox" name="backup_confirmed" required /> I verified a recent recoverable offline backup of these records.</label>
+      <div class="field"><label class="field-label" for="cleanup-admin-password">Current administrator password *</label>
+      <input id="cleanup-admin-password" class="form-control" type="password" name="admin_password" autocomplete="current-password" required /></div>`:''}
       </div>
       <div class="modal-actions"><button type="button" class="btn" data-action="close-modal">Cancel</button>
       <button type="submit" class="btn ${action.requires_backup?'btn-danger':'btn-primary'}">Confirm ${Number(action.count)||0} affected records</button></div>
@@ -455,7 +457,7 @@ function cleanupHTML() {
       try{
         const result=await api('/api/admin/cleanup/execute',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
           action:item.id,confirmation:String(fields.get('confirmation')||''),
-          expected_count:item.count,backup_confirmed:fields.get('backup_confirmed')==='on'
+          expected_count:item.count,backup_confirmed:fields.get('backup_confirmed')==='on',admin_password:String(fields.get('admin_password')||'')
         })});
         const values=await Promise.all([api('/api/admin/cleanup/preview'),api('/api/admin/ai/overview')]);
         cleanupActions=values[0].actions;aiOverview=values[1];modal=null;render();
