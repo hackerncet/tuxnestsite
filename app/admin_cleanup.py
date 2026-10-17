@@ -16,7 +16,7 @@ from .database import (
     User, Session, Document, Attachment, AuditLog, LoginFailure, Verification,
     get_db, utcnow,
 )
-from .security import as_role, as_role_mutation
+from .security import as_role, as_role_mutation, verify_password
 from .student_profiles import StudentShowcase
 from .storage import remove_key
 
@@ -93,6 +93,7 @@ class CleanupRequest(BaseModel):
     confirmation: str = Field(min_length=8, max_length=100)
     expected_count: int = Field(ge=0, le=10_000_000)
     backup_confirmed: bool = False
+    admin_password: str = Field(default='', max_length=128)
 
 
 @router.post("/api/admin/cleanup/execute")
@@ -106,6 +107,8 @@ def cleanup_execute(
         raise HTTPException(422, "Type the exact confirmation phrase shown in the dialog.")
     if backup_required and not body.backup_confirmed:
         raise HTTPException(422, "Confirm that you verified a recent recoverable offline backup.")
+    if backup_required and not verify_password(body.admin_password, actor.password_hash):
+        raise HTTPException(403, "Re-enter your administrator password to delete document records.")
 
     # Serializes concurrent cleanup requests from the same administrator.
     db.query(User).filter(User.id == actor.id).with_for_update().one()
