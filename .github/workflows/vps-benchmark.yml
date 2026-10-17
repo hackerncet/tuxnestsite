@@ -1,0 +1,82 @@
+name: Isolated 1 vCPU 1 GB VPS simulation
+on:
+  push:
+    branches:
+      - bench/digitalocean-1c1g-20261017
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-load:
+    runs-on: ubuntu-latest
+    timeout-minutes: 27
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install host-side HTTP load driver
+        run: python -m pip install 'httpx>=0.28,<0.29'
+      - name: Print benchmark host and Docker versions
+        run: |
+          uname -a
+          docker version
+          df -h .
+          free -h
+      - name: Build current production application image
+        run: docker build -t ncet-vps-bench:current -f Dockerfile .
+      - name: Start isolated PostgreSQL and 1-vCPU/1-GB-budget stack
+        run: |
+          set -euo pipefail
+          docker network create ncet-bench-network
+          docker run -d --name ncet-bench-pg --network ncet-bench-network \
+            --cpus=0.20 --memory=224m --memory-swap=224m \
+            -e POSTGRES_USER=bench -e POSTGRES_PASSWORD=bench -e POSTGRES_DB=ncetbench \
+            postgres:16-alpine \
+            -c shared_buffers=32MB -c work_mem=1MB -c max_connections=30 -c maintenance_work_mem=16MB
+          for i in $(seq 1 50); do
+            if docker exec ncet-bench-pg pg_isready -U bench -d ncetbench >/dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          docker exec ncet-bench-pg pg_isready -U bench -d ncetbench
+          docker run -d --name ncet-bench-web --network ncet-bench-network \
+            -p 127.0.0.1:18787:10000 \
+            --cpus=0.80 --memory=608m --memory-swap=608m \
+            -e DATABASE_URL=postgresql+psycopg://bench:bench@ncet-bench-pg:5432/ncetbench \
+            -e APP_ENV=development -e PORT=10000 \
+            -e APP_RUN_WORKER_IN_WEB=true -e STORAGE_BACKEND=database \
+            -e SCAN_MODE=off -e LOG_LEVEL=WARNING \
+            ncet-vps-bench:current
+          for i in $(seq 1 90); do
+            if curl --max-time 3 -fsS http://127.0.0.1:18787/healthz >/dev/null 2>&1; then break; fi
+            if [ "$(docker inspect -f '{{.State.Running}}' ncet-bench-web)" != "true" ]; then
+              docker logs --tail=150 ncet-bench-web
+              exit 1
+            fi
+            sleep 2
+          done
+          curl --max-time 5 -fsS http://127.0.0.1:18787/healthz
+          echo "LIMITS: app 0.8 vCPU/608MiB; PostgreSQL 0.2 vCPU/224MiB; host OS reserved ~192MiB; total 1.0 vCPU, ~1GiB."
+      - name: Seed 150 synthetic students, 300 requests, and synthetic sessions
+        run: |
+          docker exec ncet-bench-web python benchmarks/seed_vps.py
+      - name: Measure realistic and stressed virtual student sessions
+        run: python benchmarks/run_vps.py
+      - name: Publish measured results as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ncet-vps-1cpu-1gb-results
+          path: benchmarks/vps_result.json
+          if-no-files-found: ignore
+      - name: Capture app logs, cgroup OOM and memory metadata
+        if: always()
+        run: |
+          echo "---- APP ----"; docker logs --tail=75 ncet-bench-web || true
+          echo "---- POSTGRES ----"; docker logs --tail=30 ncet-bench-pg || true
+          echo "---- APP MEMORY ----"; docker exec ncet-bench-web sh -c 'cat /sys/fs/cgroup/memory.peak /sys/fs/cgroup/memory.events' || true
+          echo "---- PG MEMORY ----"; docker exec ncet-bench-pg sh -c 'cat /sys/fs/cgroup/memory.peak /sys/fs/cgroup/memory.events' || true
+          echo "---- CONTAINER STATUS ----"
+          docker inspect -f '{{.Name}} Running={{.State.Running}} OOMKilled={{.State.OOMKilled}} ExitCode={{.State.ExitCode}}' ncet-bench-web ncet-bench-pg || true
