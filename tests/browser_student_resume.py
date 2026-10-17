@@ -53,7 +53,7 @@ with sync_playwright() as p:
                 if not file.is_relative_to(static.resolve()) or not file.exists():
                     route.fulfill(status=404,body='Not found');return
                 suffix=file.suffix.lower()
-                mime={'.png':'image/png','.css':'text/css','.js':'text/javascript','.webp':'image/webp'}.get(suffix,'application/octet-stream')
+                mime={'.png':'image/png','.css':'text/css','.js':'text/javascript','.webp':'image/webp','.svg':'image/svg+xml'}.get(suffix,'application/octet-stream')
                 route.fulfill(status=200,body=file.read_bytes(),headers={'content-type':mime})
             elif location=='/students/profile/1NC24CS150':
                 route.fulfill(status=200,body=html,headers={'content-type':'text/html; charset=utf-8'})
