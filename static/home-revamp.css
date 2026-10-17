@@ -175,3 +175,33 @@
  .footer-credits{grid-column:auto}
  .footer-credits a{padding:9px 11px}
 }
+
+
+/* Header typography: the entire portal name shares ONE font size/weight.
+   The descriptive tagline is a separate, readable second line. */
+.topnav .brand{max-width:360px;flex:0 1 360px;gap:11px;min-width:0}
+.topnav .brand .brand-copy{display:flex;flex-direction:column;gap:4px;min-width:0;
+ white-space:normal;line-height:1.22;color:#0E2455}
+.topnav .brand .brand-title{display:block;font-size:17px;font-weight:800;
+ line-height:1.18;letter-spacing:-.025em;white-space:nowrap;color:#0E2455}
+.topnav .brand .brand-subtitle{display:block;font-size:11px;font-weight:500;
+ line-height:1.4;color:#596B80;white-space:normal;max-width:none}
+@media(max-width:1180px){
+ .topnav .brand .brand-title{font-size:16px}
+ .topnav .brand .brand-subtitle{font-size:10.5px}
+}
+@media(max-width:700px){
+ .topnav .brand{flex:1 1 auto;max-width:calc(100% - 102px)}
+ .topnav .brand .brand-title{font-size:14px}
+ .topnav .brand .brand-subtitle{font-size:10px}
+}
+@media(max-width:440px){
+ .topnav .brand .brand-title{font-size:13.5px}
+ .topnav .brand .brand-subtitle{font-size:9.5px;line-height:1.35}
+}
+@media(max-width:380px){
+ .topnav .brand{max-width:calc(100% - 58px)}
+ .topnav .brand img{width:70px}
+ .topnav .brand .brand-subtitle{display:block;font-size:9px}
+ .topnav .brand .brand-title{font-size:13px}
+}
