@@ -60,6 +60,12 @@ The checks emulate independent reviewer perspectives (not real recruited testers
 - SQL indexes on `student_cases` department/status/created date, reference, and `student_case_messages.case_id` are reused; query plans under real PostgreSQL load were not benchmarked.
 - One dashboard request calculates grouped counts; further performance validation should use production-like datasets and service metrics, not invented latency figures.
 
+## Automated execution evidence
+- GitHub Actions run **39061691116**: Python/backend job **success** and Chromium multi-role UI job **success**.
+- Backend: **123 passed**, **1 upstream Starlette/AnyIO deprecation warning** (no failed assertions).
+- Browser checks: complaint priority filters, modal replies, hostile-markup escaping, five-role task UI, student flows, public pages, student resume, and mobile/desktop responsive audit all passed.
+- The final documentation-only commit requires its own green CI run before merge.
+
 ## Release / residual risks
 1. **Render deployment not verified:** PR merge and CI do not imply a running release. The correct Render workspace/service, deployed commit SHA, migrations, health, assets and signed-in E2E checks must be confirmed.
 2. **Real account setup:** A legitimate HOD in a non-BCA department cannot read BCA complaints; administrators must explicitly assign a BCA HOD account to Computer Applications.
@@ -76,7 +82,7 @@ The checks emulate independent reviewer perspectives (not real recruited testers
 - [x] Add priority queues, search, category/status/date filters, case replies and updates
 - [x] Remove unbounded oversight aggregation
 - [x] Extend browser/API tests for security and responsive flows
-- [ ] Confirm **final commit** passes both GitHub Actions jobs
+- [x] Confirm the implementation commit passes both GitHub Actions jobs (run `39061691116`)
 - [ ] Confirm **live Render** serves that commit and execute authenticated manual E2E
 - [ ] Perform scheduled production-like load/penetration/accessibility testing before asserting comprehensive production certification
 
