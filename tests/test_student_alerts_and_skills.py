@@ -135,3 +135,31 @@ def test_missing_bca_hod_routes_setup_alert_to_admin_not_private_complaint(clien
     alerts=client.get('/api/alerts/inbox').json()['items']
     assert any(n['category']=='setup' and n['link']=='/app' for n in alerts)
     assert 'Private laboratory issue' not in str(alerts)
+
+
+def test_bca_oversight_requires_correct_department_and_has_safe_denial_page(client,login):
+    # A legitimate HOD from a different department must not see BCA complaints.
+    login(client,'hod')
+    unauthorized=client.get('/bca/oversight')
+    assert unauthorized.status_code==403
+    assert 'text/html' in unauthorized.headers['content-type']
+    assert 'Open HOD task dashboard' in unauthorized.text
+    assert 'href="/tasks"' in unauthorized.text
+    assert unauthorized.headers['cache-control']=='no-store'
+    assert client.get('/api/bca/oversight').status_code==403
+    assert client.get('/api/bca/cases').status_code==403
+
+    # A correctly provisioned BCA HOD sees the real oversight workspace.
+    make_bca_hod()
+    allowed=client.get('/bca/oversight')
+    assert allowed.status_code==200,allowed.text
+    assert 'BCA complaints and projects' in allowed.text
+    assert client.get('/api/bca/oversight').status_code==200
+
+    # The Principal receives aggregate statistics, not student case identities.
+    with TestClient(app) as principal:
+        login(principal,'principal')
+        assert principal.get('/bca/oversight').status_code==200
+        result=principal.get('/api/bca/oversight').json()
+        assert result['view']=='summary'
+        assert 'cases' not in result
