@@ -9,7 +9,16 @@
 <link rel="stylesheet" href="/static/notifications.css">
 <link rel="stylesheet" href="/static/responsive-upgrade.css?v=20261017">
 <link rel="stylesheet" href="/static/student-redesign.css?v=20261017b">
-<link rel="stylesheet" href="/static/ncet-brand-system.css?v=20261017"><script src="/static/ncet-loading.js?v=20261017" defer></script><link rel="stylesheet" href="/static/institutional-ui.css?v=20261017d"></head><body class="student-modern">
+<link rel="stylesheet" href="/static/ncet-brand-system.css?v=20261017"><script src="/static/ncet-loading.js?v=20261017" defer></script><link rel="stylesheet" href="/static/institutional-ui.css?v=20261017d"><style>
+.student-case-filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:17px 0}
+.student-case-filters label{font-size:12px;color:#526781;font-weight:700;display:grid;gap:5px}
+.student-case-filters input,.student-case-filters select{min-width:0;width:100%;padding:9px 11px;border:1px solid #d2deeb;border-radius:8px;background:#fff;color:#233955;font-size:13px}
+.student-case-filters button{justify-self:start;grid-column:1/-1}
+.student-case-stats{background:#eff4fa;padding:11px;border-left:3px solid #0e2455;border-radius:7px;color:#244066;font-weight:700;font-size:12px}
+.student-case-pagination{border-top:1px solid #e4eaf1;padding-top:13px;margin-top:13px;display:flex;align-items:center;justify-content:space-between;gap:12px;color:#64748b;font-size:12px}
+.student-case-pagination>div{display:flex;gap:7px}
+@media(max-width:600px){.student-case-filters{grid-template-columns:1fr}.student-case-pagination{align-items:flex-start;flex-direction:column}}
+</style></head><body class="student-modern">
 <header class="topnav"><div class="container nav-inner">
 <a class="brand" href="/students"><img src="/static/ncet-brand.svg" alt="NCET emblem"><span>NCET VerifyFlow<small>BCA student portal</small></span></a>
 <nav class="navlinks" aria-label="Student navigation"><a href="/students">Student home</a><a href="/students/directory">Directory</a><button type="button" id="logout" class="btn hidden">Sign out</button></nav>
@@ -37,7 +46,17 @@
 <div class="field"><label for="case-subject">Subject</label><input name="subject" id="case-subject" minlength="6" maxlength="160" required placeholder="Briefly describe your concern"></div>
 <div class="field"><label for="case-description">Your message</label><textarea name="description" id="case-description" rows="4" minlength="15" maxlength="4000" required placeholder="Explain what happened and how the HOD can help"></textarea></div>
 <button class="btn btn-navy" type="submit">Submit privately →</button></form></section>
-<section class="panel student-list-panel"><span class="eyebrow">YOUR HISTORY</span><h2>My submissions</h2><p class="small muted">Read HOD replies or send a follow-up.</p><div id="case-list"></div></section></div>
+<section class="panel student-list-panel"><span class="eyebrow">YOUR HISTORY</span><h2>My submissions</h2><p class="small muted">Read HOD replies or send a follow-up. Requests are private to your account.</p>
+<div class="student-case-stats" id="student-case-stats" role="status" aria-live="polite">Loading your requests…</div>
+<form id="student-case-filters" class="student-case-filters" role="search" autocomplete="off">
+<label>Search requests<input type="search" name="search" maxlength="120" placeholder="Reference or subject"></label>
+<label>Status<select name="status"><option value="all">All statuses</option><option value="submitted">New</option><option value="in_review">In review</option><option value="resolved">Resolved</option><option value="closed">Closed</option></select></label>
+<label>Category<select name="category"><option value="all">All categories</option><option value="academics">Academics</option><option value="faculty">Faculty</option><option value="examinations">Examinations</option><option value="facilities">Facilities</option><option value="fees">Fees</option><option value="documentation">Documentation</option><option value="request">General request</option><option value="other">Other</option></select></label>
+<label>Sort<select name="sort"><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="updated">Recently updated</option></select></label>
+<button type="button" class="btn" id="student-case-clear">Clear filters</button>
+</form>
+<div id="case-list" aria-live="polite"></div>
+<div class="student-case-pagination"><span id="student-case-page">0 requests</span><div><button type="button" class="btn" id="student-case-prev" disabled>Previous</button><button type="button" class="btn" id="student-case-next" disabled>Next</button></div></div></section></div>
 <section id="case-detail" class="panel hidden student-thread"><button type="button" id="close-case" class="btn">← Back to requests</button><h2 id="case-heading">Request details</h2><div id="case-info"></div>
 <form id="message-form"><div class="field"><label for="case-message">Reply or add details</label><textarea name="message" id="case-message" rows="3" maxlength="2000" minlength="2" required></textarea></div><button class="btn btn-navy" type="submit">Send follow-up</button></form></section>
 </section>
@@ -87,4 +106,4 @@
 </section>
 </div></main>
 <footer class="student-footer"><div class="container"><img class="footer-ngi" src="/static/ngi-brand.svg" alt="Nagarjuna Group of Institutions" width="64" height="58"><span>© 2026 NCET VerifyFlow · BCA Student Portal</span><span><a href="/students">Students</a> · <a href="/students/directory">Published portfolios</a> · <a href="/about">About</a></span></div></footer>
-<script src="/static/student-portal.js" defer></script><script src="/static/notifications.js" defer></script><script src="/static/institutional-ui.js?v=20261017d" defer></script></body></html>
+<script src="/static/student-portal.js?v=20261017f" defer></script><script src="/static/notifications.js" defer></script><script src="/static/institutional-ui.js?v=20261017d" defer></script></body></html>
