@@ -197,7 +197,7 @@ def list_cases(status:str=Query('all',pattern='^(all|submitted|in_review|resolve
                       'status':x.status,'created_at':x.created_at.isoformat(),
                       'updated_at':x.updated_at.isoformat(),
                       'awaiting_reply':x.status in ('submitted','in_review') and x.last_author_role in (None,'student'),
-                      'older_than_7d':x.status in ('submitted','in_review') and x.created_at<=utcnow()-timedelta(days=7),
+                      'older_than_7d':x.status in ('submitted','in_review') and x.created_at.replace(tzinfo=x.created_at.tzinfo or timezone.utc)<=utcnow()-timedelta(days=7),
                       **({'student':identities.get(x.student_id,{'name':'Unknown student','usn':''})}
                          if user.role=='hod' else {})}
                      for x in rows],
