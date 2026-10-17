@@ -1,11 +1,9 @@
 """Persistent in-app alerts, scoped to accounts and roles."""
 from datetime import datetime
 from pathlib import Path
-from fastapi.responses import FileResponse
-from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, Session
 from .database import Base, User, get_db, utcnow
 from .security import current, csrf_required
@@ -79,18 +77,26 @@ def bca_oversight(user:User=Depends(current),db:Session=Depends(get_db)):
     from .student_models import StudentCase
     from .community import CollaborationPost
     oversight_access(user)
-    cases=db.query(StudentCase).filter(StudentCase.department=='Computer Applications').all()
-    posts=db.query(CollaborationPost).filter(CollaborationPost.hidden.is_(False)).all()
-    result={'cases_total':len(cases),
-            'cases_by_status':{status:sum(c.status==status for c in cases)
+    state_counts=dict(db.query(StudentCase.status,func.count(StudentCase.id))
+        .filter(StudentCase.department=='Computer Applications')
+        .group_by(StudentCase.status).all())
+    project_counts=dict(db.query(CollaborationPost.state,func.count(CollaborationPost.id))
+        .filter(CollaborationPost.hidden.is_(False))
+        .group_by(CollaborationPost.state).all())
+    result={'cases_total':sum(state_counts.values()),
+            'cases_by_status':{status:state_counts.get(status,0)
                 for status in ('submitted','in_review','resolved','closed')},
-            'projects_total':len(posts),
-            'projects_open':sum(p.state=='open' for p in posts),
-            'projects_closed':sum(p.state=='closed' for p in posts),
+            'projects_total':sum(project_counts.values()),
+            'projects_open':project_counts.get('open',0),
+            'projects_closed':project_counts.get('closed',0),
             'view':'summary' if user.role=='principal' else 'department'}
     if user.role=='hod':
+        recent=(db.query(StudentCase.reference,StudentCase.subject,StudentCase.status)
+            .filter(StudentCase.department=='Computer Applications')
+            .order_by(StudentCase.created_at.desc(),StudentCase.id.desc())
+            .limit(30).all())
         result['cases']=[{'reference':c.reference,'subject':c.subject,'status':c.status}
-                         for c in sorted(cases,key=lambda c:c.created_at,reverse=True)[:30]]
+                         for c in recent]
     return result
 
 
