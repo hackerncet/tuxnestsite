@@ -489,69 +489,118 @@ def public_one(usn:str,db:DbSession=Depends(get_db)):
 
 @router.get('/students/profile/{usn}',response_class=HTMLResponse,include_in_schema=False)
 def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
+    """Institutional, résumé-style single-column portfolio; safe for search engines."""
     info=public_one(usn,db)
     name=escape(info['name'])
     sid=escape(info['usn'])
-    description=escape((info['about'] or f"{info['name']} studies at NCET.")[:155],quote=True)
+    branch=escape(info['department'])
+    summary=escape((info['about'] or f"{info['name']} studies at Nagarjuna College of Engineering and Technology.")[:155],quote=True)
     canonical=f"{URL_ROOT}/students/profile/{sid}"
-    photo_url=info.get('photo_url')
-    image_full=URL_ROOT+photo_url if photo_url else ''
-    initials=escape(''.join(part[0] for part in info['name'].split()[:2]).upper() or 'BCA')
-    photo_html=(f'<img class="profile-card-avatar" src="{escape(photo_url,quote=True)}" width="115" height="115" alt="{name} profile photo">'
-                if photo_url else f'<div class="profile-card-initial" aria-label="Profile photo not added">{initials}</div>')
-    skills=''.join(f'<li>{escape(x)}</li>' for x in info['skills']) or '<li>Interests not added yet</li>'
-    certs=''.join('<li><strong>'+escape(x['title'])+'</strong> · '+escape(x['issuer'])+
-        ' — <a rel="noopener noreferrer nofollow" target="_blank" href="'+escape(x['proof_url'],quote=True)+'">View proof ↗</a></li>'
-        for x in info['certificates']) or '<li>No certificates shared yet</li>'
-    socials=''.join('<li><a href="'+escape(url,quote=True)+'" rel="noopener noreferrer nofollow" target="_blank">'+escape(site.title())+' ↗</a></li>'
-                    for site,url in info['social_links'].items()) or '<li>No links shared yet</li>'
-    profile_schema={
-        '@context':'https://schema.org','@type':'ProfilePage',
-        'url':URL_ROOT+f"/students/profile/{info['usn']}",
+    photo=info.get('photo_url')
+    absolute_photo=URL_ROOT+photo if photo else ''
+    initials=escape(''.join(part[0] for part in info['name'].split()[:2]).upper() or 'NCET')
+    avatar=(f'<img class="resume-avatar" src="{escape(photo,quote=True)}" alt="{name} profile photograph" width="108" height="108">'
+            if photo else f'<div class="resume-initials" aria-label="Profile photo not provided">{initials}</div>')
+    def chips(values):
+        return ''.join(f'<li>{escape(x)}</li>' for x in values)
+    def empty(text):
+        return '<p class="resume-empty">'+escape(text)+'</p>'
+    skill_section='<ul class="resume-chips">'+chips(info['skills'])+'</ul>' if info['skills'] else empty('Skills will appear when the student adds them.')
+    interests='<ul class="resume-chips resume-interests">'+chips(info['interests'])+'</ul>' if info['interests'] else empty('Academic interests have not been shared yet.')
+    def link(url,title,klass='resume-text-link'):
+        return (f'<a class="{klass}" href="{escape(url,quote=True)}" target="_blank" rel="noopener noreferrer nofollow">'
+                f'{escape(title)} <span aria-hidden="true">↗</span></a>')
+    projects=[]
+    for project in info['projects']:
+        links=''.join(filter(None,[
+            link(project.get('github_url',''),'GitHub source') if project.get('github_url') else '',
+            link(project.get('live_url',''),'Live project') if project.get('live_url') else ''
+        ]))
+        tags=('<ul class="resume-chips resume-project-tags">'+chips(project.get('technologies',[]))+'</ul>') if project.get('technologies') else ''
+        projects.append('<article class="resume-project"><h3>'+escape(project['title'])+'</h3>'+
+                        '<p>'+escape(project.get('description') or 'Student project')+'</p>'+tags+
+                        ('<div class="resume-links">'+links+'</div>' if links else '')+'</article>')
+    project_html=''.join(projects) if projects else empty('Student projects have not been added yet.')
+    certificates=[]
+    for cert in info['certificates']:
+        certificates.append('<li class="resume-certificate"><div><strong>'+escape(cert['title'])+
+                            '</strong><p>'+escape(cert['issuer'])+'</p></div>'+
+                            link(cert['proof_url'],'View credential')+'</li>')
+    cert_html='<ul class="resume-certificates">'+''.join(certificates)+'</ul>' if certificates else empty('No certificates shared yet.')
+    socials=''.join('<li>'+link(url,platform.title(),'resume-social')+'</li>' for platform,url in info['social_links'].items())
+    social_html='<ul class="resume-socials">'+socials+'</ul>' if socials else empty('Public coding and professional links have not been added yet.')
+    projects_schema=[{'@type':'CreativeWork','name':p['title'],
+                      'description':p.get('description',''),
+                      'url':p.get('live_url') or p.get('github_url') or canonical}
+                     for p in info['projects']]
+    schema={
+        '@context':'https://schema.org','@type':'ProfilePage','url':canonical,
         'dateModified':info.get('updated_at'),
-        'mainEntity':{
-            '@type':'Person','name':info['name'],'identifier':info['usn'],
-            'description':info['about'] or f"{info['name']} is an NCET BCA student.",
-            'affiliation':{'@type':'CollegeOrUniversity','name':'Nagarjuna College of Engineering and Technology'},
-            'knowsAbout':info['skills'][:40],'sameAs':list(info['social_links'].values())[:10],
-        },
+        'about':{'@type':'Person','name':info['name'],'identifier':info['usn'],
+                 'description':info['about'] or f"{info['name']} studies at NCET.",
+                 'affiliation':{'@type':'CollegeOrUniversity',
+                                'name':'Nagarjuna College of Engineering and Technology'},
+                 'knowsAbout':info['skills']+info['interests'],
+                 'sameAs':list(info['social_links'].values())},
+        'mainEntity':{'@type':'Person','name':info['name'],'identifier':info['usn']},
+        'hasPart':projects_schema,
     }
-    if image_full:profile_schema['mainEntity']['image']=image_full
-    schema_script=json.dumps(profile_schema,ensure_ascii=False).replace('<','\\u003c')
-    og_image=(f'<meta property="og:image" content="{escape(image_full,quote=True)}">') if image_full else ''
-    return HTMLResponse(f'''<!doctype html><html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0E2455">
-<title>{name} ({sid}) | NCET BCA Student Portfolio</title>
-<meta name="description" content="{description}">
+    if absolute_photo:schema['about']['image']=absolute_photo
+    json_ld=json.dumps(schema,ensure_ascii=False).replace('<','\\u003c')
+    og_image=(f'<meta property="og:image" content="{escape(absolute_photo,quote=True)}">'
+              if absolute_photo else '<meta property="og:image" content="'+URL_ROOT+'/static/ncet-brand.png">')
+    return HTMLResponse(f'''<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0E2455">
+<title>{name} ({sid}) | NCET Student Portfolio</title>
+<meta name="description" content="{summary}">
 <meta name="robots" content="index,follow,max-image-preview:large">
-<meta property="og:type" content="profile"><meta property="og:title" content="{name} | NCET BCA">
-<meta property="og:description" content="{description}"><meta property="og:url" content="{canonical}">{og_image}
-<script type="application/ld+json">{schema_script}</script>
-<link rel="canonical" href="{canonical}"><link rel="icon" href="/static/ncet-official.webp">
-<link rel="stylesheet" href="/static/bca.css"><link rel="stylesheet" href="/static/experience.css">
+<meta property="og:type" content="profile"><meta property="og:title" content="{name} — NCET Student Portfolio">
+<meta property="og:description" content="{summary}"><meta property="og:url" content="{canonical}">
+{og_image}<link rel="canonical" href="{canonical}">
+<link rel="icon" href="/static/ncet-brand.png">
+<script type="application/ld+json">{json_ld}</script>
+<link rel="stylesheet" href="/static/bca.css">
+<link rel="stylesheet" href="/static/experience.css">
 <link rel="stylesheet" href="/static/responsive-upgrade.css?v=20261017">
-<link rel="stylesheet" href="/static/student-redesign.css?v=20261017b"></head>
-<body class="student-public">
-<header class="topnav"><div class="container nav-inner"><a class="brand" href="/students">
-<img src="/static/ncet-official.webp" alt="NCET emblem">NCET BCA</a>
-<nav class="navlinks"><a href="/students/directory">Student directory</a><a href="/students">Students</a></nav></div></header>
-<main class="shell">
-<div class="student-portfolio-hero">{photo_html}<div>
-<span class="eyebrow">NCET · Student published portfolio</span>
-<h1>{name}</h1><p>{sid} · {escape(info['department'])} · Semester {info['semester']}</p>
-</div></div>
-<div class="student-portfolio-columns"><div>
-<section class="panel"><span class="eyebrow">ABOUT</span><h2>About me</h2>
-<p>{escape(info['about']) or 'This student has not added an introduction yet.'}</p></section>
-<section class="panel" style="margin-top:16px"><span class="eyebrow">SKILLS</span><h2>Skills & interests</h2>
-<ul class="student-skill-chips">{skills}</ul></section></div>
-<div><section class="panel"><span class="eyebrow">CONNECT</span><h2>Portfolio & coding profiles</h2>
-<ul class="student-portfolio-list">{socials}</ul></section>
-<section class="panel" style="margin-top:16px"><span class="eyebrow">LEARNING</span><h2>Certificates & proof</h2>
-<ul class="student-portfolio-list">{certs}</ul></section></div></div>
-<p class="student-portfolio-note">Shared voluntarily by the student. Linked achievements are not independently endorsed by NCET.</p>
-<a class="btn" href="/students/directory">← Back to student directory</a></main>
-<footer class="student-footer"><div class="container"><span>© 2026 NCET VerifyFlow · BCA</span><span><a href="/students">Student services</a> · <a href="/about">About</a></span></div></footer>
+<link rel="stylesheet" href="/static/ncet-brand-system.css?v=20261017">
+<link rel="stylesheet" href="/static/resume-profile.css?v=20261017">
+</head><body class="ncet-profile-page">
+<a class="skip-link" href="#student-resume">Skip to portfolio</a>
+<header class="resume-site-header">
+<div class="resume-site-inner">
+<a class="resume-college" href="/students" aria-label="NCET Student Services">
+<img src="/static/ncet-brand.png" alt="Nagarjuna College of Engineering and Technology" width="178" height="88">
+<span>Student portfolios<small>Official NCET student services</small></span></a>
+<nav aria-label="Profile navigation"><a href="/students/directory">Student directory</a><a href="/students">Student services</a></nav>
+<img class="resume-group-logo" src="/static/ngi-brand.png" alt="Nagarjuna Group of Institutions" width="78" height="70">
+</div></header>
+<main id="student-resume" class="resume-container">
+<div class="resume-paper">
+<div class="resume-accreditation"><span>NCET · STUDENT PORTFOLIO</span>
+<img src="/static/naac-brand.png" alt="Institutional accreditation: NAAC A+" width="61" height="61"></div>
+<div class="resume-heading">{avatar}<div class="resume-heading-copy">
+<p class="resume-overline">Student profile · Voluntarily published</p>
+<h1>{name}</h1><p class="resume-subtitle">{branch} <span aria-hidden="true">·</span> Semester {info['semester']}</p>
+<p class="resume-usn"><strong>USN</strong> {sid}</p></div></div>
+<nav class="resume-anchors" aria-label="Portfolio sections">
+<a href="#about">About</a><a href="#skills">Skills</a><a href="#projects">Projects</a>
+<a href="#certifications">Certifications</a><a href="#interests">Interests</a><a href="#links">Links</a>
+</nav>
+<section id="about" class="resume-section"><h2>About</h2>
+<p class="resume-about">{escape(info['about']) or 'This student has not yet added a summary.'}</p></section>
+<section id="skills" class="resume-section"><h2>Technical skills</h2>{skill_section}</section>
+<section id="projects" class="resume-section"><h2>Projects</h2>{project_html}</section>
+<section id="certifications" class="resume-section"><h2>Certifications</h2>{cert_html}</section>
+<section id="interests" class="resume-section"><h2>Areas of interest</h2>{interests}</section>
+<section id="links" class="resume-section"><h2>GitHub, live work & professional links</h2>{social_html}</section>
+<div class="resume-disclaimer"><p>Published by the student. NCET has not independently verified personal projects, skills or linked credentials.</p>
+<a href="/students/directory">← Browse student directory</a></div>
+</div>
+</main>
+<footer class="resume-footer"><img src="/static/ngi-brand.png" alt="Nagarjuna Group of Institutions" width="53" height="47">
+<span>NCET VerifyFlow · Academic collaboration & student success</span>
+<a href="/students">Student Services</a></footer>
 </body></html>''',headers={'Cache-Control':'no-store'})
 
 
