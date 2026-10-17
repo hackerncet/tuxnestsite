@@ -125,7 +125,7 @@ def create_students(db, actor, items:list[EnrollmentItem]):
     can_manage_bca(actor)
     values=validate_enrollment(db,actor,items)
     if db.query(User.id).filter(User.username.in_([u.lower() for u,n,b,s in values])).first() or \
-       db.query(BCAStudent.id).filter(BCAStudent.usn.in_([u for u,n,s in values])).first():
+       db.query(BCAStudent.id).filter(BCAStudent.usn.in_([u for u,n,b,s in values])).first():
         raise HTTPException(409,'One or more USNs are already enrolled. No accounts were created.')
     creds=[]
     try:
