@@ -96,6 +96,13 @@ def test_browser():
         assert 'No matching tasks' in page.locator('#dash-tasks').inner_text()
         page.locator('#dash-search').fill('Academic_Audit')
         assert page.locator('.dashboard-task').count()==1
+        # Responsive HOD dashboard checks: metric grid, charts and task drilldown.
+        for width in (320,390,768,1024,1366):
+          page.set_viewport_size({'width':width,'height':850})
+          assert page.evaluate('document.documentElement.scrollWidth <= innerWidth + 2'),width
+          assert page.locator('#dashboard-metrics [data-dash-status="all"]').is_visible(),width
+          assert page.locator('#dash-stage-chart').is_visible(),width
+        page.set_viewport_size({'width':1366,'height':840})
 
       else:
         assert page.locator('#hod-section').is_hidden()
