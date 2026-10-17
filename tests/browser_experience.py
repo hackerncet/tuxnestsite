@@ -29,6 +29,8 @@ def main():
         assert page.locator(".film-frames").count()==0
         assert page.locator('.identity-crest').evaluate('(img)=>img.complete && img.naturalWidth>0')
         assert page.locator('.topnav .brand img').evaluate('(img)=>img.complete && img.naturalWidth>0')
+        assert page.locator('.topnav .brand-title').inner_text()=='NCET Student Portal'
+        assert page.locator('.topnav .brand-subtitle').inner_text()=='VerifyFlow · Student and faculty collaboration'
         assert page.locator('.identity-crest').get_attribute('src').startswith('data:image/svg+xml;base64,')
         assert page.locator('body').inner_text().lower().find('student services')==-1
         assert page.locator('.identity-crest').evaluate(
@@ -100,6 +102,26 @@ def main():
             overflow=page.evaluate("document.documentElement.scrollWidth > window.innerWidth + 1")
             assert not overflow, f"Horizontal overflow at {width}px"
             assert page.locator('.identity-crest').is_visible(),width
+            # The complete NCET Student Portal label must be uniformly styled,
+            # readable and contained at every mobile and desktop breakpoint.
+            header=page.locator('.topnav .brand')
+            typeface=header.evaluate("""(root) => {
+              const title=root.querySelector('.brand-title');
+              const subtitle=root.querySelector('.brand-subtitle');
+              const t=title.getBoundingClientRect();
+              const b=root.getBoundingClientRect();
+              const styles=getComputedStyle(title),small=getComputedStyle(subtitle);
+              return {title:title.textContent.trim(),titleSize:parseFloat(styles.fontSize),
+                subtitleSize:parseFloat(small.fontSize),
+                weight:parseInt(styles.fontWeight,10),titleRight:t.right,
+                brandRight:b.right,subtitleVisible:small.display!=='none'};
+            }""")
+            assert typeface['title']=='NCET Student Portal',width
+            assert 12.5<=typeface['titleSize']<=17,width
+            assert typeface['subtitleSize']<typeface['titleSize'],width
+            assert typeface['weight']>=700,width
+            assert typeface['subtitleVisible'],width
+            assert typeface['titleRight']<=typeface['brandRight']+2,(width,typeface)
             assert page.locator('.identity-crest').evaluate('(img)=>img.naturalWidth>0'),width
             assert page.locator('.footer-credits a').count()==3,width
             assert page.locator('.identity-panel').evaluate('(el)=>getComputedStyle(el).backgroundColor')=='rgb(255, 255, 255)'
