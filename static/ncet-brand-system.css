@@ -6,7 +6,9 @@
  --navy:var(--ncet-blue);--orange:var(--ncet-orange);
  --paper:var(--ncet-bg);--ink:var(--ncet-text);--muted:var(--ncet-muted);
  --bca-navy:var(--ncet-blue);--bca-orange:var(--ncet-orange);
- --bca-bg:var(--ncet-bg);--bca-text:var(--ncet-text);--bca-muted:var(--ncet-muted)
+ --bca-bg:var(--ncet-bg);--bca-text:var(--ncet-text);--bca-muted:var(--ncet-muted);
+ --e-navy:var(--ncet-blue);--e-orange:var(--ncet-orange);
+ --e-bg:var(--ncet-bg);--e-ink:var(--ncet-text);--e-sub:var(--ncet-muted)
 }
 :where(.student-public,.student-modern,.student-directory-shell) .btn-primary,
 :where(.student-public,.student-modern) .btn-navy{border-color:var(--ncet-blue)}
@@ -20,7 +22,7 @@
  object-fit:contain;object-position:center
 }
 .brand img{width:88px;max-height:55px;height:auto}
-.footer-logo{width:110px;height:auto;object-fit:contain;border-radius:6px}
+.footer-logo{width:110px;height:auto;object-fit:contain;border-radius:6px;background:white;padding:6px}
 .identity-crest{width:min(400px,100%);height:auto;max-height:225px;min-height:0;object-fit:contain}
 .identity-crest.legacy-crest{filter:none;mix-blend-mode:normal}
 .identity-center{background:#fff;border-radius:12px;margin:12px 18px;padding:16px}
@@ -60,3 +62,6 @@
  .ncet-network-loader img,.spinner,button[aria-busy="true"]::before,
  .btn[aria-busy="true"]::before{animation:none!important;opacity:1!important}
 }
+
+.ncet-about-accreditation{display:flex;gap:18px;align-items:center;justify-content:center;padding:19px 20px 30px;color:var(--ncet-blue);font-size:14px;font-weight:750}
+.ncet-about-accreditation img{object-fit:contain;width:74px;height:74px}
