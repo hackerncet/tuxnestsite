@@ -3,10 +3,10 @@ import csv
 import io
 import re
 import secrets
-from datetime import timedelta
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from datetime import timedelta, datetime, time, timezone, date
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session as DbSession, selectinload
 from .database import User, AuditLog, DBSession, get_db, utcnow
@@ -123,15 +123,66 @@ def list_students(actor:User=Depends(as_role('staff','hod','admin')),db:DbSessio
                       'semester':p.semester,'active':u.active} for u,p in items]}
 
 @router.get('/cases')
-def list_cases(user:User=Depends(current),db:DbSession=Depends(get_db)):
+def list_cases(status:str=Query('all',pattern='^(all|submitted|in_review|resolved|closed)$'),
+               category:str=Query('all',pattern='^(all|academics|faculty|examinations|facilities|fees|documentation|request|other)$'),
+               search:str=Query('',max_length=120),
+               from_date:date|None=None,to_date:date|None=None,
+               sort:str=Query('newest',pattern='^(newest|oldest|updated)$'),
+               offset:int=Query(0,ge=0),limit:int=Query(30,ge=1,le=100),
+               user:User=Depends(current),db:DbSession=Depends(get_db)):
+    """Private case index. Filter/sort/page in SQL, never load complaint bodies.
+    Overview metrics reflect all cases visible to the caller (not current page).
+    """
     if user.role=='student':
         student_profile(db,user)
         base=db.query(StudentCase).filter(StudentCase.student_id==user.id)
     elif user.role=='hod' and user.department.strip().lower() in BCA_DEPARTMENT_NAMES:
         base=db.query(StudentCase).filter(StudentCase.department==BCA_DEPARTMENT)
-    else:raise HTTPException(403,'Student or BCA HOD access required.')
-    items=base.order_by(StudentCase.created_at.desc(),StudentCase.id.desc()).limit(200).all()
-    return {'items':[{'reference':x.reference,'subject':x.subject,'category':x.category,'status':x.status,'created_at':x.created_at.isoformat()} for x in items]}
+    else:
+        raise HTTPException(403,'Student or BCA HOD access required.')
+    if from_date and to_date and from_date>to_date:
+        raise HTTPException(422,'Start date must not be after end date.')
+    # Overall counters are scoped before UI filters, so a selected card keeps
+    # its original total visible. Only aggregate columns, never descriptions.
+    summary=dict(base.with_entities(StudentCase.status,func.count(StudentCase.id))
+                 .group_by(StudentCase.status).all())
+    categories=dict(base.with_entities(StudentCase.category,func.count(StudentCase.id))
+                    .group_by(StudentCase.category).all())
+    items_query=base
+    if status!='all':items_query=items_query.filter(StudentCase.status==status)
+    if category!='all':items_query=items_query.filter(StudentCase.category==category)
+    if from_date:
+        items_query=items_query.filter(StudentCase.created_at>=datetime.combine(from_date,time.min))
+    if to_date:
+        items_query=items_query.filter(StudentCase.created_at<datetime.combine(
+            to_date+timedelta(days=1),time.min))
+    if search.strip():
+        term='%'+search.strip()+'%'
+        items_query=items_query.filter(or_(StudentCase.subject.ilike(term),
+                                            StudentCase.reference.ilike(term)))
+    total=items_query.with_entities(func.count(StudentCase.id)).scalar() or 0
+    order=(StudentCase.created_at.asc(),StudentCase.id.asc()) if sort=='oldest' else (
+        (StudentCase.updated_at.desc(),StudentCase.id.desc()) if sort=='updated' else
+        (StudentCase.created_at.desc(),StudentCase.id.desc()))
+    rows=(items_query.with_entities(StudentCase.id,StudentCase.reference,StudentCase.subject,
+            StudentCase.category,StudentCase.status,StudentCase.created_at,
+            StudentCase.updated_at,StudentCase.student_id)
+          .order_by(*order).offset(offset).limit(limit).all())
+    identities={}
+    if user.role=='hod':
+        ids={row.student_id for row in rows}
+        identities={u.id:{'name':u.display_name,'usn':u.username.upper()}
+                    for u in db.query(User).filter(User.id.in_(ids)).all()} if ids else {}
+    return {'items':[{'reference':x.reference,'subject':x.subject,'category':x.category,
+                      'status':x.status,'created_at':x.created_at.isoformat(),
+                      'updated_at':x.updated_at.isoformat(),
+                      **({'student':identities.get(x.student_id,{'name':'Unknown student','usn':''})}
+                         if user.role=='hod' else {})}
+                     for x in rows],
+            'counts':{k:summary.get(k,0) for k in ('submitted','in_review','resolved','closed')},
+            'categories':{k:categories.get(k,0) for k in sorted(CATEGORIES)},
+            'all_total':sum(summary.values()),
+            'total':total,'offset':offset,'limit':limit,'has_more':offset+len(rows)<total}
 
 @router.post('/cases',status_code=201)
 def create_case(body:NewCase,user:User=Depends(as_role_mutation('student')),db:DbSession=Depends(get_db)):
@@ -148,7 +199,7 @@ def create_case(body:NewCase,user:User=Depends(as_role_mutation('student')),db:D
     from .notifications import emit, hod_recipients
     db.add(case);db.add(AuditLog(actor_id=user.id,event='bca.case_submitted',detail=case.reference))
     recipients=hod_recipients(db)
-    emit(db,recipients,'New BCA student request awaiting review.','/bca/manage','complaints')
+    emit(db,recipients,'New BCA student request awaiting review.','/bca/complaints','complaints')
     if not recipients:
         admins=[u.id for u in db.query(User.id).filter(User.active.is_(True),User.role=='admin').all()]
         emit(db,admins,'A BCA student request needs an authorized Computer Applications HOD. Assign a BCA HOD in User Management.','/app','setup')
@@ -169,7 +220,7 @@ def send_message(reference:str,body:CaseReply,user:User=Depends(csrf_required),d
     from .notifications import emit, hod_recipients
     db.add(StudentCaseMessage(case_id=case.id,actor_id=user.id,body=message))
     if user.role=='student':
-        emit(db,hod_recipients(db),'A student replied to a BCA request.','/bca/manage','complaints')
+        emit(db,hod_recipients(db),'A student replied to a BCA request.','/bca/complaints','complaints')
     else:
         emit(db,[case.student_id],'The BCA HOD replied to your request.','/students/portal','complaints')
     case.updated_at=utcnow()
