@@ -9,14 +9,15 @@ import io
 import json
 import re
 import secrets
+from PIL import Image, ImageOps, UnidentifiedImageError
 from datetime import datetime
 from html import escape
 from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel, Field
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, or_
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, LargeBinary, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session as DbSession, Mapped, mapped_column
 
@@ -40,6 +41,8 @@ class StudentShowcase(Base):
     certificates_json: Mapped[str] = mapped_column(Text,default='[]')
     social_links_json: Mapped[str] = mapped_column(Text,default='{}')
     published: Mapped[bool] = mapped_column(Boolean,default=False,index=True)
+    photo_bytes: Mapped[bytes | None] = mapped_column(LargeBinary,nullable=True)
+    photo_mime: Mapped[str | None] = mapped_column(String(32),nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),default=utcnow)
 
 class EnrollmentItem(BaseModel):
@@ -232,7 +235,8 @@ def my_showcase(user:User=Depends(current),db:DbSession=Depends(get_db)):
             'about':s.about if s else '', 'skills':json.loads(s.skills_json) if s else [],
             'certificates':json.loads(s.certificates_json) if s else [],
             'social_links':json.loads(s.social_links_json or '{}') if s else {},
-            'published':s.published if s else False}
+            'published':s.published if s else False,
+            'photo_available':bool(s.photo_bytes) if s else False}
 
 
 @router.put('/api/bca/showcase/me')
@@ -283,6 +287,94 @@ def edit_showcase(body:ShowcaseEdit,user:User=Depends(csrf_required),db:DbSessio
     return {'ok':True,'published':profile.published,'public_url':f'/students/profile/{student.usn}' if profile.published else None}
 
 
+PHOTO_LIMIT=150_000  # uploaded file must be strictly smaller than 150 KB (decimal)
+ALLOWED_PHOTO_FORMATS={'PNG','JPEG','WEBP'}
+
+
+@router.put('/api/bca/showcase/me/photo')
+async def upload_profile_photo(
+    file:UploadFile=File(...),
+    user:User=Depends(csrf_required),
+    db:DbSession=Depends(get_db),
+):
+    student=_my_student(db,user)
+    if student.must_change_password:
+        raise HTTPException(403,'Change your temporary password before uploading a photo.')
+    if file.content_type not in ('image/png','image/jpeg','image/webp'):
+        raise HTTPException(422,'Choose a PNG, JPEG or WebP photo under 150 KB.')
+    raw=await file.read(PHOTO_LIMIT+1)
+    await file.close()
+    if not raw or len(raw)>=PHOTO_LIMIT:
+        raise HTTPException(413,'Profile photo must be smaller than 150 KB.')
+    try:
+        with Image.open(io.BytesIO(raw)) as incoming:
+            if incoming.format not in ALLOWED_PHOTO_FORMATS:
+                raise HTTPException(422,'Unsupported photo format.')
+            if incoming.width>2500 or incoming.height>2500 or incoming.width<32 or incoming.height<32:
+                raise HTTPException(422,'Photo dimensions must be between 32 and 2500 pixels.')
+            incoming.load()
+            image=ImageOps.exif_transpose(incoming).convert('RGB')
+            image.thumbnail((640,640),Image.Resampling.LANCZOS)
+            photo=None
+            for quality in (83,72,60,48):
+                out=io.BytesIO()
+                image.save(out,format='WEBP',quality=quality,method=4)
+                if len(out.getvalue())<PHOTO_LIMIT:
+                    photo=out.getvalue()
+                    break
+            if photo is None:
+                raise HTTPException(422,'Photo could not fit under 150 KB. Choose a smaller image.')
+    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError):
+        raise HTTPException(422,'Invalid or damaged image.')
+    profile=_showcase(db,user)
+    if not profile:
+        profile=StudentShowcase(student_id=user.id)
+        db.add(profile)
+    profile.photo_bytes=photo
+    profile.photo_mime='image/webp'
+    profile.updated_at=utcnow()
+    db.add(AuditLog(actor_id=user.id,event='bca.showcase_photo_updated',detail=student.usn))
+    db.commit()
+    return {'ok':True,'photo_available':True,'size_bytes':len(photo),
+            'public_photo_url':f'/students/profile/{student.usn}/photo' if profile.published else None}
+
+
+@router.get('/api/bca/showcase/me/photo')
+def private_profile_photo(user:User=Depends(current),db:DbSession=Depends(get_db)):
+    _my_student(db,user)
+    profile=_showcase(db,user)
+    if not profile or not profile.photo_bytes:
+        raise HTTPException(404,'Profile photo not uploaded.')
+    return Response(profile.photo_bytes,media_type='image/webp',
+                    headers={'Cache-Control':'private,no-store','X-Robots-Tag':'noindex,nofollow'})
+
+
+@router.delete('/api/bca/showcase/me/photo')
+def delete_profile_photo(user:User=Depends(csrf_required),db:DbSession=Depends(get_db)):
+    student=_my_student(db,user)
+    profile=_showcase(db,user)
+    if not profile or not profile.photo_bytes:
+        raise HTTPException(404,'Profile photo not uploaded.')
+    profile.photo_bytes=None
+    profile.photo_mime=None
+    profile.updated_at=utcnow()
+    db.add(AuditLog(actor_id=user.id,event='bca.showcase_photo_removed',detail=student.usn))
+    db.commit()
+    return {'ok':True,'photo_available':False}
+
+
+@router.get('/students/profile/{usn}/photo',include_in_schema=False)
+def published_profile_photo(usn:str,db:DbSession=Depends(get_db)):
+    if not USN_RE.fullmatch(usn.strip().upper()):
+        raise HTTPException(404,'Profile unavailable.')
+    row=public_query(db).filter(BCAStudent.usn==usn.strip().upper()).first()
+    if not row or not row[2].photo_bytes:
+        raise HTTPException(404,'Profile photo unavailable.')
+    return Response(row[2].photo_bytes,media_type='image/webp',
+                    headers={'Cache-Control':'no-store',
+                             'X-Content-Type-Options':'nosniff'})
+
+
 def public_query(db):
     return (db.query(User,BCAStudent,StudentShowcase)
             .join(BCAStudent,BCAStudent.user_id==User.id)
@@ -297,20 +389,24 @@ def public_record(user,student,showcase):
             'department':'Bachelor of Computer Applications','semester':student.semester,
             'about':showcase.about,'skills':json.loads(showcase.skills_json),
             'certificates':json.loads(showcase.certificates_json),
-            'social_links':json.loads(showcase.social_links_json or '{}')}
+            'social_links':json.loads(showcase.social_links_json or '{}'),
+            'photo_url':f'/students/profile/{student.usn}/photo' if showcase.photo_bytes else None,
+            'updated_at':showcase.updated_at.isoformat() if showcase.updated_at else None}
 
 
 @router.get('/api/bca/directory')
-def public_directory(q:str='',limit:int=30,db:DbSession=Depends(get_db)):
-    if not 1<=limit<=50 or len(q)>60:raise HTTPException(422,'Invalid search.')
+def public_directory(q:str='',limit:int=30,offset:int=0,db:DbSession=Depends(get_db)):
+    if not 1<=limit<=50 or not 0<=offset<=1_000_000 or len(q)>60:raise HTTPException(422,'Invalid search.')
     query=public_query(db)
     if q.strip():
         term='%'+q.strip().replace('%','\\%').replace('_','\\_')+'%'
         query=query.filter(or_(BCAStudent.usn.ilike(term,escape='\\'),
                                 User.display_name.ilike(term,escape='\\')))
-    rows=query.order_by(BCAStudent.usn).limit(limit).all()
-    return {'items':[{'name':u.display_name,'usn':p.usn,'department':'Bachelor of Computer Applications',
-                       'skills':json.loads(s.skills_json)} for u,p,s in rows]}
+    total=query.count()
+    rows=query.order_by(BCAStudent.usn).offset(offset).limit(limit).all()
+    return {'total':total,'offset':offset,'limit':limit,'items':[{'name':u.display_name,'usn':p.usn,'department':'Bachelor of Computer Applications',
+                       'skills':json.loads(s.skills_json),
+                       'photo_url':f'/students/profile/{p.usn}/photo' if s.photo_bytes else None} for u,p,s in rows]}
 
 
 @router.get('/api/bca/directory/{usn}')
@@ -324,75 +420,102 @@ def public_one(usn:str,db:DbSession=Depends(get_db)):
 @router.get('/students/profile/{usn}',response_class=HTMLResponse,include_in_schema=False)
 def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
     info=public_one(usn,db)
-    name=escape(info['name']);sid=escape(info['usn'])
-    description=escape((info['about'] or f'{name} studies Bachelor of Computer Applications at NCET.')[:155],quote=True)
-    skills=''.join(f'<li>{escape(x)}</li>' for x in info['skills']) or '<li>Not added yet</li>'
+    name=escape(info['name'])
+    sid=escape(info['usn'])
+    description=escape((info['about'] or f"{info['name']} studies Bachelor of Computer Applications at NCET.")[:155],quote=True)
+    canonical=f"{URL_ROOT}/students/profile/{sid}"
+    photo_url=info.get('photo_url')
+    image_full=URL_ROOT+photo_url if photo_url else ''
+    initials=escape(''.join(part[0] for part in info['name'].split()[:2]).upper() or 'BCA')
+    photo_html=(f'<img class="profile-card-avatar" src="{escape(photo_url,quote=True)}" width="115" height="115" alt="{name} profile photo">'
+                if photo_url else f'<div class="profile-card-initial" aria-label="Profile photo not added">{initials}</div>')
+    skills=''.join(f'<li>{escape(x)}</li>' for x in info['skills']) or '<li>Interests not added yet</li>'
     certs=''.join('<li><strong>'+escape(x['title'])+'</strong> · '+escape(x['issuer'])+
-                  ' — <a rel="noopener noreferrer nofollow" target="_blank" href="'+escape(x['proof_url'],quote=True)+'">Public proof</a></li>'
-                  for x in info['certificates']) or '<li>No certificates listed yet</li>'
-    socials=''.join('<li><a href="'+escape(url,quote=True)+'" rel="noopener noreferrer nofollow" target="_blank">'+escape(site.title())+'</a></li>' for site,url in info['social_links'].items())
-    canonical=f'{URL_ROOT}/students/profile/{sid}'
-    schema = {
-        "@context": "https://schema.org", "@type": "ProfilePage",
-        "url": f"{URL_ROOT}/students/profile/{info['usn']}",
-        "mainEntity": {
-            "@type": "Person", "name": info["name"],
-            "identifier": info["usn"],
-            "description": info["about"] or f"{info['name']} is an NCET BCA student.",
-            "affiliation": {"@type": "CollegeOrUniversity",
-                            "name": "Nagarjuna College of Engineering and Technology"},
-            "knowsAbout": info["skills"][:40],
-            "sameAs": list(info["social_links"].values())[:10],
+        ' — <a rel="noopener noreferrer nofollow" target="_blank" href="'+escape(x['proof_url'],quote=True)+'">View proof ↗</a></li>'
+        for x in info['certificates']) or '<li>No certificates shared yet</li>'
+    socials=''.join('<li><a href="'+escape(url,quote=True)+'" rel="noopener noreferrer nofollow" target="_blank">'+escape(site.title())+' ↗</a></li>'
+                    for site,url in info['social_links'].items()) or '<li>No links shared yet</li>'
+    profile_schema={
+        '@context':'https://schema.org','@type':'ProfilePage',
+        'url':URL_ROOT+f"/students/profile/{info['usn']}",
+        'dateModified':info.get('updated_at'),
+        'mainEntity':{
+            '@type':'Person','name':info['name'],'identifier':info['usn'],
+            'description':info['about'] or f"{info['name']} is an NCET BCA student.",
+            'affiliation':{'@type':'CollegeOrUniversity','name':'Nagarjuna College of Engineering and Technology'},
+            'knowsAbout':info['skills'][:40],'sameAs':list(info['social_links'].values())[:10],
         },
     }
-    # Protect HTML parser from student-authored strings inside JSON-LD.
-    schema_script = json.dumps(schema, ensure_ascii=False).replace("<", "\\u003c")
+    if image_full:profile_schema['mainEntity']['image']=image_full
+    schema_script=json.dumps(profile_schema,ensure_ascii=False).replace('<','\\u003c')
+    og_image=(f'<meta property="og:image" content="{escape(image_full,quote=True)}">') if image_full else ''
     return HTMLResponse(f'''<!doctype html><html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{name} ({sid}) | NCET BCA Student Portfolio</title><meta name="description" content="{description}">
+<meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0E2455">
+<title>{name} ({sid}) | NCET BCA Student Portfolio</title>
+<meta name="description" content="{description}">
 <meta name="robots" content="index,follow,max-image-preview:large">
 <meta property="og:type" content="profile"><meta property="og:title" content="{name} | NCET BCA">
-<meta property="og:description" content="{description}">
-<meta property="og:url" content="{canonical}">
+<meta property="og:description" content="{description}"><meta property="og:url" content="{canonical}">{og_image}
 <script type="application/ld+json">{schema_script}</script>
 <link rel="canonical" href="{canonical}"><link rel="icon" href="/static/ncet-official.webp">
-<link rel="stylesheet" href="/static/bca.css"><link rel="stylesheet" href="/static/experience.css"></head><body>
+<link rel="stylesheet" href="/static/bca.css"><link rel="stylesheet" href="/static/experience.css">
+<link rel="stylesheet" href="/static/responsive-upgrade.css?v=20261017">
+<link rel="stylesheet" href="/static/student-redesign.css?v=20261017b"></head>
+<body class="student-public">
 <header class="topnav"><div class="container nav-inner"><a class="brand" href="/students">
 <img src="/static/ncet-official.webp" alt="NCET emblem">NCET BCA</a>
 <nav class="navlinks"><a href="/students/directory">Student directory</a><a href="/students">Students</a></nav></div></header>
-<main class="shell"><div class="panel"><span class="eyebrow">Student portfolio · voluntary publication</span>
-<h1>{name}</h1><p class="muted">USN: {sid} · Bachelor of Computer Applications · Semester {info['semester']}</p>
-<h2>About</h2><p>{escape(info['about']) or 'The student has not provided a description.'}</p>
-<h2>Skills</h2><ul>{skills}</ul><h2>Portfolio & coding profiles</h2><ul>{socials or '<li>No links added yet</li>'}</ul><h2>Certificates & proof</h2><ul>{certs}</ul>
-<p class="muted">This profile is published by the student. NCET does not independently endorse linked credentials.</p>
-<a class="btn" href="/students/directory">Back to student directory</a></div></main>
-</body></html>''',headers={'Cache-Control':'public, max-age=120'})
+<main class="shell">
+<div class="student-portfolio-hero">{photo_html}<div>
+<span class="eyebrow">NCET · Student published portfolio</span>
+<h1>{name}</h1><p>{sid} · Bachelor of Computer Applications · Semester {info['semester']}</p>
+</div></div>
+<div class="student-portfolio-columns"><div>
+<section class="panel"><span class="eyebrow">ABOUT</span><h2>About me</h2>
+<p>{escape(info['about']) or 'This student has not added an introduction yet.'}</p></section>
+<section class="panel" style="margin-top:16px"><span class="eyebrow">SKILLS</span><h2>Skills & interests</h2>
+<ul class="student-skill-chips">{skills}</ul></section></div>
+<div><section class="panel"><span class="eyebrow">CONNECT</span><h2>Portfolio & coding profiles</h2>
+<ul class="student-portfolio-list">{socials}</ul></section>
+<section class="panel" style="margin-top:16px"><span class="eyebrow">LEARNING</span><h2>Certificates & proof</h2>
+<ul class="student-portfolio-list">{certs}</ul></section></div></div>
+<p class="student-portfolio-note">Shared voluntarily by the student. Linked achievements are not independently endorsed by NCET.</p>
+<a class="btn" href="/students/directory">← Back to student directory</a></main>
+<footer class="student-footer"><div class="container"><span>© 2026 NCET VerifyFlow · BCA</span><span><a href="/students">Student services</a> · <a href="/about">About</a></span></div></footer>
+</body></html>''',headers={'Cache-Control':'no-store'})
 
 
 @router.get('/students/directory',include_in_schema=False)
-def directory_page(db:DbSession=Depends(get_db)):
-    """Server-rendered profile links complement interactive client-side search.
-
-    Google and other crawlers can find published profiles without executing JS.
-    Do not show records that the student did not explicitly publish.
-    """
+def directory_page(page:int=1,db:DbSession=Depends(get_db)):
+    """Small paginated server-rendered lists, with every published profile crawlable."""
     from pathlib import Path
-    static = Path(__file__).resolve().parents[1] / 'static'
-    html = (static / 'student-directory.html').read_text(encoding='utf-8')
-    rows = public_query(db).order_by(BCAStudent.usn).limit(1000).all()
-    items = ''.join(
-        '<li><a href="/students/profile/' + escape(student.usn,quote=True) + '">' +
-        escape(user.display_name) + '</a> <span class="muted">' +
-        escape(student.usn) + '</span></li>'
-        for user, student, showcase in rows
+    if page<1 or page>100000:raise HTTPException(404,'Directory page not found.')
+    static=Path(__file__).resolve().parents[1]/'static'
+    html=(static/'student-directory.html').read_text(encoding='utf-8')
+    per_page=18
+    total=public_query(db).count()
+    pages=max(1,(total+per_page-1)//per_page)
+    if page>pages:raise HTTPException(404,'Directory page not found.')
+    rows=public_query(db).order_by(BCAStudent.usn).offset((page-1)*per_page).limit(per_page).all()
+    items=''.join(
+        '<li><a href="/students/profile/'+escape(student.usn,quote=True)+'">'+
+        escape(user.display_name)+'</a> <span class="muted">'+escape(student.usn)+'</span></li>'
+        for user,student,showcase in rows
     )
-    links = ('<section class="panel server-profile-links" aria-label="Published student profiles">'
-             '<h2>Browse published NCET BCA student portfolios</h2>'
-             '<p>Only profiles students have chosen to publish are listed.</p>'
-             '<ul>' + items + '</ul></section>') if rows else ''
-    html = html.replace('</main>', links + '</main>')
-    return HTMLResponse(html,headers={'Cache-Control':'public,max-age=60'})
-
+    controls=(
+        ('<a class="btn" href="/students/directory?page='+str(page-1)+'">← Previous</a>' if page>1 else '')+
+        '<span>Page '+str(page)+' of '+str(pages)+'</span>'+
+        ('<a class="btn" href="/students/directory?page='+str(page+1)+'">Next →</a>' if page<pages else '')
+    )
+    section=('<section class="panel server-profile-links" aria-label="Published student profiles">'+
+             '<h2>Browse all published portfolios</h2>'+
+             '<p class="small muted">'+str(total)+' student-published profiles. Showing '+str(len(rows))+' on this page.</p>'+
+             '<ul>'+items+'</ul><nav class="profile-pagination" aria-label="Directory pages">'+controls+'</nav></section>')
+    html=html.replace('</main>',section+'</main>')
+    if page>1:
+        html=html.replace('href="https://ncet-verifyflow.onrender.com/students/directory"',
+                          'href="https://ncet-verifyflow.onrender.com/students/directory?page='+str(page)+'"')
+    return HTMLResponse(html,headers={'Cache-Control':'no-store'})
 
 
 

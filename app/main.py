@@ -207,15 +207,65 @@ def robots():
     origin=PUBLIC_ORIGIN or 'https://ncet-verifyflow.onrender.com'
     return Response('User-agent: *\nDisallow: /api/\nDisallow: /app\nDisallow: /students/portal\nDisallow: /bca/manage\nDisallow: /community\nDisallow: /tasks\nSitemap: '+origin+'/sitemap.xml\n',media_type='text/plain')
 
+def _sitemap_xml(records):
+    from xml.sax.saxutils import escape as xml_escape
+    origin=PUBLIC_ORIGIN or 'https://ncet-verifyflow.onrender.com'
+    urls=''.join('<url><loc>'+xml_escape(origin+path)+'</loc>'+
+                 ('<lastmod>'+xml_escape(modified[:10])+'</lastmod>' if modified else '')+
+                 '</url>' for path,modified in records)
+    return Response('<?xml version="1.0" encoding="UTF-8"?>'+
+                    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'+urls+'</urlset>',
+                    media_type='application/xml',headers={'Cache-Control':'no-store'})
+
+
+def _published_sitemap_batch(db,limit=50000,offset=0):
+    from .student_profiles import public_query
+    from .student_models import BCAStudent
+    from .student_profiles import StudentShowcase
+    return [
+        ('/students/profile/'+student.usn,
+         showcase.updated_at.isoformat() if showcase.updated_at else '')
+        for user,student,showcase in public_query(db).order_by(BCAStudent.usn)
+            .offset(offset).limit(limit).all()
+    ]
+
+
 @app.get('/sitemap.xml')
 def sitemap():
-    from xml.sax.saxutils import escape
-    origin=PUBLIC_ORIGIN or 'https://ncet-verifyflow.onrender.com'
-    from .student_profiles import published_sitemap_paths
+    """Newly published, consented profiles appear on the next sitemap request."""
+    from .student_profiles import public_query
     with DBSession() as db:
-        paths=('/', '/students', '/about', *published_sitemap_paths(db))
-    urls=''.join('<url><loc>'+escape(origin+path)+'</loc></url>' for path in paths)
-    return Response('<?xml version="1.0" encoding="UTF-8"?>'+'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'+urls+'</urlset>',media_type='application/xml')
+        total=public_query(db).count()
+        if total<=50000:
+            return _sitemap_xml([('/', ''),('/students',''),('/about',''),
+                                 ('/students/directory','')]+_published_sitemap_batch(db))
+    from xml.sax.saxutils import escape as xml_escape
+    origin=PUBLIC_ORIGIN or 'https://ncet-verifyflow.onrender.com'
+    paths=['/sitemap/base.xml']+[
+        '/sitemap/students/'+str(page)+'.xml' for page in range(1,(total+9999)//10000+1)]
+    nodes=''.join('<sitemap><loc>'+xml_escape(origin+path)+'</loc></sitemap>' for path in paths)
+    return Response('<?xml version="1.0" encoding="UTF-8"?>'+
+                    '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'+
+                    nodes+'</sitemapindex>',media_type='application/xml',
+                    headers={'Cache-Control':'no-store'})
+
+
+@app.get('/sitemap/base.xml')
+def sitemap_base():
+    return _sitemap_xml([('/', ''),('/students',''),('/about',''),
+                         ('/students/directory','')])
+
+
+@app.get('/sitemap/students/{page}.xml')
+def sitemap_students(page:int):
+    if page<1:raise HTTPException(404,'Sitemap not found.')
+    with DBSession() as db:
+        from .student_profiles import public_query
+        total=public_query(db).count()
+        if (page-1)*10000>=total:raise HTTPException(404,'Sitemap not found.')
+        return _sitemap_xml(_published_sitemap_batch(db,limit=10000,
+                                                      offset=(page-1)*10000))
+
 
 @app.get('/api/auth/me')
 def me(request:Request,user:User=Depends(current)):
