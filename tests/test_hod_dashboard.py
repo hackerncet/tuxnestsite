@@ -205,3 +205,34 @@ def test_server_side_search_status_and_pagination_across_department(client,login
     with TestClient(app) as another:
         login(another,'hod2')
         assert another.get('/api/tasks/dashboard',params={'search':'Unique_Older'}).json()['task_list_total']==0
+
+
+def test_extended_deadline_updated_date_and_sort_filters(client,login):
+    token=login(client,'hod')
+    ids=batch(client,token,3)
+    assign(client,token,ids[0])
+    current=utcnow()
+    with DBSession() as db:
+        first=db.get(TaskItem,ids[0])
+        first.deadline=current+timedelta(days=2)
+        first.updated_at=current-timedelta(days=3)
+        second=db.get(TaskItem,ids[1])
+        second.updated_at=current-timedelta(days=12)
+        last=db.get(TaskItem,ids[2])
+        last.updated_at=current
+        db.commit()
+    no_deadline=client.get('/api/tasks/dashboard',params={'deadline_filter':'no_deadline'}).json()
+    assert no_deadline['task_list_total']==2
+    soon=client.get('/api/tasks/dashboard',params={'deadline_filter':'due_soon'}).json()
+    assert soon['task_list_total']==1 and soon['tasks'][0]['id']==ids[0]
+    assert client.get('/api/tasks/dashboard',params={'deadline_filter':'due_set'}).json()['task_list_total']==1
+    earliest=client.get('/api/tasks/dashboard',params={'sort':'oldest'}).json()['tasks']
+    assert earliest[0]['id']==ids[1]
+    soon_first=client.get('/api/tasks/dashboard',params={'sort':'due_soon'}).json()['tasks']
+    assert soon_first[0]['id']==ids[0]
+    recent=client.get('/api/tasks/dashboard',params={
+        'from_date':(current-timedelta(days=4)).date().isoformat()}).json()
+    assert recent['task_list_total']==2
+    assert client.get('/api/tasks/dashboard',params={'sort':'wrong'}).status_code==422
+    assert client.get('/api/tasks/dashboard',params={'from_date':'2026-10-20',
+        'to_date':'2026-10-10'}).status_code==422
