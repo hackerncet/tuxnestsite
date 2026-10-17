@@ -46,6 +46,8 @@ from .reference_rules import router as rule_draft_router
 app.include_router(rule_draft_router)
 from .discussion_digest import router as digest_router
 app.include_router(digest_router)
+from .admin_cleanup import router as cleanup_router
+app.include_router(cleanup_router)
 
 @app.middleware('http')
 async def security_headers(request: Request, call_next):
