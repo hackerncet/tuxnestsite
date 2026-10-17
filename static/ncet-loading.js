@@ -8,7 +8,7 @@
   if(!document.body)return null;
   loader=document.createElement('div');loader.className='ncet-network-loader';
   loader.setAttribute('role','status');loader.setAttribute('aria-live','polite');loader.hidden=true;
-  loader.innerHTML='<img src="/static/ncet-brand.png" width="48" height="30" alt=""><span>Working…</span>';
+  loader.innerHTML='<img src="/static/ncet-brand.svg" width="48" height="30" alt=""><span>Working…</span>';
   document.body.append(loader);return loader;
  }
  function update(){
