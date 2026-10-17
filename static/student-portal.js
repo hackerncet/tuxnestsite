@@ -106,7 +106,7 @@ $('showcase-photo-form').addEventListener('submit',async e=>{
  if(!file)return notify('Choose a photo to upload.',true);
  const acceptable=['image/png','image/jpeg','image/webp'];
  if(!acceptable.includes(file.type))return notify('Use JPEG, PNG or WebP.',true);
- if(file.size===0 || file.size>=150*1024)return notify('Choose a photo strictly under 150 KB.',true);
+ if(file.size===0 || file.size>=150000)return notify('Choose a photo strictly under 150 KB.',true);
  const btn=e.target.querySelector('[type=submit]');
  btn.disabled=true;btn.setAttribute('aria-busy','true');
  $('photo-upload-status').textContent='Uploading and optimizing photo…';
