@@ -68,7 +68,7 @@ def test_portfolio_sections_projects_and_public_links(client):
     for label in ("About","Technical skills","Projects","Certifications","Areas of interest",
                   "GitHub, live work & professional links","NCET Project Repository",
                   "Python Skills","AI Agents","https://github.com/example/ncet-verification",
-                  "https://demo.example.org","ncet-brand.png","ngi-brand.png","naac-brand.png"):
+                  "https://demo.example.org","ncet-brand.svg","ngi-brand.svg","naac-brand.svg"):
         assert label in html,label
     assert "application/ld+json" in html
     assert "<lastmod>" in client.get("/sitemap.xml").text
