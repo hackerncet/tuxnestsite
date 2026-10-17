@@ -15,7 +15,7 @@ import httpx
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, LargeBinary, String, Text, UniqueConstraint, func
-from sqlalchemy.orm import Mapped, mapped_column, relationship, Session as DbSession
+from sqlalchemy.orm import Mapped, mapped_column, relationship, Session as DbSession, load_only
 
 from .database import Base, User, AuditLog, get_db, utcnow, DBSession
 from .security import current, csrf_required
@@ -79,6 +79,19 @@ class TaskDecision(Base):
     decision:Mapped[str]=mapped_column(String(25))
     note:Mapped[str]=mapped_column(Text)
     created_at:Mapped[datetime]=mapped_column(DateTime(timezone=True),default=utcnow)
+
+
+class TaskEvent(Base):
+    """Durable per-task change log. Records from before installation are recovered
+    only from historical submissions/decisions, not fabricated timestamps."""
+    __tablename__='task_events'
+    id:Mapped[int]=mapped_column(primary_key=True)
+    task_id:Mapped[int]=mapped_column(ForeignKey('task_items.id'),index=True)
+    actor_id:Mapped[int|None]=mapped_column(ForeignKey('users.id'),nullable=True)
+    event:Mapped[str]=mapped_column(String(32))
+    state:Mapped[str]=mapped_column(String(26))
+    detail:Mapped[str]=mapped_column(String(250),default='')
+    at:Mapped[datetime]=mapped_column(DateTime(timezone=True),default=utcnow,index=True)
 
 
 class TaskNotification(Base):
@@ -168,6 +181,11 @@ def task_audit(db,user,kind,value):
     db.add(AuditLog(actor_id=user.id if user else None,event=kind,detail=str(value)[:450]))
 
 
+def record_event(db,task,actor,event,detail=''):
+    db.add(TaskEvent(task_id=task.id,actor_id=actor.id if actor else None,
+                     event=event,state=task.state,detail=str(detail)[:250]))
+
+
 def notify(db,user_id,text,task_id):
     db.add(TaskNotification(user_id=user_id,text=text[:300],task_id=task_id))
 
@@ -197,6 +215,7 @@ async def bulk_upload(title:str=Form(...),files:list[UploadFile]=File(...),
         item=TaskItem(batch_id=batch.id,department=department,filename=name,reference_pdf=data)
         db.add(item);created.append(item)
     db.flush()
+    for item in created:record_event(db,item,user,'created','Reference PDF uploaded')
     from .reference_rules import queue_drafts
     queue_drafts(db,created)
     task_audit(db,user,'task.batch_created',f'{batch.id}:{len(staged)}')
@@ -258,6 +277,7 @@ def assign(body:AssignBody,user:User=Depends(csrf_required),db:DbSession=Depends
         task.assigned_to=staff.id;task.assigned_by=user.id;task.notes=body.notes.strip()
         task.rules_json=json.dumps([r.model_dump() for r in task_rules]);task.deadline=deadline
         task.state='assigned';task.updated_at=utcnow()
+        record_event(db,task,user,'assigned',f'Assigned to {staff.display_name}'+(f'; due {deadline_iso(deadline)}' if deadline else ''))
         notify(db,staff.id,f'New task: {task.filename}'+
                (f' · due {deadline.strftime("%d %b %Y, %H:%M UTC")}' if deadline else ''),task.id)
     task_audit(db,user,'task.assigned',f'{len(items)} to {staff.id}; due={deadline_iso(deadline)}')
@@ -279,6 +299,7 @@ def change_deadline(task_id:int,body:DeadlineUpdate,
         return {'deadline':old,'changed':False}
     task.deadline=new_deadline
     task.updated_at=utcnow()
+    record_event(db,task,user,'deadline_changed',f'{old or "No deadline"} → {deadline_iso(new_deadline) or "No deadline"}')
     notice=(f'Updated deadline for {task.filename}: '
             + (new_deadline.strftime('%d %b %Y, %H:%M UTC') if new_deadline else 'No deadline'))
     notify(db,task.assigned_to,notice,task.id)
@@ -294,6 +315,7 @@ def hold_release(task_id:int,hold:bool,user:User=Depends(csrf_required),db:DbSes
     task=_get(db,user,task_id,lock=True)
     if task.state not in ('assigned','on_hold'):raise HTTPException(409,'Only unsubmitted assignments may be held or released.')
     task.state='on_hold' if hold else 'assigned';task.updated_at=utcnow()
+    record_event(db,task,user,'on_hold' if hold else 'resumed')
     notify(db,task.assigned_to,'Assignment on hold.' if hold else 'Assignment released to work.',task.id)
     task_audit(db,user,'task.hold' if hold else 'task.release',task.id)
     db.commit()
@@ -318,6 +340,7 @@ async def submit(task_id:int,file:UploadFile=File(...),user:User=Depends(csrf_re
     revision=db.query(func.count(TaskSubmission.id)).filter(TaskSubmission.task_id==task.id).scalar()+1
     db.add(TaskSubmission(task_id=task.id,uploaded_by=user.id,filename=filename,content=data,revision=revision))
     task.state='verifying';task.score=None;task.report_json='{}';task.updated_at=utcnow()
+    record_event(db,task,user,'submitted',f'Revision {revision} uploaded')
     task_audit(db,user,'task.submitted',f'{task.id}:{revision}')
     db.commit()
     return {'queued':True,'task_id':task.id,'revision':revision}
@@ -332,6 +355,7 @@ def decide(task_id:int,body:DecisionBody,user:User=Depends(csrf_required),db:DbS
     task.state='approved' if body.decision=='approved' else 'correction_required';task.updated_at=utcnow()
     notify(db,task.assigned_to,f'Task {task.filename}: {"approved" if body.decision=="approved" else "revision requested"}.',task.id)
     db.add(TaskDecision(task_id=task.id,actor_id=user.id,decision=body.decision,note=body.note.strip()))
+    record_event(db,task,user,'approved' if body.decision=='approved' else 'correction_requested',body.note.strip())
     task_audit(db,user,'task.review',f'{task.id}:{body.decision}:{body.note[:200]}')
     db.commit()
     return {'state':task.state}
@@ -348,6 +372,109 @@ def mark_read(notification_id:int,user:User=Depends(csrf_required),db:DbSession=
     n=db.query(TaskNotification).filter(TaskNotification.id==notification_id,TaskNotification.user_id==user.id).first()
     if not n:raise HTTPException(404,'Notification not found.')
     n.seen=True;db.commit();return {'ok':True}
+
+
+@router.get('/dashboard')
+def hod_dashboard(user:User=Depends(current),db:DbSession=Depends(get_db)):
+    """HOD-only departmental overview. Never reads document binary or exposes
+    private PDFs. Whole-department totals are not capped by the table limit."""
+    if user.role!='hod':
+        raise HTTPException(403,'Department HOD dashboard only.')
+    base=db.query(TaskItem).filter(TaskItem.department==user.department)
+    groups=dict(base.with_entities(TaskItem.state,func.count(TaskItem.id))
+                .group_by(TaskItem.state).all())
+    now=utcnow()
+    overdue=(base.filter(TaskItem.assigned_to.isnot(None),TaskItem.deadline<now,
+                        TaskItem.state.notin_(('approved','unassigned')))
+             .with_entities(func.count(TaskItem.id)).scalar() or 0)
+    total=sum(groups.values())
+    working=sum(groups.get(s,0) for s in ('assigned','on_hold','correction_required'))
+    reviewing=sum(groups.get(s,0) for s in ('verifying','awaiting_hod','manual_review'))
+    approved=groups.get('approved',0)
+    # All task states, including unassigned, are accounted for in the total.
+    rows=(base.options(load_only(TaskItem.id,TaskItem.batch_id,TaskItem.filename,
+        TaskItem.department,TaskItem.state,TaskItem.assigned_to,TaskItem.deadline,
+        TaskItem.updated_at,TaskItem.score))
+          .order_by(TaskItem.updated_at.desc(),TaskItem.id.desc()).limit(500).all())
+    ids=[t.id for t in rows]
+    owner_ids={t.assigned_to for t in rows if t.assigned_to}
+    owners={u.id:u.display_name for u in db.query(User).filter(User.id.in_(owner_ids)).all()} if owner_ids else {}
+    # Fetch only event metadata; uploaded PDF and report JSON never enter this API.
+    activity=(db.query(TaskEvent).filter(TaskEvent.task_id.in_(ids))
+              .order_by(TaskEvent.at.desc(),TaskEvent.id.desc()).limit(2000).all()) if ids else []
+    submissions=(db.query(TaskSubmission.task_id,TaskSubmission.uploaded_by,
+                TaskSubmission.revision,TaskSubmission.created_at)
+                .filter(TaskSubmission.task_id.in_(ids))
+                .order_by(TaskSubmission.created_at.desc()).all()) if ids else []
+    decisions=(db.query(TaskDecision.task_id,TaskDecision.actor_id,TaskDecision.decision,
+                TaskDecision.note,TaskDecision.created_at)
+               .filter(TaskDecision.task_id.in_(ids))
+               .order_by(TaskDecision.created_at.desc()).all()) if ids else []
+    referenced={a.actor_id for a in activity if a.actor_id}
+    referenced.update(row.uploaded_by for row in submissions)
+    referenced.update(row.actor_id for row in decisions)
+    actors={u.id:u.display_name for u in db.query(User).filter(User.id.in_(referenced)).all()} if referenced else {}
+    per_task={}
+    kinds={}
+    for event in activity:
+        kinds.setdefault(event.task_id,set()).add(event.event)
+        per_task.setdefault(event.task_id,[]).append({
+            'at':deadline_iso(event.at),'event':event.event,'state':event.state,
+            'actor':actors.get(event.actor_id,'Automated verification' if not event.actor_id else 'Former member'),
+            'detail':event.detail})
+    for sub in submissions:
+        if 'submitted' in kinds.get(sub.task_id,set()):continue
+        per_task.setdefault(sub.task_id,[]).append({
+            'at':deadline_iso(sub.created_at),'event':'submitted','state':'verifying',
+            'actor':actors.get(sub.uploaded_by,'Former member'),
+            'detail':f'Revision {sub.revision} submitted (historical record)'})
+    for decision in decisions:
+        event='approved' if decision.decision=='approved' else 'correction_requested'
+        if event in kinds.get(decision.task_id,set()):continue
+        per_task.setdefault(decision.task_id,[]).append({
+            'at':deadline_iso(decision.created_at),'event':event,
+            'state':'approved' if event=='approved' else 'correction_required',
+            'actor':actors.get(decision.actor_id,'Former member'),
+            'detail':decision.note[:250]})
+    latest={}
+    feed=[]
+    for task in rows:
+        history=sorted(per_task.get(task.id,[]),key=lambda v:v['at'],reverse=True)
+        latest[task.id]=history
+        for event in history[:20]:
+            feed.append({'task_id':task.id,'file':task.filename,
+                         'staff':owners.get(task.assigned_to),'department':task.department,**event})
+    feed.sort(key=lambda v:v['at'],reverse=True)
+    staff_rollup={}
+    serialized=[]
+    for t in rows:
+        name=owners.get(t.assigned_to,'Unassigned')
+        entry={'id':t.id,'file':t.filename,'staff':name if t.assigned_to else None,
+            'staff_id':t.assigned_to,'state':t.state,'score':t.score,
+            'updated_at':deadline_iso(t.updated_at),'deadline':deadline_iso(t.deadline),
+            'overdue':bool(t.assigned_to and t.deadline and
+                 t.deadline.replace(tzinfo=t.deadline.tzinfo or timezone.utc)<now and
+                 t.state not in ('approved','unassigned')),
+            'history':latest[t.id][:60]}
+        # Explicit completed timestamps: submission and final HOD approval differ.
+        entry['submitted_at']=next((v['at'] for v in latest[t.id] if v['event']=='submitted'),None)
+        entry['approved_at']=next((v['at'] for v in latest[t.id] if v['event']=='approved'),None)
+        serialized.append(entry)
+        if t.assigned_to:
+            row=staff_rollup.setdefault(t.assigned_to,{'id':t.assigned_to,'name':name,
+                'total':0,'working':0,'reviewing':0,'approved':0,'overdue':0})
+            row['total']+=1
+            row['working']+=int(t.state in ('assigned','on_hold','correction_required'))
+            row['reviewing']+=int(t.state in ('verifying','awaiting_hod','manual_review'))
+            row['approved']+=int(t.state=='approved')
+            row['overdue']+=int(entry['overdue'])
+    return {'counts':{'total':total,'working':working,'reviewing':reviewing,
+        'approved':approved,'overdue':overdue,'unassigned':groups.get('unassigned',0)},
+        'states':groups,'staff':sorted(staff_rollup.values(),key=lambda x:(-x['total'],x['name'])),
+        'tasks':serialized,'activity':feed[:100],
+        'task_list_limit':500,'task_list_truncated':total>500,
+        'as_of':deadline_iso(now),
+        'note':'Completion means HOD approval. Submission and approval timestamps are shown separately; unavailable historical events are never inferred.'}
 
 
 @router.get('/insights/summary')
@@ -438,6 +565,7 @@ def evaluate_submission(submission_id:int):
         sub.state='completed';sub.completed_at=utcnow();sub.report_json=json.dumps(output,ensure_ascii=False)
         task.score=output['score'];task.report_json=json.dumps(output,ensure_ascii=False)
         task.state=state;task.updated_at=utcnow()
+        record_event(db,task,None,'verification_finished',f'Revision {revision}: {state.replace("_"," ")}')
         if task.assigned_by:
             notify(db,task.assigned_by,f'{task.filename} completed automatic review ({state.replace("_"," ")}).',task.id)
         if state=='correction_required':notify(db,task.assigned_to,f'Corrections needed for {task.filename}; see the report.',task.id)
