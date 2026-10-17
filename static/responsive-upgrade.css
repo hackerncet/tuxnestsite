@@ -24,6 +24,9 @@ pre,code{white-space:pre-wrap;overflow-wrap:anywhere}
 .identity-halo{background:radial-gradient(circle,#79bd7822,transparent 70%)}
 .identity-crest{display:block;width:min(380px,95%);max-width:100%;height:min(240px,35vw);min-height:130px;margin:0 auto;object-fit:contain;filter:drop-shadow(0 12px 21px #0003)}
 .identity-panel-bottom img{max-width:110px;max-height:48px}
+/* The old white-background WebP is corrected visually until the exact supplied transparent asset is committed. */
+.identity-crest.legacy-crest{filter:invert(1) hue-rotate(180deg) drop-shadow(0 10px 13px #0002);mix-blend-mode:screen}
+
 .server-profile-links ul{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr));gap:10px 22px;list-style:none;padding:0;margin:18px 0 0}
 .server-profile-links li{padding:10px 12px;border:1px solid #dde6f0;border-radius:9px}
 .server-profile-links li a{font-weight:700;display:block}
