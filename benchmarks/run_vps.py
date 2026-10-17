@@ -146,6 +146,7 @@ async def main():
             await scenario(client,'150_students_normal_8s_think',150,55,8,15),
             await scenario(client,'150_students_high_activity_1s_think',150,35,1,10),
         ]
+        login_four=await login_burst(client,4)
         login=await login_burst(client,8)
     # More reliable than sampled RSS; records docker cgroup OOM events.
     memory_peaks={}
@@ -157,7 +158,7 @@ async def main():
         memory_peaks[name]={'memory_peak_bytes':read('cat /sys/fs/cgroup/memory.peak'),
                             'memory_events':read('cat /sys/fs/cgroup/memory.events')}
     report={'limitations':'CI Docker quotas, 1 vCPU across services; NOT an actual DigitalOcean Droplet. 150 seeded synthetic sessions, PostgreSQL co-resident, background worker enabled; no remote LLM or OCR document workload.','scenarios':scenarios,
-            'login_burst':login,'cgroup':memory_peaks}
+            'login_burst_4':login_four,'login_burst_8':login,'cgroup':memory_peaks}
     out=Path('benchmarks/vps_result.json');out.write_text(json.dumps(report,indent=2),encoding='utf-8')
     print('REPORT_FILE='+str(out),flush=True)
     print('CGROUP '+json.dumps(memory_peaks),flush=True)
