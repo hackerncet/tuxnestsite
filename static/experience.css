@@ -62,7 +62,7 @@ button,a,input,textarea,select{touch-action:manipulation}
 .panel,.profile-card{box-shadow:0 6px 20px #10244e08}
 .btn:not(:disabled):active{transform:translateY(0);box-shadow:none}
 .btn[aria-busy="true"],button[aria-busy="true"]{cursor:progress}
-.btn[aria-busy="true"]::before,button[aria-busy="true"]::before{content:"";display:inline-block;width:13px;height:13px;border:0;border-radius:0;vertical-align:-2px;margin-right:9px;animation:ncet-logo-shine 1.5s ease-in-out infinite;background:transparent url('/static/ncet-brand.png') center/contain no-repeat}
+.btn[aria-busy="true"]::before,button[aria-busy="true"]::before{content:"";display:inline-block;width:13px;height:13px;border:0;border-radius:0;vertical-align:-2px;margin-right:9px;animation:ncet-logo-shine 1.5s ease-in-out infinite;background:transparent url('/static/ncet-brand.svg') center/contain no-repeat}
 @keyframes progress-spin{to{transform:rotate(360deg)}}
 #directory-results[aria-busy="true"]{opacity:.75}
 .directory-skeleton{height:180px;border-radius:12px;border:1px solid #dce4ef;background:linear-gradient(90deg,#edf2f7 12%,#f7f9fc 46%,#edf2f7 75%);background-size:200% 100%;animation:skeleton-flow 1.5s ease-in-out infinite}
