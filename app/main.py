@@ -72,7 +72,7 @@ app.include_router(cleanup_router)
 
 @app.middleware('http')
 async def security_headers(request: Request, call_next):
-    if request.url.path == '/static/bca-management.html':
+    if request.url.path in ('/static/bca-management.html','/static/complaints-dashboard.html','/static/bca-oversight.html'):
         return Response(status_code=404, headers={'Cache-Control':'no-store','X-Robots-Tag':'noindex, nofollow, noarchive'})
     if request.method in ('POST', 'PUT', 'PATCH', 'DELETE'):
         if request.url.path.startswith('/api/documents') and int(request.headers.get('content-length','0') or 0) > 12*1024*1024:
@@ -100,7 +100,7 @@ async def security_headers(request: Request, call_next):
             res.headers['Cache-Control'] = 'public, max-age=3600, stale-while-revalidate=86400'
         else:
             res.headers['Cache-Control'] = 'public, max-age=300'
-    if request.url.path.startswith('/api/') or request.url.path in ('/app','/students/portal','/bca/manage','/bca/complaints','/bca/oversight','/community','/tasks'):
+    if request.url.path.startswith('/api/') or request.url.path in ('/app','/students/portal','/bca/manage','/bca/complaints','/complaints','/bca/oversight','/community','/tasks'):
         res.headers['Cache-Control'] = 'no-store'
         res.headers['X-Robots-Tag'] = 'noindex, nofollow, noarchive'
     if ENV == 'production':
@@ -216,6 +216,7 @@ def bca_desk(user:User=Depends(current)):
     can_manage_bca(user)
     return FileResponse(STATIC/'bca-management.html', headers={'X-Robots-Tag':'noindex,nofollow','Cache-Control':'no-store'})
 
+@app.get('/complaints',response_class=HTMLResponse)
 @app.get('/bca/complaints',response_class=HTMLResponse)
 def bca_complaint_management(user:User=Depends(current)):
     from .notifications import oversight_access
@@ -249,7 +250,7 @@ def about():
 @app.get('/robots.txt')
 def robots():
     origin=PUBLIC_ORIGIN or 'https://ncet-verifyflow.onrender.com'
-    return Response('User-agent: *\nDisallow: /api/\nDisallow: /app\nDisallow: /students/portal\nDisallow: /bca/manage\nDisallow: /bca/complaints\nDisallow: /bca/oversight\nDisallow: /community\nDisallow: /tasks\nSitemap: '+origin+'/sitemap.xml\n',media_type='text/plain')
+    return Response('User-agent: *\nDisallow: /api/\nDisallow: /app\nDisallow: /students/portal\nDisallow: /bca/manage\nDisallow: /bca/complaints\nDisallow: /complaints\nDisallow: /bca/oversight\nDisallow: /community\nDisallow: /tasks\nSitemap: '+origin+'/sitemap.xml\n',media_type='text/plain')
 
 def _sitemap_xml(records):
     from xml.sax.saxutils import escape as xml_escape
