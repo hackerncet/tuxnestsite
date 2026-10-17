@@ -332,6 +332,7 @@ def run_job(job_id:int):
         if doc.version!=job.revision or doc.status!='verifying':
             job.state='superseded';db.commit();return
         job.report_json=json.dumps(report,ensure_ascii=False)
+        job.model=report.get('model') or MODEL
         job.state=report['status'];job.completed_at=utcnow()
         doc.status='pending' if job.state=='passed' else job.state
         doc.updated_at=utcnow()
