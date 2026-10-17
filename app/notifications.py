@@ -1,6 +1,8 @@
 """Persistent in-app alerts, scoped to accounts and roles."""
 from datetime import datetime
 from pathlib import Path
+from fastapi.responses import FileResponse
+from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
@@ -63,3 +65,37 @@ def read(notification_id:str,user:User=Depends(csrf_required),db:Session=Depends
     notice.seen=True
     db.commit()
     return {'ok':True}
+
+
+def oversight_access(user):
+    from .student_services import BCA_DEPARTMENT_NAMES
+    if user.role=='principal':return
+    if user.role=='hod' and user.department.strip().lower() in BCA_DEPARTMENT_NAMES:return
+    raise HTTPException(403,'BCA HOD or Principal access required.')
+
+
+@router.get('/api/bca/oversight')
+def bca_oversight(user:User=Depends(current),db:Session=Depends(get_db)):
+    from .student_models import StudentCase
+    from .community import CollaborationPost
+    oversight_access(user)
+    cases=db.query(StudentCase).filter(StudentCase.department=='Computer Applications').all()
+    posts=db.query(CollaborationPost).filter(CollaborationPost.hidden.is_(False)).all()
+    result={'cases_total':len(cases),
+            'cases_by_status':{status:sum(c.status==status for c in cases)
+                for status in ('submitted','in_review','resolved','closed')},
+            'projects_total':len(posts),
+            'projects_open':sum(p.state=='open' for p in posts),
+            'projects_closed':sum(p.state=='closed' for p in posts),
+            'view':'summary' if user.role=='principal' else 'department'}
+    if user.role=='hod':
+        result['cases']=[{'reference':c.reference,'subject':c.subject,'status':c.status}
+                         for c in sorted(cases,key=lambda c:c.created_at,reverse=True)[:30]]
+    return result
+
+
+@router.get('/bca/oversight',include_in_schema=False)
+def bca_oversight_page(user:User=Depends(current)):
+    oversight_access(user)
+    return FileResponse(Path(__file__).resolve().parents[1]/'static'/'bca-oversight.html',
+        headers={'Cache-Control':'no-store','X-Robots-Tag':'noindex,nofollow,noarchive'})
