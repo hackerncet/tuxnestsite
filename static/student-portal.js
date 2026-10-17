@@ -108,7 +108,7 @@ function setProfilePhoto(available){
   img.src='/api/bca/showcase/me/photo?ts='+Date.now();
   img.alt='Your saved student profile photo';
  }else{
-  img.src='/static/ncet-brand.png';
+  img.src='/static/ncet-brand.svg';
   img.alt='NCET emblem placeholder for your profile photo';
  }
  show('remove-showcase-photo',available);
