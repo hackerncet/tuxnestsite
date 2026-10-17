@@ -65,3 +65,5 @@
 
 .ncet-about-accreditation{display:flex;gap:18px;align-items:center;justify-content:center;padding:19px 20px 30px;color:var(--ncet-blue);font-size:14px;font-weight:750}
 .ncet-about-accreditation img{object-fit:contain;width:74px;height:74px}
+
+.footer-ngi{object-fit:contain;width:58px;height:52px;background:white;padding:5px;border-radius:8px;vertical-align:middle;margin-right:10px}
