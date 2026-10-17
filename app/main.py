@@ -75,7 +75,12 @@ async def security_headers(request: Request, call_next):
                                               "img-src 'self' data:; font-src 'self'; connect-src 'self'; "
                                               "object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'")
     if request.url.path.startswith('/static/'):
-        res.headers['Cache-Control'] = 'public, max-age=300'
+        # Versioned styles/scripts are reused across same-origin page transitions.
+        # Keep non-versioned URLs short-lived so branding changes propagate.
+        if request.query_params.get('v'):
+            res.headers['Cache-Control'] = 'public, max-age=3600, stale-while-revalidate=86400'
+        else:
+            res.headers['Cache-Control'] = 'public, max-age=300'
     if request.url.path.startswith('/api/') or request.url.path in ('/app','/students/portal','/bca/manage','/community','/tasks'):
         res.headers['Cache-Control'] = 'no-store'
         res.headers['X-Robots-Tag'] = 'noindex, nofollow, noarchive'
@@ -224,11 +229,13 @@ def _published_sitemap_batch(db,limit=50000,offset=0):
     from .student_profiles import public_query
     from .student_models import BCAStudent
     from .student_profiles import StudentShowcase
+    from sqlalchemy.orm import defer
+    rows=(public_query(db).options(defer(StudentShowcase.photo_bytes))
+          .order_by(BCAStudent.usn).offset(offset).limit(limit).all())
     return [
         ('/students/profile/'+student.usn,
          showcase.updated_at.isoformat() if showcase.updated_at else '')
-        for user,student,showcase in public_query(db).order_by(BCAStudent.usn)
-            .offset(offset).limit(limit).all()
+        for user,student,showcase in rows
     ]
 
 
