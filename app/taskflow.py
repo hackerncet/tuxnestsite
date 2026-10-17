@@ -12,9 +12,9 @@ from pathlib import Path
 from typing import Literal
 
 import httpx
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile
 from pydantic import BaseModel, Field
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, LargeBinary, String, Text, UniqueConstraint, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, LargeBinary, String, Text, UniqueConstraint, func, or_
 from sqlalchemy.orm import Mapped, mapped_column, relationship, Session as DbSession, load_only
 
 from .database import Base, User, AuditLog, get_db, utcnow, DBSession
@@ -375,113 +375,159 @@ def mark_read(notification_id:int,user:User=Depends(csrf_required),db:DbSession=
 
 
 @router.get('/dashboard')
-def hod_dashboard(user:User=Depends(current),db:DbSession=Depends(get_db)):
-    """HOD-only departmental overview. Never reads document binary or exposes
-    private PDFs. Whole-department totals are not capped by the table limit."""
+def hod_dashboard(offset:int=Query(0,ge=0),
+                  limit:int=Query(500,ge=1,le=500),
+                  status:str=Query('all',pattern='^(all|working|reviewing|approved|overdue|unassigned)$'),
+                  staff_id:int|None=Query(None,ge=1),
+                  search:str=Query('',max_length=120),
+                  user:User=Depends(current),db:DbSession=Depends(get_db)):
+    """HOD-only department dashboard with authoritative totals, server-side
+    search/pagination and durable per-task history. No document bytes are read."""
     if user.role!='hod':
         raise HTTPException(403,'Department HOD dashboard only.')
     base=db.query(TaskItem).filter(TaskItem.department==user.department)
+    now=utcnow()
     groups=dict(base.with_entities(TaskItem.state,func.count(TaskItem.id))
                 .group_by(TaskItem.state).all())
-    now=utcnow()
-    overdue=(base.filter(TaskItem.assigned_to.isnot(None),TaskItem.deadline<now,
-                        TaskItem.state.notin_(('approved','unassigned')))
-             .with_entities(func.count(TaskItem.id)).scalar() or 0)
     total=sum(groups.values())
     working=sum(groups.get(s,0) for s in ('assigned','on_hold','correction_required'))
     reviewing=sum(groups.get(s,0) for s in ('verifying','awaiting_hod','manual_review'))
     approved=groups.get('approved',0)
-    # All task states, including unassigned, are accounted for in the total.
-    rows=(base.options(load_only(TaskItem.id,TaskItem.batch_id,TaskItem.filename,
+    is_overdue=(TaskItem.assigned_to.isnot(None),TaskItem.deadline<now,
+                TaskItem.state.notin_(('approved','unassigned')))
+    overdue=(base.filter(*is_overdue).with_entities(func.count(TaskItem.id)).scalar() or 0)
+
+    listing=base
+    if status=='working':
+        listing=listing.filter(TaskItem.state.in_(('assigned','on_hold','correction_required')))
+    elif status=='reviewing':
+        listing=listing.filter(TaskItem.state.in_(('verifying','awaiting_hod','manual_review')))
+    elif status in ('approved','unassigned'):
+        listing=listing.filter(TaskItem.state==status)
+    elif status=='overdue':
+        listing=listing.filter(*is_overdue)
+    if staff_id is not None:
+        listing=listing.filter(TaskItem.assigned_to==staff_id)
+    if search.strip():
+        term='%'+search.strip()+'%'
+        user_ids=db.query(User.id).filter(User.display_name.ilike(term))
+        listing=listing.filter(or_(TaskItem.filename.ilike(term),
+                                  TaskItem.assigned_to.in_(user_ids)))
+    matching=(listing.with_entities(func.count(TaskItem.id)).scalar() or 0)
+    rows=(listing.options(load_only(TaskItem.id,TaskItem.batch_id,TaskItem.filename,
         TaskItem.department,TaskItem.state,TaskItem.assigned_to,TaskItem.deadline,
         TaskItem.updated_at,TaskItem.score))
-          .order_by(TaskItem.updated_at.desc(),TaskItem.id.desc()).limit(500).all())
+          .order_by(TaskItem.updated_at.desc(),TaskItem.id.desc())
+          .offset(offset).limit(limit).all())
     ids=[t.id for t in rows]
-    owner_ids={t.assigned_to for t in rows if t.assigned_to}
-    owners={u.id:u.display_name for u in db.query(User).filter(User.id.in_(owner_ids)).all()} if owner_ids else {}
-    # Fetch only event metadata; uploaded PDF and report JSON never enter this API.
-    activity=(db.query(TaskEvent).filter(TaskEvent.task_id.in_(ids))
-              .order_by(TaskEvent.at.desc(),TaskEvent.id.desc()).limit(2000).all()) if ids else []
+
+    # Aggregate workload over ALL department tasks (not the visible page).
+    staff_states=(base.filter(TaskItem.assigned_to.isnot(None))
+                  .with_entities(TaskItem.assigned_to,TaskItem.state,func.count(TaskItem.id))
+                  .group_by(TaskItem.assigned_to,TaskItem.state).all())
+    staff_late=(base.filter(*is_overdue)
+                .with_entities(TaskItem.assigned_to,func.count(TaskItem.id))
+                .group_by(TaskItem.assigned_to).all())
+
+    # Recent activity is not limited to the current paginated task list.
+    recent=(db.query(TaskEvent,TaskItem.filename,TaskItem.assigned_to)
+            .join(TaskItem,TaskItem.id==TaskEvent.task_id)
+            .filter(TaskItem.department==user.department)
+            .order_by(TaskEvent.at.desc(),TaskEvent.id.desc()).limit(100).all())
+    events=(db.query(TaskEvent).filter(TaskEvent.task_id.in_(ids))
+            .order_by(TaskEvent.at.desc(),TaskEvent.id.desc()).all()) if ids else []
     submissions=(db.query(TaskSubmission.task_id,TaskSubmission.uploaded_by,
-                TaskSubmission.revision,TaskSubmission.created_at)
-                .filter(TaskSubmission.task_id.in_(ids))
-                .order_by(TaskSubmission.created_at.desc()).all()) if ids else []
+                 TaskSubmission.revision,TaskSubmission.created_at)
+                 .filter(TaskSubmission.task_id.in_(ids))
+                 .order_by(TaskSubmission.created_at.desc()).all()) if ids else []
     decisions=(db.query(TaskDecision.task_id,TaskDecision.actor_id,TaskDecision.decision,
                 TaskDecision.note,TaskDecision.created_at)
                .filter(TaskDecision.task_id.in_(ids))
                .order_by(TaskDecision.created_at.desc()).all()) if ids else []
-    referenced={a.actor_id for a in activity if a.actor_id}
-    referenced.update(row.uploaded_by for row in submissions)
-    referenced.update(row.actor_id for row in decisions)
-    actors={u.id:u.display_name for u in db.query(User).filter(User.id.in_(referenced)).all()} if referenced else {}
-    per_task={}
-    kinds={}
-    for event in activity:
-        kinds.setdefault(event.task_id,set()).add(event.event)
-        per_task.setdefault(event.task_id,[]).append({
+
+    member_ids=({t.assigned_to for t in rows if t.assigned_to} |
+                {s.assigned_to for s in staff_states} |
+                {v.assigned_to for v in recent if v.assigned_to})
+    actor_ids=({e.actor_id for e in events if e.actor_id} |
+               {s.uploaded_by for s in submissions} |
+               {d.actor_id for d in decisions} |
+               {v.TaskEvent.actor_id for v in recent if v.TaskEvent.actor_id})
+    known_ids=member_ids|actor_ids
+    names={u.id:u.display_name for u in db.query(User).filter(User.id.in_(known_ids)).all()} if known_ids else {}
+
+    history_by_task={}
+    historical_kinds={}
+    for event in events:
+        historical_kinds.setdefault(event.task_id,set()).add(event.event)
+        history_by_task.setdefault(event.task_id,[]).append({
             'at':deadline_iso(event.at),'event':event.event,'state':event.state,
-            'actor':actors.get(event.actor_id,'Automated verification' if not event.actor_id else 'Former member'),
+            'actor':names.get(event.actor_id,'Automated verification' if not event.actor_id else 'Former member'),
             'detail':event.detail})
     for sub in submissions:
-        if 'submitted' in kinds.get(sub.task_id,set()):continue
-        per_task.setdefault(sub.task_id,[]).append({
+        if 'submitted' in historical_kinds.get(sub.task_id,set()):continue
+        history_by_task.setdefault(sub.task_id,[]).append({
             'at':deadline_iso(sub.created_at),'event':'submitted','state':'verifying',
-            'actor':actors.get(sub.uploaded_by,'Former member'),
+            'actor':names.get(sub.uploaded_by,'Former member'),
             'detail':f'Revision {sub.revision} submitted (historical record)'})
     for decision in decisions:
-        event='approved' if decision.decision=='approved' else 'correction_requested'
-        if event in kinds.get(decision.task_id,set()):continue
-        per_task.setdefault(decision.task_id,[]).append({
-            'at':deadline_iso(decision.created_at),'event':event,
-            'state':'approved' if event=='approved' else 'correction_required',
-            'actor':actors.get(decision.actor_id,'Former member'),
+        label='approved' if decision.decision=='approved' else 'correction_requested'
+        if label in historical_kinds.get(decision.task_id,set()):continue
+        history_by_task.setdefault(decision.task_id,[]).append({
+            'at':deadline_iso(decision.created_at),'event':label,
+            'state':'approved' if label=='approved' else 'correction_required',
+            'actor':names.get(decision.actor_id,'Former member'),
             'detail':decision.note[:250]})
-    latest={}
-    feed=[]
+
+    items=[]
     for task in rows:
-        history=sorted(per_task.get(task.id,[]),key=lambda v:v['at'],reverse=True)
-        latest[task.id]=history
-        for event in history[:20]:
-            feed.append({'task_id':task.id,'file':task.filename,
-                         'staff':owners.get(task.assigned_to),'department':task.department,**event})
-    feed.sort(key=lambda v:v['at'],reverse=True)
+        history=sorted(history_by_task.get(task.id,[]),key=lambda v:v['at'],reverse=True)
+        items.append({
+            'id':task.id,'file':task.filename,
+            'staff':names.get(task.assigned_to,'Former member') if task.assigned_to else None,
+            'staff_id':task.assigned_to,'state':task.state,'score':task.score,
+            'updated_at':deadline_iso(task.updated_at),'deadline':deadline_iso(task.deadline),
+            'overdue':bool(task.assigned_to and task.deadline and
+               task.deadline.replace(tzinfo=task.deadline.tzinfo or timezone.utc)<now and
+               task.state not in ('approved','unassigned')),
+            'submitted_at':next((v['at'] for v in history if v['event']=='submitted'),None),
+            'approved_at':next((v['at'] for v in history if v['event']=='approved'),None),
+            'history':history[:60]})
+
     staff_rollup={}
-    serialized=[]
-    for t in rows:
-        name=owners.get(t.assigned_to,'Unassigned')
-        entry={'id':t.id,'file':t.filename,'staff':name if t.assigned_to else None,
-            'staff_id':t.assigned_to,'state':t.state,'score':t.score,
-            'updated_at':deadline_iso(t.updated_at),'deadline':deadline_iso(t.deadline),
-            'overdue':bool(t.assigned_to and t.deadline and
-                 t.deadline.replace(tzinfo=t.deadline.tzinfo or timezone.utc)<now and
-                 t.state not in ('approved','unassigned')),
-            'history':latest[t.id][:60]}
-        # Explicit completed timestamps: submission and final HOD approval differ.
-        entry['submitted_at']=next((v['at'] for v in latest[t.id] if v['event']=='submitted'),None)
-        entry['approved_at']=next((v['at'] for v in latest[t.id] if v['event']=='approved'),None)
-        serialized.append(entry)
-        if t.assigned_to:
-            row=staff_rollup.setdefault(t.assigned_to,{'id':t.assigned_to,'name':name,
-                'total':0,'working':0,'reviewing':0,'approved':0,'overdue':0})
-            row['total']+=1
-            row['working']+=int(t.state in ('assigned','on_hold','correction_required'))
-            row['reviewing']+=int(t.state in ('verifying','awaiting_hod','manual_review'))
-            row['approved']+=int(t.state=='approved')
-            row['overdue']+=int(entry['overdue'])
+    for assigned_id,state,count in staff_states:
+        person=staff_rollup.setdefault(assigned_id,{
+            'id':assigned_id,'name':names.get(assigned_id,'Former member'),
+            'total':0,'working':0,'reviewing':0,'approved':0,'overdue':0})
+        person['total']+=count
+        if state in ('assigned','on_hold','correction_required'):person['working']+=count
+        if state in ('verifying','awaiting_hod','manual_review'):person['reviewing']+=count
+        if state=='approved':person['approved']+=count
+    for assigned_id,count in staff_late:
+        staff_rollup[assigned_id]['overdue']=count
+
+    feed=[{'task_id':e.TaskEvent.task_id,'file':e.filename,
+           'staff':names.get(e.assigned_to,'Former member') if e.assigned_to else None,
+           'at':deadline_iso(e.TaskEvent.at),'event':e.TaskEvent.event,
+           'state':e.TaskEvent.state,'detail':e.TaskEvent.detail,
+           'actor':names.get(e.TaskEvent.actor_id,
+                   'Automated verification' if not e.TaskEvent.actor_id else 'Former member')}
+          for e in recent]
     recent_decisions=(db.query(TaskDecision.created_at)
         .join(TaskItem,TaskItem.id==TaskDecision.task_id)
         .filter(TaskItem.department==user.department,
                 TaskDecision.decision=='approved',
                 TaskDecision.created_at>=now-timedelta(days=15))
         .order_by(TaskDecision.created_at.asc()).all())
-    return {'daily_approvals':[{'at':deadline_iso(entry.created_at)} for entry in recent_decisions],
+    return {'daily_approvals':[{'at':deadline_iso(d.created_at)} for d in recent_decisions],
             'counts':{'total':total,'working':working,'reviewing':reviewing,
-        'approved':approved,'overdue':overdue,'unassigned':groups.get('unassigned',0)},
-        'states':groups,'staff':sorted(staff_rollup.values(),key=lambda x:(-x['total'],x['name'])),
-        'tasks':serialized,'activity':feed[:100],
-        'task_list_limit':500,'task_list_truncated':total>500,
-        'as_of':deadline_iso(now),
-        'note':'Completion means HOD approval. Submission and approval timestamps are shown separately; unavailable historical events are never inferred.'}
+                      'approved':approved,'overdue':overdue,'unassigned':groups.get('unassigned',0)},
+            'states':groups,
+            'staff':sorted(staff_rollup.values(),key=lambda x:(-x['total'],x['name'])),
+            'tasks':items,'activity':feed,'task_list_limit':limit,
+            'task_list_offset':offset,'task_list_total':matching,
+            'task_list_truncated':offset+len(items)<matching,
+            'as_of':deadline_iso(now),
+            'note':'Completion means HOD approval. Submission and approval timestamps are separate. Older missing event times are never invented.'}
 
 
 @router.get('/insights/summary')
