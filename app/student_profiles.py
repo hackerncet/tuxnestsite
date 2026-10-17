@@ -19,13 +19,13 @@ from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, LargeBinary, or_
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session as DbSession, Mapped, mapped_column
+from sqlalchemy.orm import Session as DbSession, Mapped, mapped_column, defer
 
 from .database import Base, User, AuditLog, utcnow, get_db
 from .student_models import BCAStudent
 from .student_services import BCA_DEPARTMENT, USN_RE, can_manage_bca
 from .security import current, csrf_required, hash_password
-from .departments import branch_option, branch_name
+from .departments import branch_option, branch_name, AcademicDepartment
 
 router = APIRouter(tags=['NCET student enrollment and showcase'])
 URL_ROOT = 'https://ncet-verifyflow.onrender.com'
@@ -458,7 +458,7 @@ def public_record(user,student,showcase):
             'projects':json.loads(showcase.projects_json or '[]'),
             'interests':json.loads(showcase.interests_json or '[]'),
             'social_links':json.loads(showcase.social_links_json or '{}'),
-            'photo_url':f'/students/profile/{student.usn}/photo' if showcase.photo_bytes else None,
+            'photo_url':f'/students/profile/{student.usn}/photo' if showcase.photo_mime else None,
             'updated_at':showcase.updated_at.isoformat() if showcase.updated_at else None}
 
 
@@ -471,16 +471,22 @@ def public_directory(q:str='',limit:int=30,offset:int=0,db:DbSession=Depends(get
         query=query.filter(or_(BCAStudent.usn.ilike(term,escape='\\'),
                                 User.display_name.ilike(term,escape='\\')))
     total=query.count()
-    rows=query.order_by(BCAStudent.usn).offset(offset).limit(limit).all()
-    return {'total':total,'offset':offset,'limit':limit,'items':[{'name':u.display_name,'usn':p.usn,'department':branch_name(db,u.department),
+    # Never download up to 50 stored images just to render a public roster.
+    rows=(query.options(defer(StudentShowcase.photo_bytes))
+          .order_by(BCAStudent.usn).offset(offset).limit(limit).all())
+    codes={u.department for u,_,_ in rows}
+    names=dict(db.query(AcademicDepartment.code,AcademicDepartment.name)
+               .filter(AcademicDepartment.code.in_(codes)).all()) if codes else {}
+    return {'total':total,'offset':offset,'limit':limit,'items':[{'name':u.display_name,'usn':p.usn,'department':names.get(u.department,u.department),
                        'skills':json.loads(s.skills_json),
-                       'photo_url':f'/students/profile/{p.usn}/photo' if s.photo_bytes else None} for u,p,s in rows]}
+                       'photo_url':f'/students/profile/{p.usn}/photo' if s.photo_mime else None} for u,p,s in rows]}
 
 
 @router.get('/api/bca/directory/{usn}')
 def public_one(usn:str,db:DbSession=Depends(get_db)):
     if not USN_RE.fullmatch(usn.strip().upper()):raise HTTPException(404,'Profile unavailable.')
-    record=public_query(db).filter(BCAStudent.usn==usn.strip().upper()).first()
+    record=(public_query(db).options(defer(StudentShowcase.photo_bytes))
+            .filter(BCAStudent.usn==usn.strip().upper()).first())
     if not record:raise HTTPException(404,'Profile unavailable.')
     result=public_record(*record)
     result['department']=branch_name(db,record[0].department)
@@ -615,7 +621,8 @@ def directory_page(page:int=1,db:DbSession=Depends(get_db)):
     total=public_query(db).count()
     pages=max(1,(total+per_page-1)//per_page)
     if page>pages:raise HTTPException(404,'Directory page not found.')
-    rows=public_query(db).order_by(BCAStudent.usn).offset((page-1)*per_page).limit(per_page).all()
+    rows=(public_query(db).options(defer(StudentShowcase.photo_bytes))
+          .order_by(BCAStudent.usn).offset((page-1)*per_page).limit(per_page).all())
     items=''.join(
         '<li><a href="/students/profile/'+escape(student.usn,quote=True)+'">'+
         escape(user.display_name)+'</a> <span class="muted">'+escape(student.usn)+'</span></li>'
