@@ -380,7 +380,10 @@ def hod_dashboard(offset:int=Query(0,ge=0),
                   status:str=Query('all',pattern='^(all|working|reviewing|approved|overdue|unassigned)$'),
                   staff_id:int|None=Query(None,ge=1),
                   search:str=Query('',max_length=120),
-                  deadline_filter:str=Query('all',pattern='^(all|due_soon|no_deadline|due_set)
+                  deadline_filter:str=Query('all',pattern='^(all|due_soon|no_deadline|due_set)$'),
+                  sort:str=Query('updated',pattern='^(updated|oldest|due_soon|score_high)$'),
+                  from_date:date|None=None,to_date:date|None=None,
+                  user:User=Depends(current),db:DbSession=Depends(get_db)):
     """HOD-only department dashboard with authoritative totals, server-side
     search/pagination and durable per-task history. No document bytes are read."""
     if user.role!='hod':
