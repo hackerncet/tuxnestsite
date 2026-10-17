@@ -149,3 +149,36 @@ button,a,input,select,textarea,summary{touch-action:manipulation}
  }
  :where(.btn,button,.service-card,.card,.profile-card,.navlinks a){transition-duration:0ms!important;transform:none!important}
 }
+
+/* Accessible 44px menu trigger; nav stays visible until enhancement is attached. */
+.ncet-menu-toggle{display:none;border:1px solid #D6E0EE;border-radius:9px;color:#0E2455;
+ background:#fff;padding:9px 11px;min-height:42px;align-items:center;gap:8px;
+ font-size:12px;font-weight:800;cursor:pointer}
+.ncet-menu-lines{display:grid;gap:4px;width:18px}
+.ncet-menu-lines i{display:block;width:18px;height:2px;background:#0E2455;border-radius:4px;
+ transition:transform var(--motion-base) var(--motion-ease),opacity var(--motion-base) ease}
+.ncet-nav-open .ncet-menu-lines i:first-child{transform:translateY(6px) rotate(45deg)}
+.ncet-nav-open .ncet-menu-lines i:nth-child(2){opacity:0}
+.ncet-nav-open .ncet-menu-lines i:last-child{transform:translateY(-6px) rotate(-45deg)}
+@media(max-width:700px){
+ .topnav.ncet-menu-enhanced .nav-inner{position:relative}
+ .topnav.ncet-menu-enhanced .ncet-menu-toggle{display:inline-flex;position:absolute;right:0;top:50%;
+ transform:translateY(-50%)}
+ .topnav.ncet-menu-enhanced .navlinks{display:none!important;
+  position:absolute;left:0;right:0;top:calc(100% - 1px);width:100%;min-width:0;
+  padding:9px!important;z-index:80;background:#fff;
+  border:1px solid #E3EAF2;border-radius:0 0 13px 13px;box-shadow:0 19px 32px #0E24552A;
+  flex-direction:column!important;align-items:stretch!important;gap:3px!important;
+  max-height:min(68dvh,440px);overflow:auto}
+ .topnav.ncet-menu-enhanced.ncet-nav-open .navlinks{display:flex!important;
+  animation:ncet-nav-appear var(--motion-base) var(--motion-ease)}
+ .topnav.ncet-menu-enhanced .navlinks a{min-height:45px;justify-content:flex-start;
+  width:100%;padding:10px 13px!important}
+ .topnav.ncet-menu-enhanced .brand{max-width:calc(100% - 70px)}
+}
+@keyframes ncet-nav-appear{from{opacity:.3;transform:translateY(-6px)}
+ to{opacity:1;transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){
+ .topnav.ncet-menu-enhanced.ncet-nav-open .navlinks{animation:none!important}
+ .ncet-menu-lines i{transition:none!important}
+}
