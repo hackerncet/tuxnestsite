@@ -17,3 +17,11 @@
 .profile-card h2{font-size:18px;margin:0 0 6px}
 .profile-card p{color:#56647a;margin:5px 0 14px}
 @media(max-width:760px){.edit-student-form{grid-template-columns:1fr}}
+
+/* Flexible student portfolio layout */
+#showcase-skills{width:100%;min-height:105px;resize:vertical;line-height:1.6}
+#skill-count{margin:7px 0 0}
+.social-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:14px 0 20px}
+.social-grid label{font-size:12px;font-weight:650;color:#344763}
+.social-grid input{display:block;margin-top:5px;width:100%;max-width:100%;min-height:42px}
+@media(max-width:720px){.social-grid{grid-template-columns:minmax(0,1fr)}}
