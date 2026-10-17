@@ -219,7 +219,14 @@ def bca_desk(user:User=Depends(current)):
 @app.get('/bca/complaints',response_class=HTMLResponse)
 def bca_complaint_management(user:User=Depends(current)):
     from .notifications import oversight_access
-    oversight_access(user)
+    try:
+        oversight_access(user)
+    except HTTPException as exc:
+        if exc.status_code!=403:
+            raise
+        return FileResponse(STATIC/'bca-access-denied.html',status_code=403,
+                            headers={'Cache-Control':'no-store',
+                                     'X-Robots-Tag':'noindex,nofollow,noarchive'})
     if user.role!='hod':
         # Principals retain aggregate access via /bca/oversight, not case bodies.
         return RedirectResponse('/bca/oversight',status_code=303)
