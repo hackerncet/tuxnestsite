@@ -38,7 +38,8 @@
      <label>Staff member<select id="dash-staff-filter"><option value="all">All staff</option></select></label>
    </div>
    <div id="dash-tasks" class="dashboard-task-list" aria-live="polite"><p class="subtle">No tasks available yet.</p></div>
-   <p class="subtle" id="dash-truncation" hidden>Showing the 500 most recently updated tasks. Department totals include all tasks.</p>
+   <div class="dashboard-pagination" aria-label="Task list pages"><span id="dash-page-label" role="status">0 tasks</span><div class="dashboard-page-actions"><button type="button" id="dash-prev" class="btn secondary" disabled>Previous</button><button type="button" id="dash-next" class="btn secondary" disabled>Next</button></div></div>
+   <p class="subtle" id="dash-truncation" hidden>More matching records are available. Use Next to view older tasks.</p>
   </section>
 </section>
 <section class="grid" id="hod-section" hidden>
