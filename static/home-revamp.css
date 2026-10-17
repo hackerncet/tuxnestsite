@@ -154,3 +154,24 @@
  .topnav:not(.ncet-menu-enhanced) .navlinks a{min-height:40px;padding:8px!important}
  .topnav:not(.ncet-menu-enhanced) .nav-accreditation{margin-right:0}
 }
+
+/* Previously in the legacy homepage polish layer: retained without extra download. */
+.footer{background:#0E2455;color:#E4ECF7}
+.footer-content{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,.85fr) minmax(0,1.1fr);
+ gap:clamp(18px,4vw,53px);align-items:start}
+.footer-credits{display:flex;flex-direction:column;gap:4px}
+.footer-credits a{display:block!important;margin:0!important;line-height:1.52;padding:10px 12px;border-radius:8px;
+ color:#EDF3FF;border:1px solid #FFFFFF1F;font-weight:650}
+.footer-credits a:hover,.footer-credits a:focus-visible{background:#FFFFFF12;border-color:#F6872A;
+ color:#fff;text-decoration:none}
+.footer-logo{max-height:75px;width:132px;height:auto;object-fit:contain;background:white;border-radius:8px;padding:9px}
+.footer-bottom{margin-top:26px}
+@media(max-width:820px){
+ .footer-content{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .footer-credits{grid-column:1/-1}
+}
+@media(max-width:520px){
+ .footer-content{grid-template-columns:1fr;gap:19px}
+ .footer-credits{grid-column:auto}
+ .footer-credits a{padding:9px 11px}
+}
