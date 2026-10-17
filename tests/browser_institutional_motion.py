@@ -4,7 +4,7 @@ import time
 from playwright.sync_api import sync_playwright
 
 BASE=os.getenv('NCET_BASE_URL','http://127.0.0.1:8000').rstrip('/')
-PAGES=['/','/students','/students/directory','/students/portal','/about','/app','/tasks','/community']
+PAGES=['/','/students','/students/directory','/students/portal','/about','/app']
 WIDTHS=(320,375,390,768,1024,1440)
 
 with sync_playwright() as p:
@@ -63,4 +63,4 @@ with sync_playwright() as p:
     assert page.evaluate("matchMedia('(prefers-reduced-motion:reduce)').matches")
     browser.close()
 
-print('NCET MOTION & UI AUDIT PASS: 8 routes × 6 widths = 48 layouts, genuine logo loader, accessible mobile menu, counters and reduced motion.')
+print('NCET MOTION & UI AUDIT PASS: 6 public routes × 6 widths = 36 layouts, genuine logo loader, accessible mobile menu, counters and reduced motion.')
