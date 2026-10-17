@@ -15,7 +15,10 @@ from app.main import app
 def reset_data():
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
+    from app.departments import AcademicDepartment
     with DBSession() as db:
+        for name in ('Computer Applications','Computer Science & Engineering','Mechanical Engineering'):
+            db.add(AcademicDepartment(code=name,name=name,active=True))
         for name,role,department in [('admin','admin','Institution'),('principal','principal','Institution'),('hod','hod','Computer Science & Engineering'),
                                       ('hod2','hod','Mechanical Engineering'),('staff','staff','Computer Science & Engineering'),
                                       ('staff2','staff','Mechanical Engineering'),('iqac','iqac','Institution')]:
