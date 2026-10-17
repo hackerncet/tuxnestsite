@@ -71,7 +71,7 @@ def oversight_access(user):
     from .student_services import BCA_DEPARTMENT_NAMES
     if user.role=='principal':return
     if user.role=='hod' and user.department.strip().lower() in BCA_DEPARTMENT_NAMES:return
-    raise HTTPException(403,'BCA HOD or Principal access required.')
+    raise HTTPException(403,'BCA oversight is restricted to the Computer Applications HOD or Principal. Other HODs can use /tasks for their department dashboard.')
 
 
 @router.get('/api/bca/oversight')
@@ -96,6 +96,15 @@ def bca_oversight(user:User=Depends(current),db:Session=Depends(get_db)):
 
 @router.get('/bca/oversight',include_in_schema=False)
 def bca_oversight_page(user:User=Depends(current)):
-    oversight_access(user)
+    try:
+        oversight_access(user)
+    except HTTPException as exc:
+        if exc.status_code!=403:
+            raise
+        # Authenticated non-BCA HODs were previously shown raw JSON by the
+        # browser. Keep the 403 and privacy boundary, but explain the safe route.
+        return FileResponse(Path(__file__).resolve().parents[1]/'static'/'bca-access-denied.html',
+            status_code=403,headers={'Cache-Control':'no-store',
+                                     'X-Robots-Tag':'noindex,nofollow,noarchive'})
     return FileResponse(Path(__file__).resolve().parents[1]/'static'/'bca-oversight.html',
         headers={'Cache-Control':'no-store','X-Robots-Tag':'noindex,nofollow,noarchive'})
