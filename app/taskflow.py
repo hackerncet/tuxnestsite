@@ -468,7 +468,14 @@ def hod_dashboard(user:User=Depends(current),db:DbSession=Depends(get_db)):
             row['reviewing']+=int(t.state in ('verifying','awaiting_hod','manual_review'))
             row['approved']+=int(t.state=='approved')
             row['overdue']+=int(entry['overdue'])
-    return {'counts':{'total':total,'working':working,'reviewing':reviewing,
+    recent_decisions=(db.query(TaskDecision.created_at)
+        .join(TaskItem,TaskItem.id==TaskDecision.task_id)
+        .filter(TaskItem.department==user.department,
+                TaskDecision.decision=='approved',
+                TaskDecision.created_at>=now-timedelta(days=15))
+        .order_by(TaskDecision.created_at.asc()).all())
+    return {'daily_approvals':[{'at':deadline_iso(entry.created_at)} for entry in recent_decisions],
+            'counts':{'total':total,'working':working,'reviewing':reviewing,
         'approved':approved,'overdue':overdue,'unassigned':groups.get('unassigned',0)},
         'states':groups,'staff':sorted(staff_rollup.values(),key=lambda x:(-x['total'],x['name'])),
         'tasks':serialized,'activity':feed[:100],
