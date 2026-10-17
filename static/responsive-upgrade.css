@@ -51,11 +51,11 @@ button[aria-busy="true"]::before,
  content:""!important;display:inline-block!important;flex:0 0 22px!important;
  width:22px!important;height:22px!important;margin-right:7px!important;
  border:0!important;border-radius:0!important;
- background:transparent url('/static/ncet-brand.png') center / contain no-repeat!important;
+ background:transparent url('/static/ncet-brand.svg') center / contain no-repeat!important;
  transform:none!important;opacity:.65;vertical-align:middle;
  animation:ncet-logo-shine 1.5s ease-in-out infinite!important
 }
-.spinner{display:inline-block!important;width:24px!important;height:24px!important;border:0!important;border-radius:0!important;background:transparent url('/static/ncet-brand.png') center / contain no-repeat!important;animation:ncet-logo-shine 1.5s ease-in-out infinite!important}
+.spinner{display:inline-block!important;width:24px!important;height:24px!important;border:0!important;border-radius:0!important;background:transparent url('/static/ncet-brand.svg') center / contain no-repeat!important;animation:ncet-logo-shine 1.5s ease-in-out infinite!important}
 @keyframes ncet-logo-shine{0%,100%{opacity:.5;filter:brightness(.95)}50%{opacity:1;filter:brightness(1.35)}}
 @media(max-width:1000px){
  .experience-grid,.intro-grid{grid-template-columns:minmax(0,1fr)!important;gap:27px}
