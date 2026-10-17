@@ -186,7 +186,7 @@ def list_cases(status:str=Query('all',pattern='^(all|submitted|in_review|resolve
         (StudentCase.created_at.desc(),StudentCase.id.desc()))
     rows=(items_query.with_entities(StudentCase.id,StudentCase.reference,StudentCase.subject,
             StudentCase.category,StudentCase.status,StudentCase.created_at,
-            StudentCase.updated_at,StudentCase.student_id)
+            StudentCase.updated_at,StudentCase.student_id,latest_author.label('last_author_role'))
           .order_by(*order).offset(offset).limit(limit).all())
     identities={}
     if user.role=='hod':
@@ -196,6 +196,8 @@ def list_cases(status:str=Query('all',pattern='^(all|submitted|in_review|resolve
     return {'items':[{'reference':x.reference,'subject':x.subject,'category':x.category,
                       'status':x.status,'created_at':x.created_at.isoformat(),
                       'updated_at':x.updated_at.isoformat(),
+                      'awaiting_reply':x.status in ('submitted','in_review') and x.last_author_role in (None,'student'),
+                      'older_than_7d':x.status in ('submitted','in_review') and x.created_at<=utcnow()-timedelta(days=7),
                       **({'student':identities.get(x.student_id,{'name':'Unknown student','usn':''})}
                          if user.role=='hod' else {})}
                      for x in rows],
