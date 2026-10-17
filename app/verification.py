@@ -217,10 +217,22 @@ def call_ai(extracted: Extracted,rules:list[Rule],api_key:str) -> AIResponse:
                       {'role':'user','content':json.dumps(prompt,ensure_ascii=False)}]}
     headers={'Authorization':'Bearer '+api_key,'X-Title':'NCET Academic Document Review','Content-Type':'application/json'}
     if os.getenv('PUBLIC_ORIGIN'): headers['HTTP-Referer']=os.environ['PUBLIC_ORIGIN']
+    # Retry only transient transport/provider failures, with a strict two-attempt cap.
+    # Malformed model output remains uncertain rather than being guessed or approved.
+    import time
     with httpx.Client(timeout=httpx.Timeout(95.0,connect=12.0),follow_redirects=False) as client:
-        resp=client.post('https://api.deepseek.com/chat/completions' if direct else 'https://openrouter.ai/api/v1/chat/completions',json=body,headers=headers)
-        resp.raise_for_status()
-        data=resp.json()
+        for attempt in range(2):
+            try:
+                resp=client.post('https://api.deepseek.com/chat/completions' if direct else 'https://openrouter.ai/api/v1/chat/completions',json=body,headers=headers)
+                if resp.status_code in (429,500,502,503,504) and attempt == 0:
+                    time.sleep(1.5)
+                    continue
+                resp.raise_for_status()
+                data=resp.json()
+                break
+            except (httpx.ConnectError,httpx.ReadError,httpx.ReadTimeout,httpx.ConnectTimeout):
+                if attempt:raise
+                time.sleep(1.5)
     response=data.get('choices',[{}])[0].get('message',{}).get('content')
     if isinstance(response,list):response=''.join(x.get('text','') for x in response if isinstance(x,dict))
     if not isinstance(response,str):raise ValueError('invalid_ai_response')
@@ -276,7 +288,7 @@ def build_report(extracted: Extracted,rules: list[Rule],api_key: str|None) -> di
     # An extraction failure must not automatically block staff, nor automatically pass.
     state='needs_correction' if mandatory_issues else 'manual_review' if uncertainty or not ai_used else 'passed'
     return {'status':state,'page_count':extracted.page_count,'ocr_review_required':extracted.needs_ocr_review,'layout_metadata':extracted.layout or {},
-            'rule_count':len(rules),'findings':entries,'notes':reason,'ai_used':ai_used,'model':MODEL,
+            'rule_count':len(rules),'findings':entries,'notes':reason,'ai_used':ai_used,'model':(_PROVIDER_CONTEXT.get().model if _PROVIDER_CONTEXT.get() else MODEL),
             'summary':ai.summary if ai else ('Validation requires human review.' if state=='manual_review' else 'Measurable requirements not met.'),
             'ai_error':ai_error}
 
