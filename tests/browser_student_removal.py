@@ -19,7 +19,7 @@ MOCK=r"""() => {
    else if(u==='/api/bca/students/removal/preview'){
      data={mode:payload.mode,count:payload.usns.length,items:payload.usns.map(usn=>({
        ...window.__students.find(x=>x.usn===usn),published:false,deletion_blockers:[]
-     })),blocked:0,confirmation:(payload.mode==='delete'?'DELETE':'REMOVE')+' '+payload.usns.length+' STUDENTS',
+     })),blocked:0,confirmation:(payload.mode==='delete'?'DELETE':'REMOVE')+' '+payload.usns.length+(payload.usns.length===1?' STUDENT':' STUDENTS'),
       preview_token:'signed-token-example-very-long',note:'Test-only preview',requires_backup:payload.mode==='delete'};
    }else if(u==='/api/bca/students/removal/execute'){
       window.__removals.push(payload);
@@ -62,7 +62,7 @@ def audit():
    page.locator('#roster .select-student').first.check()
    page.locator('#review-student-removal').click()
    page.locator('#student-removal-review').wait_for(state='visible')
-   assert page.locator('#removal-phrase').inner_text()=='REMOVE 1 STUDENTS'
+   assert page.locator('#removal-phrase').inner_text()=='REMOVE 1 STUDENT'
    assert page.locator('#removal-backup-label').is_hidden()
    page.locator('#student-removal-confirm-form [name=reason]').fill('This duplicate needs to be removed.')
    page.locator('#student-removal-confirm-form [name=confirmation]').fill('REMOVE 1 STUDENTS')
