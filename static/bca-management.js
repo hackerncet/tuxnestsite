@@ -1,27 +1,32 @@
 'use strict';
 const $=id=>document.getElementById(id);const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));let csrf='',role='',selected=null,rosterRows=[],departments=[];
+const selectedStudentUsns=new Set();let removalPreview=null,removalBusy=false;
 function show(id,yes){$(id).classList.toggle('hidden',!yes)}
 function notify(t,error=false){$('alert').textContent=t;$('alert').className=error?'error':'success'}
 async function api(url,options={}){const headers={...(options.headers||{})};if(options.method&&options.method!=='GET')headers['X-CSRF-Token']=csrf;const r=await fetch(url,{credentials:'same-origin',cache:'no-store',...options,headers});const data=await r.json().catch(()=>({}));if(!r.ok){let d=data.detail;if(Array.isArray(d))d=d.map(e=>e.msg).join(', ');throw new Error(typeof d==='string'?d:'Request unsuccessful.')}return data}
 function download(name,content){const blob=new Blob([content],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');const u=URL.createObjectURL(blob);a.href=u;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1000)}
 const csvCell=t=>'"'+String(t).replaceAll('"','""')+'"';
 $('template').addEventListener('click',()=>download('NCET_BCA_student_import_template.csv','usn,full_name,branch,semester\r\n'));
-async function init(){try{let r=await api('/api/auth/me');csrf=r.csrf;role=r.user.role;if(!['staff','hod','admin'].includes(role))throw Error('Not authorized');await loadRoster();if(role==='admin'){await loadDepartments();show('admin-departments',true)}else{departments=[{code:'Computer Applications',name:'Computer Applications',active:true}];renderBranchPicker()}$('staff-name').textContent=r.user.name;show('desk',true);if(role==='hod'){show('hod-queue',true);$('management-complaints').hidden=false;await loadCases()}}catch(e){show('denied',true);notify('Sign in with an authorized BCA faculty account.',true)}}
+async function init(){try{let r=await api('/api/auth/me');csrf=r.csrf;role=r.user.role;if(!['staff','hod','admin'].includes(role))throw Error('Not authorized');await loadRoster();if(role==='admin'){await loadDepartments();show('admin-departments',true)}else{departments=[{code:'Computer Applications',name:'Computer Applications',active:true}];renderBranchPicker()}$('staff-name').textContent=r.user.name;show('desk',true);show('student-removal-panel',role==='admin'||role==='hod');$('permanent-delete-option').disabled=role!=='admin';if(role==='hod'){show('hod-queue',true);$('management-complaints').hidden=false;await loadCases()}}catch(e){show('denied',true);notify('Sign in with an authorized BCA faculty account.',true)}}
 function downloadCredentials(x){const rows=['usn,full_name,branch,semester,temporary_password',...x.credentials.map(c=>[c.usn,c.name,c.branch,c.semester,c.temporary_password].map(csvCell).join(','))];download('NCET_BCA_ONETIME_credentials.csv',rows.join('\r\n')+'\r\n');}
 function renderRoster(){
  const term=$('roster-search').value.trim().toLowerCase();
- const rows=rosterRows.filter(x=>x.name.toLowerCase().includes(term)||x.usn.toLowerCase().includes(term)||(x.branch_name||x.branch||'').toLowerCase().includes(term));
- $('roster-count').textContent=rows.length+' of '+rosterRows.length+' enrolled students';
+ const rows=rosterRows.filter(x=>($('show-disabled-students').checked||x.active)&&(x.name.toLowerCase().includes(term)||x.usn.toLowerCase().includes(term)||(x.branch_name||x.branch||'').toLowerCase().includes(term)));
+ $('roster-count').textContent=rows.length+' visible of '+rosterRows.length+' enrolled students';
+ $('selected-student-count').textContent=selectedStudentUsns.size+' selected';
+ $('review-student-removal').disabled=!selectedStudentUsns.size||removalBusy;
  const opts=student=>role==='admin'
    ? '<select name="branch" required>'+departments.map(d=>'<option value="'+esc(d.code)+'" '+((student.branch||'Computer Applications')===d.code?'selected':'')+' '+(!d.active&&(student.branch||'Computer Applications')!==d.code?'disabled':'')+'>'+esc(d.name)+(d.active?'':' (inactive)')+'</option>').join('')+'</select>'
    : '<input type="hidden" name="branch" value="'+esc(student.branch||'Computer Applications')+'"><span class="small muted">'+esc(student.branch_name||student.branch||'Computer Applications')+'</span>';
- $('roster').innerHTML=rows.length?rows.map(x=>`<div class="entry"><div class="row"><strong>${esc(x.name)}</strong><span class="small muted">${esc(x.usn)} · ${esc(x.branch_name||x.branch||'Computer Applications')} · Semester ${esc(x.semester)} · ${x.active?'Active':'Disabled'}</span></div><details><summary>Edit student details</summary><form class="edit-student-form" data-usn="${esc(x.usn)}"><label>Full name <input name="full_name" value="${esc(x.name==='Registration pending'?'':x.name)}" minlength="3" maxlength="130" required></label><label>Branch ${opts(x)}</label><label>Semester <input name="semester" type="number" min="1" max="8" value="${esc(x.semester)}" required></label><button class="btn" type="submit">Save details</button></form></details></div>`).join(''):'<p class="muted">'+(term?'No students match your search.':'No students enrolled yet.')+'</p>';
+ $('roster').innerHTML=rows.length?rows.map(x=>`<div class="entry"><div class="row">${role!=='staff'?'<label class="select-student-label"><input type="checkbox" class="select-student" data-usn="'+esc(x.usn)+'" aria-label="Select '+esc(x.name)+' ('+esc(x.usn)+')" '+(selectedStudentUsns.has(x.usn)?'checked':'')+'> Select</label>':''}<strong>${esc(x.name)}</strong><span class="small muted">${esc(x.usn)} · ${esc(x.branch_name||x.branch||'Computer Applications')} · Semester ${esc(x.semester)} · ${x.active?'Active':'Disabled'}</span></div><details><summary>Edit student details</summary><form class="edit-student-form" data-usn="${esc(x.usn)}"><label>Full name <input name="full_name" value="${esc(x.name==='Registration pending'?'':x.name)}" minlength="3" maxlength="130" required></label><label>Branch ${opts(x)}</label><label>Semester <input name="semester" type="number" min="1" max="8" value="${esc(x.semester)}" required></label><button class="btn" type="submit">Save details</button></form></details></div>`).join(''):'<p class="muted">'+(term?'No students match your search.':'No students enrolled yet.')+'</p>';
 }
 
 async function loadRoster(){
  $('roster-count').textContent='Loading students…';
  let response=await api('/api/bca/students');
  rosterRows=response.items;
+ selectedStudentUsns.clear();
+ discardRemovalPreview();
  renderRoster();
 }
 
@@ -105,6 +110,104 @@ $('roster').addEventListener('submit',async e=>{
 });
 
 $('roster-search').addEventListener('input',renderRoster);
+
+$('show-disabled-students').addEventListener('change',renderRoster);
+
+function discardRemovalPreview(){
+ removalPreview=null;
+ $('student-removal-review').classList.add('hidden');
+ $('student-removal-confirm-form').reset();
+ $('student-removal-alert').classList.add('hidden');
+ $('student-removal-alert').textContent='';
+}
+function selectionChanged(){
+ discardRemovalPreview();
+ $('selected-student-count').textContent=selectedStudentUsns.size+' selected';
+ $('review-student-removal').disabled=selectedStudentUsns.size===0;
+ $('student-removal-selection').textContent=selectedStudentUsns.size
+   ?[...selectedStudentUsns].sort().join(', '):'No students selected.';
+}
+function removalError(message){
+ $('student-removal-alert').textContent=message;
+ $('student-removal-alert').classList.remove('hidden');
+ $('student-removal-alert').scrollIntoView({block:'nearest'});
+}
+$('roster').addEventListener('change',event=>{
+ const checkbox=event.target.closest('.select-student');
+ if(!checkbox)return;
+ const usn=checkbox.dataset.usn;
+ if(checkbox.checked){
+   if(selectedStudentUsns.size>=50){checkbox.checked=false;return removalError('Select at most 50 students per action.')}
+   selectedStudentUsns.add(usn);
+ }else selectedStudentUsns.delete(usn);
+ selectionChanged();
+});
+$('select-visible-students').addEventListener('click',()=>{
+ const visible=[...$('roster').querySelectorAll('.select-student')];
+ for(const checkbox of visible){
+   if(selectedStudentUsns.size>=50)break;
+   checkbox.checked=true;selectedStudentUsns.add(checkbox.dataset.usn);
+ }
+ selectionChanged();
+ if(visible.length>50)removalError('Selected the first 50 visible students. Use a smaller search filter for other accounts.');
+});
+$('clear-student-selection').addEventListener('click',()=>{
+ selectedStudentUsns.clear();for(const box of $('roster').querySelectorAll('.select-student'))box.checked=false;
+ selectionChanged();
+});
+$('removal-mode').addEventListener('change',()=>discardRemovalPreview());
+$('cancel-student-removal').addEventListener('click',discardRemovalPreview);
+
+$('review-student-removal').addEventListener('click',async()=>{
+ if(removalBusy||selectedStudentUsns.size===0)return;
+ const mode=$('removal-mode').value,usns=[...selectedStudentUsns].sort();
+ removalBusy=true;$('review-student-removal').disabled=true;
+ try{
+  const preview=await api('/api/bca/students/removal/preview',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({usns,mode})
+  });
+  if(preview.mode!==mode||preview.items.length!==usns.length)throw Error('Invalid preview response.');
+  removalPreview={preview,usns,mode};
+  $('removal-phrase').textContent=preview.confirmation;
+  $('removal-review-summary').innerHTML='<p><strong>'+preview.count+' accounts selected</strong> · '+preview.blocked+' deletion blockers</p>'+
+    '<p class="small muted">'+esc(preview.note)+'</p>'+
+    '<ul class="removal-impact-list">'+preview.items.map(item=>'<li><strong>'+esc(item.name)+'</strong> · '+esc(item.usn)+
+      ' · '+esc(item.department)+' · '+(item.active?'Active':'Already inactive')+
+      (item.published?' · Public profile will be hidden':'')+
+      (item.deletion_blockers.length?' <span class="removal-block">BLOCKED: '+esc(item.deletion_blockers.join(', '))+'</span>':'')+'</li>').join('')+'</ul>';
+  $('student-removal-confirm-form').reset();
+  $('removal-backup-label').classList.toggle('hidden',mode!=='delete');
+  $('execute-student-removal').disabled=!!preview.blocked;
+  $('execute-student-removal').textContent=mode==='delete'?'Permanently delete selected':'Remove selected access';
+  $('student-removal-review').classList.remove('hidden');
+  $('student-removal-alert').classList.add('hidden');
+  $('student-removal-review').scrollIntoView({block:'nearest'});
+ }catch(err){discardRemovalPreview();removalError(err.message)}
+ finally{removalBusy=false;$('review-student-removal').disabled=selectedStudentUsns.size===0;}
+});
+$('student-removal-confirm-form').addEventListener('submit',async event=>{
+ event.preventDefault();if(!removalPreview||removalBusy)return;
+ const {preview,usns,mode}=removalPreview,form=event.target,data=new FormData(form);
+ const payload={mode,usns,preview_token:preview.preview_token,
+    confirmation:String(data.get('confirmation')||''),
+    current_password:String(data.get('current_password')||''),
+    reason:String(data.get('reason')||'').trim(),
+    backup_confirmed:data.get('backup_confirmed')==='on'};
+ if(payload.confirmation!==preview.confirmation)return removalError('Type the exact confirmation phrase.');
+ if(mode==='delete'&&!payload.backup_confirmed)return removalError('Verify a recoverable offline backup before deletion.');
+ removalBusy=true;$('execute-student-removal').disabled=true;
+ try{
+  const result=await api('/api/bca/students/removal/execute',{
+    method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  selectedStudentUsns.clear();discardRemovalPreview();
+  if(result.action==='disable')$('show-disabled-students').checked=false;
+  await loadRoster();
+  notify(result.affected+' student accounts '+(result.action==='delete'?'permanently deleted.':'disabled; sessions revoked and public portfolios hidden. Historical records retained.'));
+ }catch(err){removalError(err.message);if(err.message.includes('Preview again')||err.message.includes('Selection or record state'))discardRemovalPreview();}
+ finally{removalBusy=false;$('execute-student-removal').disabled=false;form.querySelector('[name=current_password]').value='';}
+});
+
 $('export-roster').addEventListener('click',()=>{
  if(!rosterRows.length)return notify('No enrolled students to export.',true);
  const safe=v=>{const str=String(v??'');return csvCell(['=','+','-','@','\t','\r'].includes(str.charAt(0))?"'"+str:str)};
