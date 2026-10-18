@@ -28,7 +28,7 @@ jobs:
       - run: node --check static/app.js && node --check static/tasks.js
       - run: node --check static/notifications.js && node --check static/bca-oversight.js && node --check static/community.js && node --check static/student-portal.js && node --check static/bca-management.js && node --check static/public-home.js && node --check static/student-directory.js && node --check static/ncet-loading.js
       - run: node --check static/institutional-ui.js
-      - run: node --check static/hod-dashboard.js && node --check static/complaints-dashboard.js
+      - run: node --check static/hod-dashboard.js && node --check static/complaints-dashboard.js && node --check static/bca-management.js
 
   browser:
     name: Chromium multi-role UI smoke
