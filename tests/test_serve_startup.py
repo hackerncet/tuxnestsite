@@ -68,7 +68,9 @@ def test_render_entrypoint_initializes_executable_commands(
     assert web[:4] == [sys.executable, '-m', 'uvicorn', 'app.main:app']
     assert web[web.index('--host') + 1] == expected_host
     assert web[web.index('--port') + 1] == '10000'
-    assert all(item.terminated is True for item in processes)
+    # The supervisor must not terminate a process already exited: the fake
+    # poll() reports exit code 0, rather than a still-running child.
+    assert all(item.poll() == 0 for item in processes)
     assert len(processes) == (2 if run_worker else 1)
     if run_worker:
         assert processes[1].cmd == [sys.executable, '-m', 'app.worker']
