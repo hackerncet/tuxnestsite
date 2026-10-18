@@ -104,7 +104,8 @@ def test_preview_signature_expiry_batch_integrity_confirmation_and_wrong_passwor
     assert execute(client,token,data,selected).status_code==409
     assert preview(client,token,selected,mode='weird').status_code==422
     assert preview(client,token,selected*2).status_code==422
-    assert preview(client,token,[ids[0][0].lower()]).status_code==200
+    assert preview(client,token,[ids[0][0]]).status_code==409  # Removed access cannot be replayed.
+    assert preview(client,token,[ids[2][0].lower()]).status_code==200
     assert preview(client,token,['1NC99BAD000']).status_code==404
     assert preview(client,token,['not-an-id']).status_code==422
     assert preview(client,token,selected*26).status_code==422
