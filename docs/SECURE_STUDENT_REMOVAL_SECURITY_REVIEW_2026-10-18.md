@@ -51,6 +51,9 @@ Bulk UI allows a maximum of 50 checked USNs per operation. Results are never tru
 - CI has a new separate **NCET Security Audit** workflow: Bandit source inspection for medium/high-severity patterns and `pip-audit` for published dependency advisories.
 - Track the PR's final GitHub Actions jobs before marking this change verified; green previous commits do not suffice after later dependency updates.
 
+## Vulnerability-scan evidence
+The initial Bandit run flagged three B104 occurrences: Render's intended 0.0.0.0 production ingress and two blocked-URL checks. Development was changed to loopback; the production bind and denied host strings carry narrow documented exceptions. The initial dependency audit reported 23 advisory *entries* across three packages (some repeated). Requirements were upgraded from python-multipart 0.0.29 to 0.0.32, cryptography from 46.x constraints to 50.0.2, and FastAPI/Starlette to 0.143.3/1.8.0. Subsequent NCET Security Audit job 117690816439 returned success and logged: **No known vulnerabilities found**. Scanner success is not a proof of no unknown vulnerabilities.
+
 ## Important residual security risks
 1. **Antivirus is not active in Render blueprint.** `render.yaml` currently has `SCAN_MODE=off`. Existing file size/type/magic signature/ZIP limits reduce risk but do not replace malware scanning. Enable a **properly provisioned** ClamAV or managed scanning service in production and verify fail-closed behavior; don't set `SCAN_MODE=clamav` without a scanner or file uploads will fail.
 2. **No external penetration test** has been performed: advanced attacks, race conditions under live PostgreSQL load, infrastructure/secrets, vendor accounts and incident response require additional work.
@@ -68,7 +71,7 @@ Bulk UI allows a maximum of 50 checked USNs per operation. Results are never tru
 - [x] Add adversarial API and browser regressions
 - [x] Add Bandit and pip-audit workflows
 - [x] Update dependencies after vulnerability findings
-- [ ] Require final green Python/Chromium/security checks before merge
+- [ ] Require final green Python/Chromium/security checks before merge (prior fully-green run: 39132658900; latest UI wording patch pending recheck)
 - [ ] Confirm Render deployment and live authorized role review
 - [ ] Provision upload malware scanner, operational backups and privileged MFA
 
