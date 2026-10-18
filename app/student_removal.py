@@ -121,7 +121,7 @@ def snapshot(db: DbSession, actor: User, selection: Selection, lock=False):
     data = {'mode':selection.mode, 'items':items, 'count':len(items),
             'blocked':sum(bool(item['deletion_blockers']) for item in items),
             'confirmation':('DELETE' if selection.mode=='delete' else 'REMOVE')+
-                           ' '+str(len(items))+' STUDENTS'}
+                           ' '+str(len(items))+(' STUDENT' if len(items)==1 else ' STUDENTS')}
     return data, ids
 
 
