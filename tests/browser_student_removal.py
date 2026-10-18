@@ -23,7 +23,7 @@ MOCK=r"""() => {
       preview_token:'signed-token-example-very-long',note:'Test-only preview',requires_backup:payload.mode==='delete'};
    }else if(u==='/api/bca/students/removal/execute'){
       window.__removals.push(payload);
-      if(payload.confirmation!==(payload.mode==='delete'?'DELETE':'REMOVE')+' '+payload.usns.length+' STUDENTS'){
+      if(payload.confirmation!==(payload.mode==='delete'?'DELETE':'REMOVE')+' '+payload.usns.length+(payload.usns.length===1?' STUDENT':' STUDENTS')){
         status=422;data={detail:'Mismatched confirmation'};
       }else{
         window.__students.forEach(x=>{if(payload.usns.includes(x.usn))x.active=false});
@@ -65,7 +65,7 @@ def audit():
    assert page.locator('#removal-phrase').inner_text()=='REMOVE 1 STUDENT'
    assert page.locator('#removal-backup-label').is_hidden()
    page.locator('#student-removal-confirm-form [name=reason]').fill('This duplicate needs to be removed.')
-   page.locator('#student-removal-confirm-form [name=confirmation]').fill('REMOVE 1 STUDENTS')
+   page.locator('#student-removal-confirm-form [name=confirmation]').fill('REMOVE 1 STUDENT')
    page.locator('#student-removal-confirm-form [name=current_password]').fill('TestPassword-12345!')
    page.locator('#execute-student-removal').click()
    page.wait_for_function('window.__removals.length===1')
