@@ -53,6 +53,8 @@ async def render_not_found(request:Request,exc:StarletteHTTPException):
 app.add_middleware(GZipMiddleware, minimum_size=1024)
 from .student_services import router as bca_router
 app.include_router(bca_router)
+from .student_removal import router as student_removal_router
+app.include_router(student_removal_router)
 from .student_profiles import router as showcase_router
 app.include_router(showcase_router)
 from .departments import router as department_router
