@@ -96,6 +96,14 @@ def test_preview_signature_expiry_batch_integrity_confirmation_and_wrong_passwor
     data=response.json()
     forged=data.copy();forged['preview_token']='a'+data['preview_token'][1:]
     assert execute(client,token,forged,selected).status_code==409
+    from app.student_removal import snapshot, Selection, challenge
+    with DBSession() as db:
+        administrator=db.query(User).filter(User.username=='admin').one()
+        session=db.query(Session).filter(Session.user_id==administrator.id).order_by(Session.id.desc()).first()
+        info,_=snapshot(db,administrator,Selection(usns=selected))
+        expired=data.copy()
+        expired['preview_token']=challenge(session,administrator,info,1)
+    assert execute(client,token,expired,selected).status_code==409
     wrong=execute(client,token,data,list(reversed(selected)),mode='disable')
     assert wrong.status_code==200,wrong.text  # Canonical sorting ignores display order.
     with DBSession() as db:
