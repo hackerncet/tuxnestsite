@@ -69,7 +69,7 @@ def audit():
    page.locator('#student-removal-confirm-form [name=current_password]').fill('TestPassword-12345!')
    page.locator('#execute-student-removal').click()
    page.wait_for_function('window.__removals.length===1')
-   page.get_by_text('1 student accounts disabled',exact=False).wait_for()
+   page.get_by_text('1 student account disabled',exact=False).wait_for()
    assert page.locator('#selected-student-count').inner_text()=='0 selected'
    assert page.locator('#roster .select-student').count()==2
    page.locator('#show-disabled-students').check()
