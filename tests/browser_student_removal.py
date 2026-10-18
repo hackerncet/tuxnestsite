@@ -43,7 +43,7 @@ def audit():
    page=browser.new_page(viewport={'width':width,'height':900})
    errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
    html=(STATIC/'bca-management.html').read_text()
-   for css in ('bca.css','department-management.css','student-removal.css'):
+   for css in ('bca.css','department-management.css','responsive-upgrade.css','institutional-ui.css','student-removal.css'):
     if (STATIC/css).exists():
      import re
      html=re.sub(r'<link rel="stylesheet" href="/static/'+css.replace('.','\\.')+r'(?:\?v=[^"]+)?"\s*/?>',
@@ -75,7 +75,12 @@ def audit():
    page.locator('#show-disabled-students').check()
    assert page.locator('#roster .select-student').count()==3
    assert not errors,errors
-   assert page.evaluate('document.documentElement.scrollWidth <= innerWidth + 3'),width
+   dimensions=page.evaluate("""() => ({
+     viewport:innerWidth, page:document.documentElement.scrollWidth,
+     offenders:[...document.querySelectorAll('body *')].filter(node=>node.getBoundingClientRect().right>innerWidth+4)
+       .slice(0,5).map(node=>({tag:node.tagName,id:node.id,cls:String(node.className).slice(0,80),right:Math.round(node.getBoundingClientRect().right)}))
+   })""")
+   assert dimensions['page']<=width+3,(width,dimensions)
    page.close()
   browser.close()
  print('STUDENT REMOVAL UI PASS: selected group, preview, confirmation, revoke, mobile screens')
