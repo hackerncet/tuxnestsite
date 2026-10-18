@@ -108,6 +108,8 @@ def blockers_for(db: DbSession, ids: list[int]) -> dict[int, list[str]]:
 def snapshot(db: DbSession, actor: User, selection: Selection, lock=False):
     require_manager(actor, selection.mode)
     rows = selected_students(db, actor, selection.usns, lock=lock)
+    if selection.mode == 'disable' and any(not user.active for user, _ in rows):
+        raise HTTPException(409, 'One or more accounts are already inactive. Select only active students for access removal.')
     ids = [user.id for user, _ in rows]
     blocking = blockers_for(db, ids) if selection.mode == 'delete' else {}
     published = dict(db.query(StudentShowcase.student_id, StudentShowcase.published)
