@@ -70,7 +70,7 @@ def main() -> int:
     port = int(os.getenv('PORT', '10000'))
     if port <= 0 or port > 65535:
         raise RuntimeError('PORT must be a valid TCP port.')
-    programs = [[sys.executable, '-m', 'uvicorn', 'app.main:app', '--host', '0.0.0.0', '--port', str(port), '--proxy-headers']]
+    # Bind loopback in development. A Render production container must accept ingress.\n    host = os.getenv('LISTEN_HOST') or ('0.0.0.0' if os.getenv('APP_ENV') == 'production' else '127.0.0.1')  # nosec B104 - container ingress requires production bind\n    programs = [[sys.executable, '-m', 'uvicorn', 'app.main:app', '--host', host, '--port', str(port), '--proxy-headers']]
     if run_worker:
         programs.append([sys.executable, '-m', 'app.worker'])
     children: list[subprocess.Popen] = []
