@@ -57,7 +57,7 @@ class Selection(BaseModel):
 
 
 class Execute(Selection):
-    preview_token: str = Field(min_length=30, max_length=200)
+    preview_token: str = Field(min_length=30, max_length=500)
     confirmation: str = Field(min_length=12, max_length=70)
     current_password: str = Field(min_length=1, max_length=128)
     reason: str = Field(min_length=12, max_length=300)
