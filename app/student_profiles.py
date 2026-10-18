@@ -240,7 +240,7 @@ def validate_proof(url:str)->str:
     parts=urlsplit(url)
     if parts.scheme!='https' or not parts.hostname or parts.username or parts.password:
         raise HTTPException(422,'Certificate proof must be a public HTTPS URL.')
-    if parts.hostname.lower() in ('localhost','127.0.0.1','0.0.0.0') or parts.hostname.endswith('.local'):
+    if parts.hostname.lower() in ('localhost','127.0.0.1','0.0.0.0') or parts.hostname.endswith('.local'):  # nosec B104 - reject list, not socket bind
         raise HTTPException(422,'Invalid certificate host.')
     return url
 
@@ -250,7 +250,7 @@ def validate_public_link(raw:str,*,github_only:bool=False)->str:
     parsed=urlsplit(url)
     host=(parsed.hostname or '').lower()
     if (parsed.scheme!='https' or not host or parsed.username or parsed.password or
-        host in ('localhost','127.0.0.1','0.0.0.0','::1') or
+        host in ('localhost','127.0.0.1','0.0.0.0','::1') or  # nosec B104 - reject list, not socket bind
         host.endswith(('.local','.internal','.localhost')) or
         any(ord(c)<32 for c in url)):
         raise HTTPException(422,'Project links must be valid public HTTPS URLs.')
