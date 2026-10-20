@@ -86,15 +86,25 @@ interrupting document-verification work.
    rotate exposed database credentials, and secure permission to transmit documents
    to OpenRouter. `SCAN_MODE=off` is not suitable for untrusted production uploads.
 
-## Self-hosting on a college-provided server
+## One-command Ubuntu VPS deployment
 
-For a Linux server with Docker Compose installed, use **`compose.yaml`** and a private `.env` defining `POSTGRES_PASSWORD`, `NCET_BOOTSTRAP_ADMIN_PASSWORD`, `SETTINGS_ENCRYPTION_KEY`, and `PUBLIC_ORIGIN`. Set `APP_ENV=production`. Use a dedicated reverse proxy for valid HTTPS, make regular encrypted backups of the PostgreSQL volume, restrict SSH/firewall access, and do not expose the PostgreSQL port publicly. The web service binds to `127.0.0.1:8000` on the server so it is reachable only through local access or your reverse proxy. Generate a URL-safe DB password (for example, hexadecimal) because it is embedded in a database URL.
+On a fresh Ubuntu 22.04, 24.04, or 26.04 LTS server, run this single shell command. It downloads the bootstrap script to a temporary file, installs Docker Engine and Compose v2 from Docker's official apt repository when needed, clones the current `main` branch to `/opt/ncet-verifyflow`, then prompts for the public hostname, VPS IPv4 address, initial admin username and password. It generates the database password and Fernet encryption key automatically.
 
 ```bash
-docker compose --env-file .env up --build -d
-docker compose ps
-curl http://127.0.0.1:8000/healthz
+sudo apt-get update && sudo apt-get install -y curl && tmp="$(mktemp)" && curl -fsSL https://raw.githubusercontent.com/hackerncet/tuxnestsite/main/deploy/ubuntu-one-command.sh -o "$tmp" && sudo bash "$tmp"; result=$?; [ -z "${tmp:-}" ] || rm -f "$tmp"; exit "$result"
 ```
+
+The installer creates a private `.env` with mode `600`, starts PostgreSQL, the app, its worker, Caddy HTTPS, and a private ClamAV scanner. Uploads fail closed if ClamAV is unavailable. The scanner keeps its signature database in a persistent Docker volume and is not exposed publicly. Allow inbound TCP 80 and 443, plus UDP 443 for HTTP/3, in the VPS provider firewall. ClamAV adds memory and disk use; use a VPS with adequate headroom for the app, OCR, database, and virus signatures.
+
+At the end, the installer prints the actual DNS record to enter at your domain provider: record type `A`, hostname, the VPS IPv4 address, and TTL. It also lists the private server variable names; **do not paste application secrets into DNS fields**. DNS receives only the A record. Caddy can obtain HTTPS after DNS points to the VPS and ports 80/443 are reachable.
+
+After installation, check `cd /opt/ncet-verifyflow && sudo docker compose ps`, `sudo docker compose logs --tail=100 web clamav`, then open `https://<your-hostname>/healthz`. Back up the PostgreSQL and Caddy Docker volumes to encrypted off-server storage. The one-time installer refuses to overwrite an existing `.env`.
+
+### Automatic GitHub-to-VPS updates
+
+The `main` branch workflow can update this checkout after Python, Chromium, SAST, and dependency checks pass. In GitHub repository settings, set the Actions variable `VPS_DEPLOY_ENABLED=true` and add these Actions secrets: `VPS_SSH_PRIVATE_KEY`, `VPS_KNOWN_HOSTS`, `VPS_HOST`, `VPS_USER`, `VPS_DEPLOY_PATH` (normally `/opt/ncet-verifyflow`), and `VPS_PUBLIC_ORIGIN` (for example `https://ncet.paladuguganeshnaidu.tech`). Use a dedicated SSH account with only the access needed to update this deployment; remember that membership in the Docker group grants root-equivalent host access. The workflow pins the SSH host key and runs a public HTTPS smoke check after deployment. Until those values are configured, VPS updates remain skipped.
+
+The one-command installer currently clones `hackerncet/tuxnestsite`, the repository connected to Render. The requested `paladuguganeshnaidu/ncet` repository can replace that source after write access is available and the code is copied there.
 
 If using a college-managed external PostgreSQL service instead, run the Dockerfile's web and worker processes separately with the same `DATABASE_URL`, and provide reliable storage/backups. The web command applies Alembic migrations and initializes only explicitly provisioned accounts; the worker must also be running for AI jobs to complete.
 
