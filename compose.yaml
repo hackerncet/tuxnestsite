@@ -42,6 +42,10 @@ services:
       SETTINGS_ENCRYPTION_KEY: ${SETTINGS_ENCRYPTION_KEY:?Set encryption key in private .env}
       NCET_BOOTSTRAP_ADMIN_USERNAME: ${NCET_BOOTSTRAP_ADMIN_USERNAME:-admin}
       NCET_BOOTSTRAP_ADMIN_PASSWORD: ${NCET_BOOTSTRAP_ADMIN_PASSWORD:?Set new admin password in private .env}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-flash}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_DEEPSEEK_MODEL: ${OPENROUTER_DEEPSEEK_MODEL:-deepseek/deepseek-v3.2}
       SCAN_MODE: ${SCAN_MODE:-clamav}
       CLAMAV_HOST: ${CLAMAV_HOST:-clamav}
       CLAMAV_PORT: ${CLAMAV_PORT:-3310}
@@ -58,6 +62,10 @@ services:
       DATABASE_URL: postgresql+psycopg://ncet:${POSTGRES_PASSWORD}@database:5432/ncet_verifyflow
       STORAGE_BACKEND: database
       SETTINGS_ENCRYPTION_KEY: ${SETTINGS_ENCRYPTION_KEY:?Set encryption key in private .env}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-flash}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_DEEPSEEK_MODEL: ${OPENROUTER_DEEPSEEK_MODEL:-deepseek/deepseek-v3.2}
     networks: [internal]
   proxy:
     image: caddy:2.10-alpine
