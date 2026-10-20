@@ -34,8 +34,8 @@ async function loadDirectory(q='',pageOffset=0){
     (offset+items.length<total?'<button type="button" class="btn" data-dir="next">Next students →</button>':'');
    pager.hidden=total<=PAGE_SIZE;
   }
-  // Avoid duplicate cards when the full server-rendered fallback is also present.
-  const fallback=document.querySelector('.server-profile-links ul');
+  // Remove the full server-rendered fallback once the live results are ready.
+  const fallback=document.querySelector('.server-profile-links');
   if(fallback)fallback.hidden=true;
  }catch(err){if(revision===queryRevision){
   $('directory-results').replaceChildren();
