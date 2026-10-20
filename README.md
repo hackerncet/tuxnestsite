@@ -152,7 +152,7 @@ The API suite tests permissions, cross-department separation, CSRF, password res
 - `app/bootstrap.py`: one-time account provisioning
 - `alembic/versions/`: tracked database migrations
 - `static/`: original brand assets, responsive interface and public overview
-- `render.yaml`: Render Blueprint (Postgres + web + worker)
+- `render.yaml`: one Render Docker web service using a privately configured existing PostgreSQL database; the worker runs in the web process.
 - `compose.yaml`: standalone server deployment
 - `tests/`: API and UI test suites
 
@@ -176,18 +176,11 @@ Public pages: `/` and `/students`; authenticated BCA student portal: `/students/
 ## NCET tasks and DeepSeek verification (feature branch)
 
 At /tasks, a HOD uploads up to 50 reference PDFs per batch, selects unassigned rows and allocates them to same-department staff. The staff inbox has persistent notifications and attached instructions, and PDF submissions enter a durable worker queue. Deterministic checks and DeepSeek reviews provide scored findings and corrections. Scores over 75% without mandatory-rule failure or uncertainty await HOD approval; scores of 75% or below request correction; unavailable or uncertain AI requires manual review. Principal and IQAC can view authorized operational aggregates and work status. Four six-hour Asia/Kolkata windows produce advisory shared-project discussion summaries; private complaints are excluded. Encrypted DeepSeek keys are managed from the administrator task panel or private Render env. Migration: 8d0ncet003. Render Free cannot guarantee scheduled execution when asleep. Production backup and external AI processing authorization are required.
-# Ubuntu VPS deployment
 
-For a single-server HTTPS install, install Docker Engine and its Compose v2 plugin using the [official Ubuntu instructions](https://docs.docker.com/engine/install/ubuntu/), clone this repository, then run:
+## Ubuntu VPS deployment and automatic updates
 
-```bash
-sudo bash deploy/ubuntu-install.sh
-```
+Use the **One-command Ubuntu VPS deployment** section above for a fresh Ubuntu 22.04, 24.04, or 26.04 LTS host. The installer creates a mode-600 `.env`, generates the database and encryption secrets, and starts PostgreSQL, the app, its worker, Caddy, and a private ClamAV scanner. The self-hosted deployment sets `SCAN_MODE=clamav`; scanning fails closed when ClamAV is unavailable. Keep the application secrets in `/opt/ncet-verifyflow/.env`. The domain provider receives only the DNS A record (hostname and VPS IPv4), never application keys.
 
-The installer asks for the public hostname and a new administrator username/password, generates the PostgreSQL password and Fernet settings key, writes a mode-600 `.env`, and starts PostgreSQL, the app, the background worker, and Caddy. Caddy obtains and renews HTTPS certificates after the hostname points to the server and inbound ports 80/443 are reachable. The installer prints the DNS A record details and environment variable names; keep `.env` private. It intentionally leaves document malware scanning disabled (`SCAN_MODE=off`) until a supported scanner service is configured. Back up the PostgreSQL and Caddy volumes before upgrades.
+GitHub-to-VPS updates run from pushes to `main` only after the Python, Chromium, and security jobs pass. To enable them, complete the first Ubuntu install and configure the GitHub Actions variable `VPS_DEPLOY_ENABLED=true`. Add a `production` environment and place these secrets in that environment: `VPS_SSH_PRIVATE_KEY`, `VPS_KNOWN_HOSTS` (pre-verified host key), `VPS_HOST`, `VPS_USER`, `VPS_DEPLOY_PATH` (normally `/opt/ncet-verifyflow`), and `VPS_PUBLIC_ORIGIN`. Until these values and the server are configured, the VPS deployment job remains skipped.
 
-Useful operations: `docker compose ps`, `docker compose logs -f web worker proxy`, `docker compose pull && docker compose up -d --build`, and `docker compose down` (does not delete volumes). The application is available at `/plot` for a browser-local performance snapshot; its measurements are per-browser session, not a server monitoring service.
-
-### Deploy on each GitHub main update
-
-The `deploy-vps` CI job runs only after the Python, Chromium, and SAST/dependency-audit jobs pass on a push to `main`. To enable it, create the GitHub Actions repository variable `VPS_DEPLOY_ENABLED=true`, a `production` environment, and these environment secrets: `VPS_HOST`, `VPS_USER`, `VPS_SSH_PRIVATE_KEY`, `VPS_KNOWN_HOSTS` (pre-verified host key line, not output collected during the workflow), `VPS_DEPLOY_PATH` (absolute path of the cloned application on the server), and `VPS_PUBLIC_ORIGIN` (for example, `https://verify.example.edu`, with no path). Install the matching public key for that user, grant it only the access required to update the application and run Docker Compose, and clone this repository at that path before enabling deployments. Point DNS to the VPS and complete the first manual install before enabling the workflow. After each update it checks `/healthz`, `/plot`, and the student sign-in page over public HTTPS. Protect `main` and require CI checks; configure environment approval if deployments should wait for an operator. Keep the environment disabled until all secrets and the first manual VPS install are verified.
+The Ubuntu installer and Render service currently use `hackerncet/tuxnestsite`. The requested `paladuguganeshnaidu/ncet` repository can replace that source after it is populated and write access is available.
