@@ -25,7 +25,7 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
-      - run: node --check static/app.js && node --check static/tasks.js
+      - run: node --check static/app.js && node --check static/tasks.js && node --check static/plot.js
       - run: node --check static/notifications.js && node --check static/bca-oversight.js && node --check static/community.js && node --check static/student-portal.js && node --check static/bca-management.js && node --check static/public-home.js && node --check static/student-directory.js && node --check static/ncet-loading.js
       - run: node --check static/institutional-ui.js
       - run: node --check static/hod-dashboard.js && node --check static/complaints-dashboard.js && node --check static/bca-management.js
@@ -63,5 +63,45 @@ jobs:
           trap 'kill "$server_pid" 2>/dev/null || true' EXIT
           sleep 4
           NCET_BASE_URL=http://127.0.0.1:8878 python tests/browser_responsive_audit.py
+          NCET_BASE_URL=http://127.0.0.1:8878 python tests/browser_plot.py
           NCET_BASE_URL=http://127.0.0.1:8878 python tests/browser_not_found.py
           NCET_BASE_URL=http://127.0.0.1:8878 python tests/browser_institutional_motion.py
+
+  deploy-vps:
+    name: Deploy verified main to Ubuntu VPS
+    runs-on: ubuntu-latest
+    needs: [test, browser]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.VPS_DEPLOY_ENABLED == 'true'
+    environment: production
+    concurrency:
+      group: ncet-vps-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Configure pinned SSH access
+        env:
+          VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$VPS_SSH_PRIVATE_KEY" > "$HOME/.ssh/id_ed25519"
+          chmod 600 "$HOME/.ssh/id_ed25519"
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/known_hosts"
+          ssh-keygen -y -f "$HOME/.ssh/id_ed25519" >/dev/null
+      - name: Update the server after CI passed
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_DEPLOY_PATH: ${{ secrets.VPS_DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
+          test -n "$VPS_HOST" && test -n "$VPS_USER" && test -n "$VPS_DEPLOY_PATH"
+          DEPLOY_PATH_B64="$(printf '%s' "$VPS_DEPLOY_PATH" | base64 -w0)"
+          ssh -i "$HOME/.ssh/id_ed25519" -o BatchMode=yes -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            "$VPS_USER@$VPS_HOST" "DEPLOY_PATH_B64=$DEPLOY_PATH_B64 bash -s" \
+            < deploy/vps-update.sh

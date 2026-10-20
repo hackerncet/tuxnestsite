@@ -249,10 +249,18 @@ def workspace():
 def about():
     return FileResponse(STATIC/'about.html')
 
+@app.get('/plot', response_class=HTMLResponse)
+def performance_plot():
+    """Render a privacy-preserving, browser-local performance report."""
+    return FileResponse(STATIC/'plot.html', headers={
+        'Cache-Control':'no-store',
+        'X-Robots-Tag':'noindex,nofollow,noarchive',
+    })
+
 @app.get('/robots.txt')
 def robots():
     origin=PUBLIC_ORIGIN or 'https://ncet-verifyflow.onrender.com'
-    return Response('User-agent: *\nDisallow: /api/\nDisallow: /app\nDisallow: /students/portal\nDisallow: /bca/manage\nDisallow: /bca/complaints\nDisallow: /complaints\nDisallow: /bca/oversight\nDisallow: /community\nDisallow: /tasks\nSitemap: '+origin+'/sitemap.xml\n',media_type='text/plain')
+    return Response('User-agent: *\nDisallow: /api/\nDisallow: /app\nDisallow: /plot\nDisallow: /students/portal\nDisallow: /bca/manage\nDisallow: /bca/complaints\nDisallow: /complaints\nDisallow: /bca/oversight\nDisallow: /community\nDisallow: /tasks\nSitemap: '+origin+'/sitemap.xml\n',media_type='text/plain')
 
 def _sitemap_xml(records):
     from xml.sax.saxutils import escape as xml_escape
