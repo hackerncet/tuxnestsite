@@ -14,6 +14,12 @@ with sync_playwright() as playwright:
         response = page.goto(BASE + '/plot', wait_until='domcontentloaded', timeout=25000)
         assert response and response.status == 200, (width, response.status if response else None)
         page.locator('#health-status').get_by_text('Healthy').wait_for(timeout=10000)
+        page.wait_for_load_state('networkidle', timeout=10000)
+        page.evaluate("""async () => {
+            await document.fonts.ready;
+            await Promise.all([...document.images].map(image => image.decode().catch(() => {})));
+        }""")
+        page.wait_for_timeout(250)
         cls_text = '—'
         for _ in range(100):
             cls_text = page.locator('#metric-cls').inner_text()
