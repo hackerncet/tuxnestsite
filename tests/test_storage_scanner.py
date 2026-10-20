@@ -43,7 +43,10 @@ def test_clamav_sends_instream_and_accepts_clean_result(monkeypatch):
 
     scan_for_malware(data)
 
-    assert scanner.sent == [b'zINSTREAM\0', struct.pack('!I', len(data)) + data, b'\0\0\0\0']
+    assert scanner.sent == [
+        b'zINSTREAM\0',
+        struct.pack('!I', len(data)) + data + b'\0\0\0\0',
+    ]
 
 
 def test_clamav_rejects_detected_malware(monkeypatch):
