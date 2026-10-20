@@ -73,19 +73,29 @@ def main():
         assert desktop.locator('a[href="/students/portal"]').count() > 0
 
         load_page(desktop,'student-directory.html')
+        desktop.locator('main').evaluate("""main => main.insertAdjacentHTML('beforeend',
+          '<section class="panel server-profile-links" aria-label="Published student profiles">' +
+          '<h2>Browse all published portfolios</h2><p>2 student-published profiles.</p>' +
+          '<ul><li><a href="/students/profile/STALE">Stale server-rendered result</a></li></ul></section>')""")
         desktop.evaluate("""() => {
-          window.fetch=async() => new Response(JSON.stringify({items:[
-            {name:'Published BCA Student',usn:'1NC24BCA388',
-             department:'Bachelor of Computer Applications',skills:['Python','HTML']}
-          ]}),{status:200,headers:{'Content-Type':'application/json'}});
+          window.fetch=async(url) => {
+            const q=new URL(url,location.origin).searchParams.get('q');
+            const items=q ? [] : [{name:'Published BCA Student',usn:'1NC24BCA388',
+              department:'Bachelor of Computer Applications',skills:['Python','HTML']}];
+            return new Response(JSON.stringify({items,total:items.length}),
+              {status:200,headers:{'Content-Type':'application/json'}});
+          };
         }""")
         desktop.add_script_tag(content=(STATIC/'student-directory.js').read_text(encoding='utf-8'))
         desktop.get_by_text('Published BCA Student').wait_for()
-        assert desktop.locator('a[href="/students/profile/1NC24BCA388"]').count()==2
+        desktop.locator('.server-profile-links').wait_for(state='hidden')
+        assert desktop.locator('a[href="/students/profile/1NC24BCA388"]').count()==1
         assert 'private@example.org' not in desktop.locator('main').inner_text()
         desktop.locator('#student-search').fill('1NC24BCA388')
         desktop.locator('#search-profiles button[type=submit]').click()
-        desktop.get_by_text('Showing 1 published profiles').wait_for()
+        desktop.get_by_text('No published profiles match your search.').wait_for()
+        assert desktop.locator('.server-profile-links').is_hidden()
+        assert desktop.locator('a[href="/students/profile/STALE"]').count()==0
 
         load_page(desktop, 'student-portal.html','student-portal.js',mock_denied=True)
         assert desktop.locator('#showcase-form').count() == 1
