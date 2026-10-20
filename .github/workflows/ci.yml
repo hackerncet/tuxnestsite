@@ -15,9 +15,22 @@ jobs:
         with:
           python-version: '3.13'
       - name: Install OCR runtime used in production Docker image
-        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends shellcheck tesseract-ocr tesseract-ocr-eng
       - name: Check deployment script syntax
-        run: for script in deploy/ubuntu-install.sh deploy/vps-update.sh deploy/vps-public-smoke.sh; do bash -n "$script"; done
+        run: for script in deploy/ubuntu-one-command.sh deploy/ubuntu-install.sh deploy/vps-update.sh deploy/vps-public-smoke.sh; do bash -n "$script"; done
+      - name: Lint deployment shell scripts
+        run: shellcheck deploy/ubuntu-one-command.sh deploy/ubuntu-install.sh deploy/vps-update.sh deploy/vps-public-smoke.sh
+      - name: Validate production Compose configuration and private scanner service
+        env:
+          POSTGRES_PASSWORD: ci-only-placeholder-password
+          PUBLIC_HOST: verify.example.edu
+          PUBLIC_ORIGIN: https://verify.example.edu
+          SETTINGS_ENCRYPTION_KEY: YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=
+          NCET_BOOTSTRAP_ADMIN_PASSWORD: ci-only-placeholder-password
+          SCAN_MODE: clamav
+          CLAMAV_HOST: clamav
+          CLAMAV_PORT: "3310"
+        run: docker compose config --quiet && docker compose config --services | grep -Fxq clamav
       - run: python -m pip install -r requirements.txt pytest httpx
       - run: python -m compileall -q app
       - run: python -m pytest -q tests/test_*.py
