@@ -14,6 +14,8 @@ with sync_playwright() as playwright:
         response = page.goto(BASE + '/plot', wait_until='domcontentloaded', timeout=25000)
         assert response and response.status == 200, (width, response.status if response else None)
         page.locator('#health-status').get_by_text('Healthy').wait_for(timeout=10000)
+        cls = float(page.locator('#metric-cls').inner_text())
+        assert cls <= 0.1, (width, cls)
         assert page.locator('.resource-row').count() == 5
         assert page.locator('#resource-total').inner_text() != '—'
         assert page.locator('meta[name="robots"]').get_attribute('content') == 'noindex,nofollow,noarchive'
