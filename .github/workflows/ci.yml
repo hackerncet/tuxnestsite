@@ -5,6 +5,33 @@ on:
 permissions:
   contents: read
 jobs:
+  vps-installer-matrix:
+    name: VPS installer checks - Ubuntu ${{ matrix.version }}
+    runs-on: ubuntu-${{ matrix.version }}
+    strategy:
+      fail-fast: false
+      matrix:
+        version: ["22.04", "24.04", "26.04"]
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      - name: Check Docker Compose is available on this runner
+        run: docker compose version
+      - name: Install ShellCheck
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends shellcheck
+      - name: Validate Ubuntu installer and update scripts
+        run: |
+          for script in deploy/ubuntu-one-command.sh deploy/ubuntu-install.sh deploy/vps-update.sh deploy/vps-public-smoke.sh; do bash -n "$script"; done
+          shellcheck deploy/ubuntu-one-command.sh deploy/ubuntu-install.sh deploy/vps-update.sh deploy/vps-public-smoke.sh
+      - name: Validate production Compose configuration
+        env:
+          POSTGRES_PASSWORD: ci-only-placeholder-password
+          PUBLIC_HOST: verify.example.edu
+          PUBLIC_ORIGIN: https://verify.example.edu
+          SETTINGS_ENCRYPTION_KEY: YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=
+          NCET_BOOTSTRAP_ADMIN_PASSWORD: ci-only-placeholder-password
+        run: docker compose config --quiet
   test:
     runs-on: ubuntu-24.04
     steps:
