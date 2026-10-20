@@ -173,7 +173,7 @@ Public pages: `/` and `/students`; authenticated BCA student portal: `/students/
 - Before institutional use, rotate exposed credentials, arrange backups, establish abuse/reporting procedures, review USN directory privacy with the institution and use always-on paid worker resources for document processing.
 
 
-## NCET tasks and DeepSeek verification (feature branch)
+## NCET tasks and DeepSeek verification
 
 At /tasks, a HOD uploads up to 50 reference PDFs per batch, selects unassigned rows and allocates them to same-department staff. The staff inbox has persistent notifications and attached instructions, and PDF submissions enter a durable worker queue. Deterministic checks and DeepSeek reviews provide scored findings and corrections. Scores over 75% without mandatory-rule failure or uncertainty await HOD approval; scores of 75% or below request correction; unavailable or uncertain AI requires manual review. Principal and IQAC can view authorized operational aggregates and work status. Four six-hour Asia/Kolkata windows produce advisory shared-project discussion summaries; private complaints are excluded. Encrypted DeepSeek keys are managed from the administrator task panel or private Render env. Migration: 8d0ncet003. Render Free cannot guarantee scheduled execution when asleep. Production backup and external AI processing authorization are required.
 
