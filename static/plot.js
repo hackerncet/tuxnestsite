@@ -31,6 +31,7 @@
     showMetric('cls', state.cls.toFixed(3), verdict, verdict === 'good' ? 'Target ≤0.1 · stable sample' : verdict === 'attention' ? 'Target ≤0.1 · some movement' : 'Target ≤0.1 · unexpected movement');
   });
   if (!hasCls) showMetric('cls', 'Not supported', '', 'Browser does not expose CLS');
+  else showMetric('cls', state.cls.toFixed(3), 'good', 'Target ≤0.1 · stable so far');
 
   const hasInp = observe('event', (list) => {
     for (const entry of list.getEntries()) {
