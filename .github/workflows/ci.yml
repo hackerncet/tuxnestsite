@@ -16,6 +16,8 @@ jobs:
           python-version: '3.13'
       - name: Install OCR runtime used in production Docker image
         run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng
+      - name: Check deployment script syntax
+        run: for script in deploy/ubuntu-install.sh deploy/vps-update.sh deploy/vps-public-smoke.sh; do bash -n "$script"; done
       - run: python -m pip install -r requirements.txt pytest httpx
       - run: python -m compileall -q app
       - run: python -m pytest -q tests/test_*.py
@@ -110,3 +112,7 @@ jobs:
             "$VPS_USER@$VPS_HOST" "DEPLOY_PATH_B64=$DEPLOY_PATH_B64 bash -s" \
             < deploy/vps-update.sh
 
+      - name: Verify public VPS routes after deployment
+        env:
+          VPS_PUBLIC_ORIGIN: ${{ secrets.VPS_PUBLIC_ORIGIN }}
+        run: bash deploy/vps-public-smoke.sh
