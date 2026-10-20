@@ -67,10 +67,14 @@ jobs:
           NCET_BASE_URL=http://127.0.0.1:8878 python tests/browser_not_found.py
           NCET_BASE_URL=http://127.0.0.1:8878 python tests/browser_institutional_motion.py
 
+  security:
+    name: Required Python SAST and dependency audit
+    uses: ./.github/workflows/security.yml
+
   deploy-vps:
     name: Deploy verified main to Ubuntu VPS
     runs-on: ubuntu-latest
-    needs: [test, browser]
+    needs: [test, browser, security]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.VPS_DEPLOY_ENABLED == 'true'
     environment: production
     concurrency:
@@ -105,3 +109,4 @@ jobs:
             -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
             "$VPS_USER@$VPS_HOST" "DEPLOY_PATH_B64=$DEPLOY_PATH_B64 bash -s" \
             < deploy/vps-update.sh
+
