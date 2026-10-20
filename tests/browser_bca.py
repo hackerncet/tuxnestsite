@@ -80,8 +80,9 @@ def main():
         desktop.evaluate("""() => {
           window.fetch=async(url) => {
             const q=new URL(url,location.origin).searchParams.get('q');
-            const items=q ? [] : [{name:'Published BCA Student',usn:'1NC24BCA388',
-              department:'Bachelor of Computer Applications',skills:['Python','HTML']}];
+            const matches=!q || q.toUpperCase()==='1NC24BCA388';
+            const items=matches ? [{name:'Published BCA Student',usn:'1NC24BCA388',
+              department:'Bachelor of Computer Applications',skills:['Python','HTML']}] : [];
             return new Response(JSON.stringify({items,total:items.length}),
               {status:200,headers:{'Content-Type':'application/json'}});
           };
@@ -92,6 +93,10 @@ def main():
         assert desktop.locator('a[href="/students/profile/1NC24BCA388"]').count()==1
         assert 'private@example.org' not in desktop.locator('main').inner_text()
         desktop.locator('#student-search').fill('1NC24BCA388')
+        desktop.locator('#search-profiles button[type=submit]').click()
+        desktop.get_by_text('Showing 1 published profiles').wait_for()
+        assert desktop.locator('.server-profile-links').is_hidden()
+        desktop.locator('#student-search').fill('no-such-student-20261020')
         desktop.locator('#search-profiles button[type=submit]').click()
         desktop.get_by_text('No published profiles match your search.').wait_for()
         assert desktop.locator('.server-profile-links').is_hidden()
