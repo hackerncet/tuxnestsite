@@ -10,7 +10,7 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 BASE = os.getenv("NCET_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
-PAGES = ["/", "/students", "/about", "/students/directory", "/students/portal", "/app"]
+PAGES = ["/", "/students", "/about", "/students/directory", "/students/portal", "/app", "/plot"]
 WIDTHS = [320, 375, 390, 428, 768, 1024, 1440]
 SCREENSHOTS = os.getenv("NCET_RESPONSIVE_SCREENSHOTS") == "1"
 DEST = Path(__file__).parent / "responsive-screenshots"

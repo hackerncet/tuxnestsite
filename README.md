@@ -114,6 +114,12 @@ The default PostgreSQL binary storage guarantees that web/worker deployments see
 
 ## Tests and verification
 
+The public **`/plot`** page reports this browser visit's LCP, INP, CLS, TTFB,
+resource sizes, and a one-time `/healthz` response. It does not transmit or store
+visitor performance data. Its historical optimization figures are labeled as
+local/synthetic source benchmarks; they are not live-user percentiles or Render
+latency. A single browser visit cannot certify site-wide Core Web Vitals.
+
 ```bash
 python -m pytest -q tests/test_e2e.py tests/test_ai_workflow.py
 python -m compileall -q app
@@ -160,3 +166,18 @@ Public pages: `/` and `/students`; authenticated BCA student portal: `/students/
 ## NCET tasks and DeepSeek verification (feature branch)
 
 At /tasks, a HOD uploads up to 50 reference PDFs per batch, selects unassigned rows and allocates them to same-department staff. The staff inbox has persistent notifications and attached instructions, and PDF submissions enter a durable worker queue. Deterministic checks and DeepSeek reviews provide scored findings and corrections. Scores over 75% without mandatory-rule failure or uncertainty await HOD approval; scores of 75% or below request correction; unavailable or uncertain AI requires manual review. Principal and IQAC can view authorized operational aggregates and work status. Four six-hour Asia/Kolkata windows produce advisory shared-project discussion summaries; private complaints are excluded. Encrypted DeepSeek keys are managed from the administrator task panel or private Render env. Migration: 8d0ncet003. Render Free cannot guarantee scheduled execution when asleep. Production backup and external AI processing authorization are required.
+# Ubuntu VPS deployment
+
+For a single-server HTTPS install, install Docker Engine and its Compose v2 plugin using the [official Ubuntu instructions](https://docs.docker.com/engine/install/ubuntu/), clone this repository, then run:
+
+```bash
+sudo bash deploy/ubuntu-install.sh
+```
+
+The installer asks for the public hostname and a new administrator username/password, generates the PostgreSQL password and Fernet settings key, writes a mode-600 `.env`, and starts PostgreSQL, the app, the background worker, and Caddy. Caddy obtains and renews HTTPS certificates after the hostname points to the server and inbound ports 80/443 are reachable. The installer prints the DNS A record details and environment variable names; keep `.env` private. It intentionally leaves document malware scanning disabled (`SCAN_MODE=off`) until a supported scanner service is configured. Back up the PostgreSQL and Caddy volumes before upgrades.
+
+Useful operations: `docker compose ps`, `docker compose logs -f web worker proxy`, `docker compose pull && docker compose up -d --build`, and `docker compose down` (does not delete volumes). The application is available at `/plot` for a browser-local performance snapshot; its measurements are per-browser session, not a server monitoring service.
+
+### Deploy on each GitHub main update
+
+The `deploy-vps` CI job runs only after the Python and Chromium jobs pass on a push to `main`. To enable it, create the GitHub Actions repository variable `VPS_DEPLOY_ENABLED=true`, a `production` environment, and these environment secrets: `VPS_HOST`, `VPS_USER`, `VPS_SSH_PRIVATE_KEY`, `VPS_KNOWN_HOSTS` (pre-verified host key line, not output collected during the workflow), and `VPS_DEPLOY_PATH` (absolute path of the cloned application on the server). Install the matching public key for that user, grant it only the access required to update the application and run Docker Compose, and clone this repository at that path before enabling deployments. Protect `main` and require CI checks; configure environment approval if deployments should wait for an operator. Keep the environment disabled until all secrets and the first manual VPS install are verified.

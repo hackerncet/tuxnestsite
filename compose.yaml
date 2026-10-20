@@ -30,6 +30,7 @@ services:
       DATABASE_URL: postgresql+psycopg://ncet:${POSTGRES_PASSWORD}@database:5432/ncet_verifyflow
       STORAGE_BACKEND: database
       SETTINGS_ENCRYPTION_KEY: ${SETTINGS_ENCRYPTION_KEY:?Set encryption key in private .env}
+      NCET_BOOTSTRAP_ADMIN_USERNAME: ${NCET_BOOTSTRAP_ADMIN_USERNAME:-admin}
       NCET_BOOTSTRAP_ADMIN_PASSWORD: ${NCET_BOOTSTRAP_ADMIN_PASSWORD:?Set new admin password in private .env}
       SCAN_MODE: ${SCAN_MODE:-off}
     networks: [internal]
@@ -46,7 +47,26 @@ services:
       STORAGE_BACKEND: database
       SETTINGS_ENCRYPTION_KEY: ${SETTINGS_ENCRYPTION_KEY:?Set encryption key in private .env}
     networks: [internal]
+  proxy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_started
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      PUBLIC_HOST: ${PUBLIC_HOST:?Set PUBLIC_HOST in private .env}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [internal]
 volumes:
   postgres_data:
+  caddy_data:
+  caddy_config:
 networks:
   internal:
