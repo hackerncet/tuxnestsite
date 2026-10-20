@@ -14,8 +14,14 @@ with sync_playwright() as playwright:
         response = page.goto(BASE + '/plot', wait_until='domcontentloaded', timeout=25000)
         assert response and response.status == 200, (width, response.status if response else None)
         page.locator('#health-status').get_by_text('Healthy').wait_for(timeout=10000)
-        page.wait_for_function("document.querySelector('#metric-cls').textContent !== '—'", timeout=5000)
-        cls = float(page.locator('#metric-cls').inner_text())
+        cls_text = '—'
+        for _ in range(100):
+            cls_text = page.locator('#metric-cls').inner_text()
+            if cls_text != '—':
+                break
+            page.wait_for_timeout(50)
+        assert cls_text != '—', (width, 'CLS sample was not emitted')
+        cls = float(cls_text)
         assert cls <= 0.1, (width, cls)
         assert page.locator('.resource-row').count() == 5
         assert page.locator('#resource-total').inner_text() != '—'
