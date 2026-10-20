@@ -90,7 +90,7 @@ def main():
         desktop.add_script_tag(content=(STATIC/'student-directory.js').read_text(encoding='utf-8'))
         desktop.get_by_text('Published BCA Student').wait_for()
         desktop.locator('.server-profile-links').wait_for(state='hidden')
-        assert desktop.locator('a[href="/students/profile/1NC24BCA388"]').count()==1
+        assert desktop.locator('a[href="/students/profile/1NC24BCA388"]').count()==2
         assert 'private@example.org' not in desktop.locator('main').inner_text()
         desktop.locator('#student-search').fill('1NC24BCA388')
         desktop.locator('#search-profiles button[type=submit]').click()
