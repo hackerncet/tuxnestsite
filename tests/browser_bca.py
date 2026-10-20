@@ -79,7 +79,7 @@ def main():
           '<ul><li><a href="/students/profile/STALE">Stale server-rendered result</a></li></ul></section>')""")
         desktop.evaluate("""() => {
           window.fetch=async(url) => {
-            const q=new URL(url,location.origin).searchParams.get('q');
+            const q=new URL(url,'https://example.test').searchParams.get('q');
             const matches=!q || q.toUpperCase()==='1NC24BCA388';
             const items=matches ? [{name:'Published BCA Student',usn:'1NC24BCA388',
               department:'Bachelor of Computer Applications',skills:['Python','HTML']}] : [];
