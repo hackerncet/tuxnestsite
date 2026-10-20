@@ -10,28 +10,28 @@ A database-backed, role-enforced, AI-assisted college document-verification appl
 | API | Python 3.13, FastAPI, SQLAlchemy 2, Alembic |
 | Database | PostgreSQL on Render or college-operated Postgres; SQLite for development/tests |
 | Document analysis | PyMuPDF for PDFs, python-docx for DOCX, Tesseract OCR for scanned pages/images |
-| Rule evaluator | Deterministic checks plus OpenRouter `google/gemma-4-31b-it:free` for language/semantic verification |
+| Rule evaluator | Deterministic checks plus DeepSeek for language/semantic verification; direct DeepSeek API is preferred, with OpenRouter as the fallback route |
 | Background processing | Separate Python polling worker, storing queue state and immutable report snapshots in Postgres |
 | File storage | Private PostgreSQL bytes by default; supported private S3/R2 or persistent disk alternatives |
 | Authentication | Argon2id password hashes, HttpOnly sessions, CSRF defense, login throttling, server-side role/department enforcement |
-| Secrets | API key encrypted with Fernet before storage; encryption key kept outside the DB, in Render/server secrets |
+| Secrets | AI credentials entered in the admin UI are Fernet-encrypted in PostgreSQL; the encryption key stays in Render/server secrets |
 
 **Never commit `.env` or real API keys.** Passwords supplied for the earlier frontend-only demonstration are **not valid** for this backend and are **not reused**. There are no seeded documents or hardcoded live users.
 
 ## Access and workflow
 
-- **Super Admin** — Creates, deactivates, and resets passwords for Staff, HOD, Principal and IQAC accounts; manages the encrypted OpenRouter key; reads the audit history. Initial administrator created once through an environment secret.
+- **Super Admin** — Creates, deactivates, and resets passwords for Staff, HOD, Principal and IQAC accounts; manages the encrypted DeepSeek/OpenRouter provider credentials; reads the audit history. Initial administrator created once through an environment secret.
 - **HOD** — Creates and manages Staff accounts within their own department (including access and password resets); builds, edits and publishes departmental rulebooks (mandatory headings, phrases, page counts, date, signatures, formatting, writing quality, semantic guidance). Every published version is retained. Reviews documents for their department and approves or rejects with feedback.
 - **Staff** — Uploads PDF, DOCX, TXT, PNG or JPG up to 10 MB, monitors verification, reviews rule-by-rule findings with location and correction guidance, and resubmits corrected versions. Every revision is retained.
 - **Principal / IQAC** — View and download **only documents that the HOD has approved**. Neither role has authority to publish rulebooks or manage users.
 
-On submission the document enters **Verifying**. The worker runs extraction and deterministic checks before calling OpenRouter with the *document content and the HOD policy version bound to that submission*. Verified documents enter **Pending HOD Approval**. Confirmed mandatory failures enter **Needs Correction**. Missing rules, unavailable AI/OCR, incomplete analysis and low-confidence interpretations enter **Manual Review** and cannot be silently auto-passed or auto-rejected. Final approval is always human HOD action, not AI action. After approval, Principal and IQAC can see the record.
+On submission the document enters **Verifying**. The worker runs extraction and deterministic checks before calling the configured DeepSeek provider with the *document content and the HOD policy version bound to that submission*. Verified documents enter **Pending HOD Approval**. Confirmed mandatory failures enter **Needs Correction**. Missing rules, unavailable AI/OCR, incomplete analysis and low-confidence interpretations enter **Manual Review** and cannot be silently auto-passed or auto-rejected. Final approval is always human HOD action, not AI action. After approval, Principal and IQAC can see the record.
 
-**External processing notice:** Configuring OpenRouter and submitting a document can send document text to an external model provider. Obtain institutional authorization, review provider privacy/retention terms, and do not upload confidential student or staff information until approved. Document text is treated as untrusted input, not executable instructions.
+**External processing notice:** Configuring DeepSeek directly or through OpenRouter and submitting a document can send document text to that external model provider. Obtain institutional authorization, review provider privacy/retention terms, and do not upload confidential student or staff information until approved. Document text is treated as untrusted input, not executable instructions.
 
 ### AI model behavior and limits
 
-The configured OpenRouter model ID is `google/gemma-4-31b-it:free` (advertised context **262,144 tokens**). The integration asks for JSON objects, then locally validates the response structure, cited rule IDs, result values, and confidence. The provider does **not** guarantee schema-enforced JSON. Free model capacity and availability can fluctuate; outages route to **Manual Review**. To control costs, latency and output reliability the application limits extracted input to **110,000 characters**, supports at most **120 PDF pages**, and performs OCR on at most **35 pages** per PDF. Incomplete text extraction never earns an automatic pass. DOCX pagination and signature verification may require human confirmation; this is not a forensic signature-validation or pixel-perfect typography engine. Legacy `.doc` is not supported; convert to `.docx` or PDF.
+Document verification uses the configured DeepSeek provider. A direct key (admin-stored or `DEEPSEEK_API_KEY`) takes precedence and defaults to model `deepseek-flash`; when it is absent, an OpenRouter key (admin-stored or `OPENROUTER_API_KEY`) routes to DeepSeek model `deepseek/deepseek-v3.2`. Override these defaults with `DEEPSEEK_MODEL` or `OPENROUTER_DEEPSEEK_MODEL`. The integration requests JSON and locally validates response structure, cited rule IDs, result values, and confidence; the provider does **not** guarantee schema-enforced JSON. Provider capacity, model context and availability can change; outages or incomplete analysis route to **Manual Review**. To limit processing, the application caps extracted input at **110,000 characters**, processes at most **120 PDF pages**, and performs OCR on at most **35 pages** per PDF. Incomplete text extraction never earns an automatic pass. DOCX pagination and signature verification may require human confirmation; this is not a forensic signature-validation or pixel-perfect typography engine. Legacy `.doc` is not supported; convert to `.docx` or PDF.
 
 ## Quick local start (development)
 
@@ -50,7 +50,7 @@ python -m app.bootstrap
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Open **http://127.0.0.1:8000/app** and log in with user `admin` and the password you set. Go to **Super Admin → Users** to create HOD/Staff/Principal/IQAC users and **Integrations** to enter your OpenRouter key. With no key, reports fall back to Manual Review rather than making up AI results.
+Open **http://127.0.0.1:8000/app** and log in with user `admin` and the password you set. Go to **Super Admin → Users** to create HOD/Staff/Principal/IQAC users and **Integrations** to configure a DeepSeek key, or an OpenRouter key routed to DeepSeek. With no key, reports fall back to Manual Review rather than making up AI results.
 
 The verifier runs as a **second process**; without it uploads remain in the Verifying queue:
 
@@ -80,11 +80,11 @@ interrupting document-verification work.
    `APP_RUN_WORKER_IN_WEB=true`.
 5. Deploy. The startup runs Alembic migrations, bootstraps the initial `admin` user
    if absent, and starts the API and worker processes together. Verify `/healthz`,
-   then sign in at `/app` and configure users, HOD rules and the OpenRouter API key.
+   then sign in at `/app` and configure users, HOD rules and a DeepSeek provider key (directly or through OpenRouter).
 6. Before serving real institutional data, move to always-on compute (preferably
    a separate worker), implement malware scanning and backups, monitor failures,
    rotate exposed database credentials, and secure permission to transmit documents
-   to OpenRouter. `SCAN_MODE=off` is not suitable for untrusted production uploads.
+   to the configured DeepSeek provider. `SCAN_MODE=off` is not suitable for untrusted production uploads.
 
 ## One-command Ubuntu VPS deployment
 
@@ -146,7 +146,7 @@ The API suite tests permissions, cross-department separation, CSRF, password res
 - `app/main.py`: authenticated REST endpoints, audit and authorization
 - `app/security.py`: sessions, CSRF, Argon2id hashing and roles
 - `app/database.py`: relational schema, connection pooling and indexes
-- `app/verification.py`: extraction/OCR, deterministic rules, OpenRouter and result validation
+- `app/verification.py`: extraction/OCR, deterministic rules, DeepSeek provider calls and result validation
 - `app/worker.py`: persistent asynchronous verifier queue
 - `app/storage.py`: file magic checks, private download and optional ClamAV
 - `app/bootstrap.py`: one-time account provisioning
