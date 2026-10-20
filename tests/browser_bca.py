@@ -100,7 +100,7 @@ def main():
         desktop.locator('#search-profiles button[type=submit]').click()
         desktop.get_by_text('No published profiles match your search.').wait_for()
         assert desktop.locator('.server-profile-links').is_hidden()
-        assert desktop.locator('a[href="/students/profile/STALE"]').count()==0
+        assert not desktop.locator('a[href="/students/profile/STALE"]').is_visible()
 
         load_page(desktop, 'student-portal.html','student-portal.js',mock_denied=True)
         assert desktop.locator('#showcase-form').count() == 1
