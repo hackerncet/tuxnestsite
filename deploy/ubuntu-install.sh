@@ -38,29 +38,23 @@ PY
 read -r -p 'Initial admin username [admin]: ' ADMIN_USERNAME
 ADMIN_USERNAME="${ADMIN_USERNAME:-admin}"
 [[ "$ADMIN_USERNAME" =~ ^[a-zA-Z0-9_.@-]{3,64}$ ]] || fail 'Username must be 3-64 letters, digits, or . _ @ - characters.'
-read -r -s -p 'Initial admin password (16-128 letters/digits/underscore/hyphen): ' ADMIN_PASSWORD; printf '\n'
+read -r -s -p 'Initial admin password (16-128 printable characters): ' ADMIN_PASSWORD; printf '\n'
 [[ ${#ADMIN_PASSWORD} -ge 16 && ${#ADMIN_PASSWORD} -le 128 ]] || fail 'Admin password must be between 16 and 128 characters.'
-[[ "$ADMIN_PASSWORD" =~ ^[a-zA-Z0-9_-]+$ ]] || fail 'Use only letters, digits, underscore, and hyphen in this password.'
+[[ "$ADMIN_PASSWORD" != *$'\n'* && "$ADMIN_PASSWORD" != *$'\r'* ]] || fail 'Password must fit on one line.'
 read -r -s -p 'Confirm admin password: ' ADMIN_PASSWORD_CONFIRM; printf '\n'
 [[ "$ADMIN_PASSWORD" == "$ADMIN_PASSWORD_CONFIRM" ]] || fail 'Passwords do not match.'
 
 POSTGRES_PASSWORD="$(openssl rand -hex 32)"
 SETTINGS_ENCRYPTION_KEY="$(openssl rand -base64 32 | tr '+/' '-_')"
 umask 077
-cat > .env <<EOF
-APP_ENV=production
-PUBLIC_HOST=${PUBLIC_HOST}
-PUBLIC_ORIGIN=https://${PUBLIC_HOST}
-POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-SETTINGS_ENCRYPTION_KEY=${SETTINGS_ENCRYPTION_KEY}
-NCET_BOOTSTRAP_ADMIN_USERNAME=${ADMIN_USERNAME}
-NCET_BOOTSTRAP_ADMIN_PASSWORD=${ADMIN_PASSWORD}
-SCAN_MODE=clamav
-CLAMAV_HOST=clamav
-CLAMAV_PORT=3310
-EOF
-unset POSTGRES_PASSWORD SETTINGS_ENCRYPTION_KEY ADMIN_PASSWORD ADMIN_PASSWORD_CONFIRM
+NCET_INSTALL_PUBLIC_HOST="$PUBLIC_HOST" \
+NCET_INSTALL_POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
+NCET_INSTALL_ENCRYPTION_KEY="$SETTINGS_ENCRYPTION_KEY" \
+NCET_INSTALL_ADMIN_USERNAME="$ADMIN_USERNAME" \
+NCET_INSTALL_ADMIN_PASSWORD="$ADMIN_PASSWORD" \
+python3 deploy/write_compose_env.py
 chmod 600 .env
+unset POSTGRES_PASSWORD SETTINGS_ENCRYPTION_KEY ADMIN_PASSWORD ADMIN_PASSWORD_CONFIRM
 
 docker compose config --quiet || fail 'Compose configuration validation failed; .env was created. Correct the reported issue and rerun docker compose config.'
 docker compose pull database clamav proxy
@@ -80,3 +74,4 @@ printf '  NCET_BOOTSTRAP_ADMIN_USERNAME, NCET_BOOTSTRAP_ADMIN_PASSWORD\n'
 printf '  SCAN_MODE=clamav, CLAMAV_HOST=clamav, CLAMAV_PORT=3310\n'
 printf 'The database and encryption secrets were generated automatically; keep .env private and backed up.\n'
 printf 'After DNS/TLS is ready, verify: https://%s/healthz\n' "$PUBLIC_HOST"
+
