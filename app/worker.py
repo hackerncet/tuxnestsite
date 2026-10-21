@@ -7,7 +7,7 @@ from datetime import timedelta
 from sqlalchemy import or_
 from .database import DBSession, Verification, utcnow
 from .verification import run_job
-from .taskflow import run_task_once
+from .taskflow import run_task_once, run_task_reminder_once
 from .reference_rules import run_rule_draft_once
 from .discussion_digest import summarize_slot
 
@@ -36,8 +36,16 @@ def run_once():
 def main():
     signal.signal(signal.SIGTERM,shutdown)
     signal.signal(signal.SIGINT,shutdown)
+    next_reminder_check=0.0
+    reminder_check_interval=15*60
+    reminder_batches_per_check=10
     while not stop:
         try:
+            now=time.monotonic()
+            if now>=next_reminder_check:
+                for _ in range(reminder_batches_per_check):
+                    if not run_task_reminder_once():break
+                next_reminder_check=now+reminder_check_interval
             if run_once():continue
             if run_task_once():continue
             if run_rule_draft_once():continue

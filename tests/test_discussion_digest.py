@@ -38,7 +38,8 @@ def test_ai_summary_does_not_send_student_name_or_usn(client,login,monkeypatch):
         h=db.query(User).filter(User.username=='hod').one();h.department='Computer Applications'
         student=db.query(User).filter(User.username=='staff').one()
         db.add(CollaborationPost(student_id=student.id,title='Student 1NC24BCA001 project collaboration',
-            description='Contact 1NC24BCA001 about the science fair.',help_needed='Python contributors needed.',state='open',hidden=False))
+            department=student.department,description='Contact 1NC24BCA001 about the science fair.',
+            help_needed='Python contributors needed.',state='open',hidden=False))
         db.commit()
     monkeypatch.setattr(dg,'select_provider',lambda db:Provider('test','test-model','https://api.deepseek.com/chat/completions','fake'))
     def mock_provider(provider,system,payload,max_tokens=1300):

@@ -16,6 +16,31 @@
 #deadline-dialog h2{font-size:20px;color:#0E2455;margin:0 0 6px}
 #deadline-dialog label{margin:22px 0 7px}
 .deadline-dialog-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:22px;flex-wrap:wrap}
+#task-review-dialog{width:min(94vw,540px);max-height:calc(100dvh - 32px);border:1px solid #DCE5F0;border-radius:14px;box-shadow:0 24px 72px #0E245538;padding:25px;color:#172033;background:white}
+#task-review-dialog::backdrop{background:#0E24557D;backdrop-filter:blur(2px)}
+#task-review-dialog h2{font-size:20px;color:#0E2455;margin:0 0 6px}
+#task-review-dialog label{display:block;margin:22px 0 7px;font-weight:700}
+#task-review-dialog textarea{display:block;width:100%;min-height:130px;margin-top:8px;padding:11px;border:1px solid #CBD5E1;border-radius:8px;font:inherit;resize:vertical}
+#task-review-dialog textarea:focus{outline:3px solid #0E245533;border-color:#0E2455}
+.review-error{color:#9C341A;background:#FFF1EB;border:1px solid #F4B9A2;border-radius:7px;padding:10px}
 #assignment-deadline{max-width:100%}
 @media(max-width:1050px){.metrics{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media(max-width:650px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}#deadline-dialog{padding:17px}.deadline-dialog-actions .btn{flex:1 1 125px}}
+@media(max-width:650px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}#deadline-dialog,#task-review-dialog{padding:17px}.deadline-dialog-actions .btn{flex:1 1 125px}}
+.manual-rule{border:1px solid var(--line);border-radius:8px;padding:14px;margin:0 0 12px;min-width:0}
+.manual-rule legend{font-size:12px;font-weight:750;color:var(--navy);padding:0 5px}
+.manual-rule label{margin-bottom:10px}
+.manual-rule label input,.manual-rule label select{margin-top:5px}
+.manual-rule .rule-required{display:flex;align-items:center;gap:7px}
+.manual-rule .rule-required input{margin:0}
+.per-file-toggle{display:flex;align-items:center;gap:9px;padding:11px 12px;border:1px solid var(--line);border-radius:8px;background:#f7f9fc}
+.per-file-toggle input{width:17px;height:17px;accent-color:var(--navy);margin:0;flex:0 0 auto}
+.per-file-rules{display:grid;gap:12px;margin:12px 0}
+.per-file-checklist{border:1px solid var(--line);border-left:4px solid var(--navy);border-radius:8px;padding:14px;background:#fbfcfe;min-width:0}
+.per-file-checklist h4{font-size:13px;color:var(--navy);overflow-wrap:anywhere;margin:0 0 12px}
+.task-rules .manual-rule{background:#fff}
+.per-file-checklist>.btn{margin-top:4px}
+#per-file-rules[hidden],#per-file-help[hidden]{display:none}
+#manual-rules[hidden],#ai-rules[hidden]{display:none}
+.checklist-template-tools{border:1px solid var(--line);border-radius:8px;padding:14px;margin:12px 0;background:#f8fafc}.checklist-template-tools label{margin-bottom:9px}.checklist-template-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.checklist-template-actions .btn{padding:8px 10px}.checklist-template-tools .subtle{display:block}
+.task-next-action{display:block;max-width:370px;margin-top:5px;color:#52647a;font-size:11px;line-height:1.45;white-space:normal}
+@media(max-width:520px){.checklist-template-actions .btn{flex:1 1 140px}}

@@ -63,7 +63,7 @@ def test_case_privacy_password_change_hod_replies_and_closure(client,login):
         c=student_client.post('/api/bca/cases',headers={'X-CSRF-Token':student_token},json=payload)
         assert c.status_code==201,c.text
         ref=c.json()['reference']
-        assert ref.startswith('NCET-BCA-')
+        assert ref.startswith('NCET-REQ-')
         assert len(student_client.get('/api/bca/cases').json()['items'])==1
         assert client.get('/api/bca/cases').status_code==200
         # Case replies cannot be read by staff.
@@ -79,8 +79,48 @@ def test_case_privacy_password_change_hod_replies_and_closure(client,login):
         assert student_client.post('/api/bca/cases/'+ref+'/messages',headers={'X-CSRF-Token':student_token},json={'message':'One more'}).status_code==409
         with TestClient(app) as other:
             login(other,'hod2')
-            assert other.get('/api/bca/cases/'+ref).status_code==403
-            assert other.get('/api/bca/cases').status_code==403
+            assert other.get('/api/bca/cases/'+ref).status_code==404
+            assert other.get('/api/bca/cases').status_code==200
+            assert other.get('/api/bca/cases').json()['all_total']==0
+
+
+def test_student_requests_follow_actual_department_and_notify_its_hod(client,login):
+    admin_token=login(client,'admin')
+    imported=client.post('/api/bca/students/import',headers={'X-CSRF-Token':admin_token},files={
+        'file':('students.csv',b'usn,full_name,branch,semester\n1NC24CSE901,Student CSE,Computer Science & Engineering,5\n','text/csv')})
+    assert imported.status_code==200,imported.text
+    temporary=imported.json()['credentials'][0]['temporary_password']
+
+    from fastapi.testclient import TestClient
+    from app.main import app
+    with TestClient(app) as student:
+        signed=student.post('/api/auth/login',json={'username':'1nc24cse901','password':temporary,'role':'student'})
+        assert signed.status_code==200,signed.text
+        csrf=signed.json()['csrf']
+        changed=student.post('/api/auth/change-password',headers={'X-CSRF-Token':csrf},json={
+            'old_password':temporary,'new_password':'CSE-student-new-password-2026!'})
+        assert changed.status_code==200,changed.text
+        created=student.post('/api/bca/cases',headers={'X-CSRF-Token':csrf},json={
+            'category':'academics','subject':'CSE lab schedule review',
+            'description':'Please review the updated Computer Science laboratory schedule.'})
+        assert created.status_code==201,created.text
+        ref=created.json()['reference']
+        assert student.get('/api/bca/cases/'+ref).status_code==200
+
+    # This fixture's HOD is CSE; the other HOD belongs to Mechanical Engineering.
+    hod_token=login(client,'hod')
+    cases=client.get('/api/bca/cases').json()
+    assert cases['total']==1 and cases['items'][0]['reference']==ref
+    detail=client.get('/api/bca/cases/'+ref).json()
+    assert detail['student']['name']=='Student CSE'
+    assert client.patch('/api/bca/cases/'+ref+'/status',headers={'X-CSRF-Token':hod_token},json={
+        'status':'resolved','note':'The schedule has been reviewed with the department.'}).status_code==200
+    alerts=client.get('/api/alerts/inbox').json()['items']
+    assert any('New student request' in item['text'] for item in alerts)
+    with TestClient(app) as unrelated:
+        login(unrelated,'hod2')
+        assert unrelated.get('/api/bca/cases').json()['all_total']==0
+        assert unrelated.get('/api/bca/cases/'+ref).status_code==404
 
 
 def test_public_indexable_service_private_data_not_indexable(client):
@@ -120,6 +160,36 @@ def test_admin_cannot_create_incomplete_student(client,login):
     assert response.status_code==422
     with DBSession() as db:
         assert db.query(User).filter(User.username=='1nc24bca555').first() is None
+
+
+def test_cs_usn_cannot_be_assigned_to_computer_applications(client,login):
+    token=login(client,'admin')
+    csv=b'usn,full_name,branch,semester\n1NC24CS999,Student Example,Computer Applications,3\n'
+    imported=client.post('/api/bca/students/import',headers={'X-CSRF-Token':token},files={
+        'file':('students.csv',csv,'text/csv')})
+    assert imported.status_code==422
+    assert 'identifies Computer Science & Engineering' in imported.text
+    with DBSession() as db:
+        assert db.query(User).filter(User.username=='1nc24cs999').first() is None
+
+    cse_csv=b'usn,full_name,branch,semester\n1NC24CS998,Student Example,Computer Science & Engineering,3\n'
+    imported=client.post('/api/bca/students/import',headers={'X-CSRF-Token':token},files={
+        'file':('students.csv',cse_csv,'text/csv')})
+    assert imported.status_code==200,imported.text
+    from app.student_profiles import FacultyUpdate, faculty_edit
+    from fastapi import HTTPException
+    with DBSession() as db:
+        admin=db.query(User).filter(User.username=='admin').one()
+        student=db.query(User).filter(User.username=='1nc24cs998').one()
+        try:
+            faculty_edit('1NC24CS998',FacultyUpdate(full_name='Student Example',
+                branch='Computer Applications',semester=3),admin,db)
+        except HTTPException as exc:
+            assert exc.status_code==422
+        else:
+            raise AssertionError('A CS-coded student was reassigned to Computer Applications.')
+        db.rollback()
+        assert student.department=='Computer Science & Engineering'
 
 
 def test_admin_password_reset_requires_student_password_change(client,login):

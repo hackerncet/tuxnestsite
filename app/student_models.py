@@ -27,7 +27,11 @@ class StudentCase(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),default=utcnow)
     student = relationship('User', foreign_keys=[student_id])
     messages = relationship('StudentCaseMessage',back_populates='case',order_by='StudentCaseMessage.id',cascade='all, delete-orphan')
-    __table_args__=(Index('ix_student_case_department_status','department','status'),)
+    __table_args__=(
+        Index('ix_student_case_department_status','department','status'),
+        Index('ix_student_case_department_created','department','created_at','id'),
+        Index('ix_student_case_student_created','student_id','created_at','id'),
+    )
 
 class StudentCaseMessage(Base):
     __tablename__='student_case_messages'
@@ -38,3 +42,4 @@ class StudentCaseMessage(Base):
     created_at: Mapped[datetime]=mapped_column(DateTime(timezone=True),default=utcnow)
     case=relationship('StudentCase',back_populates='messages')
     actor=relationship('User')
+    __table_args__=(Index('ix_student_case_message_case_id_id','case_id','id'),)

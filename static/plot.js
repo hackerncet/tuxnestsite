@@ -54,7 +54,9 @@
     for (const entry of performance.getEntriesByType('resource')) {
       const name = entry.name.split('?')[0].toLowerCase();
       const group = /\.(m?js)$/.test(name) ? 'Scripts' : /\.css$/.test(name) ? 'Styles' : /\.(png|jpe?g|webp|gif|svg|avif)$/.test(name) ? 'Images' : /\.(woff2?|ttf|otf)$/.test(name) ? 'Fonts' : 'Other';
-      groups[group] += Math.max(0, entry.transferSize || entry.encodedBodySize || 0);
+      // transferSize reports network bytes. Cached responses transfer 0 bytes,
+      // and encodedBodySize is not a valid fallback for a network total.
+      groups[group] += Math.max(0, entry.transferSize || 0);
     }
     const total = Object.values(groups).reduce((sum, n) => sum + n, 0);
     $('resource-total').textContent = bytes(total);
@@ -73,8 +75,10 @@
     const button = $('check-health'); button.disabled = true;
     $('health-status').textContent = 'Checking'; $('health-detail').textContent = 'Requesting the read-only health endpoint…';
     const started = performance.now();
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
     try {
-      const response = await fetch('/healthz', { cache: 'no-store', credentials: 'omit', headers: { Accept: 'application/json' } });
+      const response = await fetch('/healthz', { cache: 'no-store', credentials: 'omit', signal: controller.signal, headers: { Accept: 'application/json' } });
       const elapsed = performance.now() - started;
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
@@ -83,8 +87,9 @@
       $('health-detail').textContent = 'The app returned a successful readiness response. This one check is not an uptime guarantee.';
     } catch (error) {
       $('health-dot').className = 'dot down'; $('health-status').textContent = 'Unavailable'; $('health-latency').textContent = '—';
-      $('health-detail').textContent = `The health check did not complete (${String(error.message || 'network error').slice(0, 80)}).`;
-    } finally { button.disabled = false; }
+      const reason = error.name === 'AbortError' ? 'timed out after 8 seconds' : String(error.message || 'network error').slice(0, 80);
+      $('health-detail').textContent = `The health check did not complete (${reason}).`;
+    } finally { clearTimeout(timeout); button.disabled = false; }
   }
 
   summarizeLoad();

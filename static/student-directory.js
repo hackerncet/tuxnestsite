@@ -21,7 +21,7 @@ async function loadDirectory(q='',pageOffset=0){
     :'<span class="profile-card-initial" aria-hidden="true">'+escapeHtml(initials(p.name))+'</span>';
    return '<article class="profile-card">'+photo+
     '<h2><a href="/students/profile/'+encodeURIComponent(p.usn)+'">'+escapeHtml(p.name)+'</a></h2>'+
-    '<p><strong>'+escapeHtml(p.usn)+'</strong> · BCA</p>'+
+    '<p><strong>'+escapeHtml(p.usn)+'</strong> · '+escapeHtml(p.department||'Department unavailable')+'</p>'+
     '<p>'+ (p.skills?.length?'Skills: '+p.skills.slice(0,4).map(escapeHtml).join(', '):'Explore this student portfolio')+'</p>'+
     '<a class="btn" href="/students/profile/'+encodeURIComponent(p.usn)+'">View profile →</a></article>';
   }).join('');

@@ -99,7 +99,9 @@ def test_mandatory_violations_resubmit_and_manual_review(client,monkeypatch):
     monkeypatch.setattr('app.verification.call_ai',fake_ai)
     h=login_role(client,'hod');store_rulebook(client,h,[{'id':'heading','title':'Mandatory heading','type':'required_heading','value':'Executive Summary'},
                                                 {'id':'grammar','title':'Grammar','type':'grammar'}]);signout(client,h)
-    h=login_role(client,'staff');id=upload(client,h,'Different Heading');finish(id)
+    # Keep enough extractable PDF text to avoid OCR uncertainty so this case
+    # exercises a deterministic missing-heading violation, not manual review.
+    h=login_role(client,'staff');id=upload(client,h,'Different Heading\nThis report contains enough explanatory text for reliable extraction.');finish(id)
     assert client.get('/api/documents').json()['items'][0]['status']=='needs_correction'
     report=client.get(f'/api/documents/{id}/verification').json()['report']
     assert report['status']=='needs_correction'
@@ -109,7 +111,7 @@ def test_mandatory_violations_resubmit_and_manual_review(client,monkeypatch):
     signout(client,h)
     h=login_role(client,'staff')
     resp=client.post(f'/api/documents/{id}/resubmit',headers=h,data={'note':'Added missing required heading'},
-        files={'file':('revision.pdf',pdf_data('Executive Summary'),'application/pdf')})
+        files={'file':('revision.pdf',pdf_data('Executive Summary\nThis report includes enough supporting text for reliable extraction.'),'application/pdf')})
     assert resp.status_code==200,resp.text
     assert client.get('/api/documents').json()['items'][0]['status']=='verifying'
     finish(id)

@@ -87,7 +87,14 @@ def test_canonical_route_authentication_headers_and_static_bypass(client,login):
         summary=principal.get('/api/bca/oversight').json()
         assert summary['cases_total']==6 and 'cases' not in summary
         assert principal.get('/api/bca/cases').status_code==403
-    for role in ('hod2','staff','admin','iqac'):
+    with TestClient(app) as another_hod:
+        login(another_hod,'hod2')
+        page=another_hod.get('/complaints')
+        assert page.status_code==200
+        cases=another_hod.get('/api/bca/cases').json()
+        assert cases['all_total']==0
+        assert another_hod.get('/api/bca/cases/NCET-BCA-WAIT').status_code==404
+    for role in ('staff','admin','iqac'):
         with TestClient(app) as other:
             login(other,role)
             denial=other.get('/complaints')

@@ -33,6 +33,10 @@ Optimized profile loads one dedicated CSS file (`resume-profile.css`, 10,839 B) 
 - Profile HTML and sensitive APIs remain no-store, prioritizing immediate revocation/unpublication.
 - The CI tests and reproducible benchmark source live in `tests/browser_student_resume.py`, `tests/browser_responsive_audit.py`, and `tests/test_public_performance.py`.
 
+### Department task feed query guard (2026-10-21)
+
+The `/api/tasks` feed now selects task metadata without loading stored reference-PDF bytes, fetches staff names in one query, and fetches at most 50 decisions per task with one window-function query. A regression test checks the response, selected columns, and query count for a four-task synthetic list. This is a database-work reduction; it is not a measured production latency claim. HOD dashboard pagination and aggregate SQL remain separate from this feed.
+
 ## Remaining production instrumentation
 
 For an end-to-end **production** benchmark, measure real-user LCP, INP and CLS; sample server p50/p95 latency at load and DB CPU/memory, and test under representative concurrent users. The tests above cannot honestly certify universal 100% responsiveness or a particular live Lighthouse score.

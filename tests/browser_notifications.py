@@ -1,15 +1,14 @@
 """Browser test: BCA student skill list and signed-in notification panel."""
 from pathlib import Path
 from playwright.sync_api import sync_playwright
+from browser_runtime import launch_chromium
 from browser_bca import load_page
 
 STATIC=Path(__file__).resolve().parents[1]/'static'
 
 def main():
     with sync_playwright() as pw:
-        opts={'headless':True,'args':['--no-sandbox']}
-        if Path('/usr/bin/chromium').exists():opts['executable_path']='/usr/bin/chromium'
-        browser=pw.chromium.launch(**opts)
+        browser=launch_chromium(pw,headless=True)
         page=browser.new_page(viewport={'width':390,'height':844})
         errors=[]
         page.on('pageerror',lambda e:errors.append(str(e)))
@@ -36,7 +35,7 @@ def main():
             return new Response('{}',{status:200});
           };
         }""")
-        page.add_script_tag(content=(STATIC/'notifications.js').read_text())
+        page.add_script_tag(content=(STATIC/'notifications.js').read_text(encoding='utf-8'))
         page.locator('#ncet-alerts').wait_for(state='visible')
         assert '2 new' in page.locator('#alert-count').inner_text()
         page.locator('#alert-toggle').click()

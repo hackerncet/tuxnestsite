@@ -1,12 +1,13 @@
 """Live browser checks for the browser-local performance report."""
 import os
 from playwright.sync_api import sync_playwright
+from browser_runtime import launch_chromium
 
 BASE = os.getenv('NCET_BASE_URL', 'http://127.0.0.1:8000').rstrip('/')
 WIDTHS = (320, 390, 768, 1366)
 
 with sync_playwright() as playwright:
-    browser = playwright.chromium.launch(headless=True)
+    browser = launch_chromium(playwright, headless=True)
     for width in WIDTHS:
         page = browser.new_page(viewport={'width': width, 'height': 900})
         errors = []
@@ -44,7 +45,7 @@ with sync_playwright() as playwright:
         page.close()
     browser.close()
 
-    browser = playwright.chromium.launch(headless=True)
+    browser = launch_chromium(playwright, headless=True)
     page = browser.new_page(viewport={'width': 1280, 'height': 900})
     page.goto(BASE + '/', wait_until='domcontentloaded', timeout=25000)
     assert page.locator('footer a[href="/plot"]').inner_text() == 'Performance & optimization'

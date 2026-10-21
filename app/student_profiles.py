@@ -9,6 +9,7 @@ import io
 import json
 import re
 import secrets
+import zipfile
 from PIL import Image, ImageOps, UnidentifiedImageError
 from datetime import datetime
 from html import escape
@@ -23,13 +24,15 @@ from sqlalchemy.orm import Session as DbSession, Mapped, mapped_column, defer
 
 from .database import Base, User, AuditLog, utcnow, get_db
 from .student_models import BCAStudent
-from .student_services import BCA_DEPARTMENT, USN_RE, can_manage_bca
+from .student_services import (USN_RE, can_manage_student_roster, student_roster_department,
+                               department_scope_values)
 from .security import current, csrf_required, hash_password
 from .departments import branch_option, branch_name, AcademicDepartment
 
 router = APIRouter(tags=['NCET student enrollment and showcase'])
 URL_ROOT = 'https://ncet-verifyflow.onrender.com'
 MAX_BATCH = 100
+USN_DEPARTMENT_PREFIXES = {'CS': 'Computer Science & Engineering'}
 
 class StudentShowcase(Base):
     __tablename__ = 'bca_student_showcases'
@@ -117,6 +120,41 @@ def valid_name(name:str)->bool:
     return 3<=len(name)<=130 and name[0] not in '=+-@' and not any(ord(c)<32 for c in name)
 
 
+def validate_usn_department(usn:str,department:str)->None:
+    """Reject the confirmed CS USN code when it is assigned to another department."""
+    expected=USN_DEPARTMENT_PREFIXES.get(usn[5:7].upper())
+    if expected and department!=expected:
+        raise HTTPException(422,f'USN {usn} identifies {expected}; select that department.')
+
+
+def validate_xlsx_archive(content:bytes)->None:
+    """Reject malformed, oversized, or macro-enabled XLSX containers early."""
+    try:
+        with zipfile.ZipFile(io.BytesIO(content)) as archive:
+            entries=archive.infolist()
+            if not entries or len(entries)>256:
+                raise ValueError('Spreadsheet archive has an invalid number of files.')
+            total_size=0
+            names=set()
+            for entry in entries:
+                if entry.flag_bits & 0x1:
+                    raise ValueError('Encrypted spreadsheets are not supported.')
+                if entry.file_size<0 or entry.file_size>4*1024*1024:
+                    raise ValueError('Spreadsheet contains an oversized file.')
+                total_size+=entry.file_size
+                names.add(entry.filename)
+            if total_size>8*1024*1024:
+                raise ValueError('Spreadsheet expands beyond the 8 MB safety limit.')
+            required={'[Content_Types].xml','_rels/.rels','xl/workbook.xml'}
+            if not required.issubset(names) or not any(
+                name.startswith('xl/worksheets/') and name.endswith('.xml') for name in names):
+                raise ValueError('File is not a valid XLSX workbook.')
+            if any(name.lower()=='xl/vbaproject.bin' for name in names):
+                raise ValueError('Macro-enabled spreadsheets are not supported.')
+    except (zipfile.BadZipFile,zipfile.LargeZipFile) as exc:
+        raise ValueError('Spreadsheet archive is damaged.') from exc
+
+
 def validate_enrollment(db:DbSession,actor:User,items:list[EnrollmentItem])->list[tuple[str,str,str,int]]:
     result=[];seen=set()
     for i,item in enumerate(items,1):
@@ -126,14 +164,15 @@ def validate_enrollment(db:DbSession,actor:User,items:list[EnrollmentItem])->lis
         if not valid_name(name):raise HTTPException(422,f'Student name is required at entry {i}.')
         if usn in seen:raise HTTPException(422,f'Duplicate USN at entry {i}.')
         branch=branch_option(db,item.branch).code
-        if actor.role!='admin' and branch!=BCA_DEPARTMENT:
-            raise HTTPException(403,'BCA faculty may register students only in Computer Applications.')
+        validate_usn_department(usn,branch)
+        if actor.role!='admin' and branch!=student_roster_department(db,actor):
+            raise HTTPException(403,'Department faculty may register students only in their assigned branch.')
         seen.add(usn);result.append((usn,name,branch,item.semester))
     return result
 
 
 def create_students(db, actor, items:list[EnrollmentItem]):
-    can_manage_bca(actor)
+    can_manage_student_roster(actor)
     values=validate_enrollment(db,actor,items)
     if db.query(User.id).filter(User.username.in_([u.lower() for u,n,b,s in values])).first() or \
        db.query(BCAStudent.id).filter(BCAStudent.usn.in_([u for u,n,b,s in values])).first():
@@ -148,7 +187,7 @@ def create_students(db, actor, items:list[EnrollmentItem]):
                       password_hash=hash_password(password),active=True)
             db.add(user);db.flush()
             db.add(BCAStudent(user_id=user.id,usn=usn,semester=semester,must_change_password=True))
-            creds.append({'usn':usn,'name':name,'branch':branch,'semester':semester,'temporary_password':password})
+            creds.append({'usn':usn,'name':name,'branch':branch_name(db,branch),'semester':semester,'temporary_password':password})
         db.add(AuditLog(actor_id=actor.id,event='bca.flexible_enrollment',detail=f'{len(values)} new USNs'))
         db.commit()
     except IntegrityError:
@@ -164,17 +203,30 @@ def enroll(body:EnrollmentBody,actor:User=Depends(csrf_required),db:DbSession=De
 
 @router.post('/api/bca/students/import-excel')
 async def import_excel(file:UploadFile=File(...),actor:User=Depends(csrf_required),db:DbSession=Depends(get_db)):
-    can_manage_bca(actor)
+    can_manage_student_roster(actor)
     if not (file.filename or '').lower().endswith('.xlsx'):
         raise HTTPException(422,'Upload an .xlsx spreadsheet.')
     content=await file.read(350_001)
     if len(content)>350_000:raise HTTPException(413,'Spreadsheet must be smaller than 350 KB.')
+    try:
+        validate_xlsx_archive(content)
+    except ValueError as exc:
+        raise HTTPException(422,'Invalid Excel roster: '+str(exc)) from exc
+    from openpyxl.xml import DEFUSEDXML
+    if not DEFUSEDXML:
+        raise HTTPException(503,'Safe Excel XML parsing is unavailable; contact the administrator.')
     from openpyxl import load_workbook
     try:
         book=load_workbook(io.BytesIO(content),read_only=True,data_only=True)
         sheet=book.active
-        iterator=sheet.iter_rows(min_row=1,max_row=102,values_only=True)
-        header=tuple(str(c or '').strip().lower() for c in next(iterator))
+        if ((sheet.max_row is not None and sheet.max_row>101) or
+                (sheet.max_column is not None and sheet.max_column>4)):
+            raise ValueError('Use exactly four columns and at most 100 student rows.')
+        iterator=sheet.iter_rows(min_row=1,max_row=102,max_col=5,values_only=True)
+        header_row=next(iterator)
+        if len(header_row)>4 and header_row[4] is not None:
+            raise ValueError('Use exactly four columns: USN, Name, Branch, Sem.')
+        header=tuple(str(c or '').strip().lower() for c in header_row[:4])
         aliases={'name':'full_name','department':'branch','sem':'semester'}
         normalized=tuple(aliases.get(h,h) for h in header)
         if normalized!=('usn','full_name','branch','semester'):
@@ -182,8 +234,10 @@ async def import_excel(file:UploadFile=File(...),actor:User=Depends(csrf_require
         parsed=[]
         for row in iterator:
             if not row or not any(c is not None and str(c).strip() for c in row):continue
+            if len(row)>4 and row[4] is not None:
+                raise ValueError('Use exactly four columns: USN, Name, Branch, Sem.')
             if len(parsed)>=100:raise ValueError('Maximum 100 student rows per spreadsheet.')
-            if len(row)!=4 or any(c is None or not str(c).strip() for c in row):
+            if any(c is None or not str(c).strip() for c in row[:4]):
                 raise ValueError('All four fields are required for each student.')
             try:semester=int(row[3])
             except (TypeError,ValueError):raise ValueError('Semester must be a whole number between 1 and 8.')
@@ -200,7 +254,7 @@ async def import_excel(file:UploadFile=File(...),actor:User=Depends(csrf_require
 
 @router.patch('/api/bca/students/{usn}')
 def faculty_edit(usn:str,body:FacultyUpdate,actor:User=Depends(csrf_required),db:DbSession=Depends(get_db)):
-    can_manage_bca(actor)
+    can_manage_student_roster(actor)
     found=(db.query(User,BCAStudent).join(BCAStudent,BCAStudent.user_id==User.id)
            .filter(BCAStudent.usn==usn.strip().upper()).first())
     if not found:raise HTTPException(404,'Student USN not found.')
@@ -208,7 +262,9 @@ def faculty_edit(usn:str,body:FacultyUpdate,actor:User=Depends(csrf_required),db
     if not valid_name(name):raise HTTPException(422,'Enter a valid student name.')
     user,student=found
     target=branch_option(db,body.branch)
-    if actor.role!='admin' and (user.department!=actor.department or target.code!=user.department):
+    validate_usn_department(student.usn,target.code)
+    scope=department_scope_values(db,actor.department)
+    if actor.role!='admin' and (user.department not in scope or target.code!=student_roster_department(db,actor)):
         raise HTTPException(403,'Faculty cannot transfer students between departments.')
     user.display_name=name;student.semester=body.semester;user.department=target.code
     # Changing official enrollment data requires the student to explicitly republish.

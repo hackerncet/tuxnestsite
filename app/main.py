@@ -57,7 +57,7 @@ from .student_removal import router as student_removal_router
 app.include_router(student_removal_router)
 from .student_profiles import router as showcase_router
 app.include_router(showcase_router)
-from .departments import router as department_router
+from .departments import router as department_router, AcademicDepartment
 app.include_router(department_router)
 from .notifications import router as alert_router
 app.include_router(alert_router)
@@ -193,7 +193,7 @@ def favicon_compat():
 @app.get('/healthz')
 def health():
     with engine.connect() as connection:
-        connection.execute(select(func.count()).select_from(User))
+        connection.execute(select(1))
     return {'ok':True}
 
 @app.get('/', response_class=HTMLResponse)
@@ -214,16 +214,16 @@ def community_page(user:User=Depends(current)):
 
 @app.get('/bca/manage', response_class=HTMLResponse)
 def bca_desk(user:User=Depends(current)):
-    from .student_services import can_manage_bca
-    can_manage_bca(user)
+    from .student_services import can_manage_student_roster
+    can_manage_student_roster(user)
     return FileResponse(STATIC/'bca-management.html', headers={'X-Robots-Tag':'noindex,nofollow','Cache-Control':'no-store'})
 
 @app.get('/complaints',response_class=HTMLResponse)
 @app.get('/bca/complaints',response_class=HTMLResponse)
 def bca_complaint_management(user:User=Depends(current)):
-    from .notifications import oversight_access
+    from .notifications import case_dashboard_access
     try:
-        oversight_access(user)
+        case_dashboard_access(user)
     except HTTPException as exc:
         if exc.status_code!=403:
             raise
@@ -399,7 +399,7 @@ async def upload(title:str=Form(...),category:str=Form(...),year:str=Form(...),d
     if not 5<=len(title)<=140: raise HTTPException(422,'Document title must contain 5 to 140 characters.')
     if not 10<=len(description)<=2000: raise HTTPException(422,'Description must contain 10 to 2,000 characters.')
     if not 3<=len(category)<=100: raise HTTPException(422,'Select a valid document category.')
-    if not re.fullmatch(r'20\d{2}[–-]\d{2,4}',year): raise HTTPException(422,'Select a valid academic year.')
+    if not re.fullmatch(r'20\d{2}[-–]\d{2,4}',year): raise HTTPException(422,'Select a valid academic year.')
     name,mime,data=await read_upload(file)
     key,content=await run_in_threadpool(store,data,mime)
     try:
@@ -411,7 +411,8 @@ async def upload(title:str=Form(...),category:str=Form(...),year:str=Form(...),d
         db.add(Attachment(document_id=doc.id, version=1,name=name,mime=mime,size=len(data),
                           sha256=digest(data),storage_key=key,bytes_content=content))
         db.add(Verification(document_id=doc.id,revision=1,policy_id=policy.id if policy else None,state='queued'))
-        db.add(DocumentEvent(document_id=doc.id,actor_id=user.id,action='submitted',note='Queued for rule-based and AI verification.'))
+        db.add(DocumentEvent(document_id=doc.id,actor_id=user.id,action='submitted',
+                             note='Queued for automated checks; human review follows when evidence is missing or AI is unavailable.'))
         audit(db,user,'document.created',doc.public_id)
         db.commit()
         return {'id':doc.public_id,'ok':True}
@@ -504,6 +505,13 @@ def create_user(body:UserBody,user:User=Depends(as_role_mutation('admin','hod'))
         if body.role!='staff' or department!=user.department:
             raise HTTPException(403,'You may add faculty members only to your own department.')
         department=user.department
+    else:
+        canonical=db.query(AcademicDepartment).filter(
+            func.lower(AcademicDepartment.name)==department.lower(),
+            AcademicDepartment.active.is_(True)).first()
+        if not canonical:
+            raise HTTPException(422,'Choose an active department from Academic Department settings.')
+        department=canonical.name
     if db.query(User).filter(User.username==body.username.lower()).first():
         raise HTTPException(409,'Username already exists.')
     created=User(username=body.username.lower(),display_name=body.display_name.strip(),
@@ -520,6 +528,13 @@ def edit_user(uid:int,body:UserPatch,user:User=Depends(as_role_mutation('admin',
         raise HTTPException(404,'User not found.')
     if user.role=='hod' and body.department is not None and body.department.strip()!=user.department:
         raise HTTPException(403,'Staff cannot be transferred to another department.')
+    if user.role=='admin' and body.department is not None:
+        canonical=db.query(AcademicDepartment).filter(
+            func.lower(AcademicDepartment.name)==body.department.strip().lower(),
+            AcademicDepartment.active.is_(True)).first()
+        if not canonical:
+            raise HTTPException(422,'Choose an active department from Academic Department settings.')
+        body.department=canonical.name
     if target.id==user.id and body.active is False:raise HTTPException(409,'Cannot disable your own account.')
     if target.role=='admin' and body.active is False and db.query(User).filter(User.role=='admin',User.active.is_(True)).count()<=1:
         raise HTTPException(409,'At least one active administrator is required.')

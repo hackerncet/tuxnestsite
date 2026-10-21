@@ -1,27 +1,25 @@
 """Real Chromium screens, mock API transport; separate backend integration tests assert RBAC."""
 from pathlib import Path
 from playwright.sync_api import sync_playwright
+from browser_runtime import launch_chromium
 BASE=Path(__file__).resolve().parents[1]/'static'
 
 def test_browser():
   with sync_playwright() as pw:
-    chrome=Path('/usr/bin/chromium')
-    kw={'headless':True,'args':['--no-sandbox']}
-    if chrome.exists():kw['executable_path']=str(chrome)
-    browser=pw.chromium.launch(**kw)
+    browser=launch_chromium(pw,headless=True)
     for role in ('hod','staff','principal','iqac','admin'):
       page=browser.new_page(viewport={'width':390 if role=='staff' else 1366,'height':840})
       errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
-      html=(BASE/'tasks.html').read_text().replace('<link rel="stylesheet" href="/static/tasks.css">','<style>'+ (BASE/'tasks.css').read_text()+'</style>')
+      html=(BASE/'tasks.html').read_text(encoding='utf-8').replace('<link rel="stylesheet" href="/static/tasks.css?v=20261021-per-file-checklists">','<style>'+ (BASE/'tasks.css').read_text(encoding='utf-8')+'</style>')
       html=html.replace('<script src="/static/tasks.js" defer></script>','')
       html=html.replace('<script src="/static/hod-dashboard.js?v=20261017f" defer></script>','')
       html=html.replace('<link rel="stylesheet" href="/static/hod-dashboard.css?v=20261017f">',
-        '<style>'+ (BASE/'hod-dashboard.css').read_text()+'</style>')
+        '<style>'+ (BASE/'hod-dashboard.css').read_text(encoding='utf-8')+'</style>')
       page.set_content(html)
       page.evaluate("""(role)=>{window.fetch=async(url,opts)=>{
         const u=String(url);let data={};
         if(u.includes('/auth/me'))data={user:{id:1,name:'Faculty Example',role,department:'Computer Applications'},csrf:'demo-token'};
-        else if(u.endsWith('/tasks'))data={items:[{id:1,batch_id:1,file:'Academic_Audit.pdf',state:role==='hod'&&!window.__assigned?'unassigned':'assigned',department:'Computer Applications',assigned_to:'Faculty Example',assigned_staff_id:5,deadline:window.__changedDeadline||window.__assigned?.deadline||null,overdue:false,score:null,report:{},notes:'Please follow requirements',rules:[]}]};
+        else if(u.endsWith('/tasks')){const task=id=>({id,batch_id:1,file:id===1?'Academic_Audit.pdf':'Course_Outcomes.pdf',state:role==='hod'&&!window.__assigned?'unassigned':window.__taskState||'assigned',department:'Computer Applications',assigned_to:'Faculty Example',assigned_staff_id:5,deadline:window.__changedDeadline||window.__assigned?.deadline||null,overdue:false,score:null,report:{},notes:'Please follow requirements',rules:[]});data={items:window.__multi?[task(1),task(2)]:[task(1)]};}
         else if(u.includes('/tasks/dashboard')){
           const assigned=Boolean(window.__assigned);
           const eventTime='2026-10-17T10:00:00+00:00';
@@ -44,13 +42,14 @@ def test_browser():
         else if(u.includes('/insights/discussions'))data={items:[]};
         else if(u.includes('/ai/status'))data={configured:false,model:null};
         else if(u.endsWith('/tasks/rules/drafts'))data={items:[{task_id:1,state:'ready',summary:'Rules extracted from the uploaded PDF',model:'deepseek-chat',rules:[{id:'reference_1',title:'Introduction',type:'required_heading',required:true,value:'Introduction',instructions:'Use the introduction heading'}]}]};
-        else if(u.endsWith('/tasks/assign')){window.__assigned=JSON.parse(opts.body);data={assigned:1};}
+        else if(u.endsWith('/tasks/assign')){window.__assigned=JSON.parse(opts.body);data={assigned:window.__assigned.task_ids.length};}
         else if(u.includes('/deadline')){window.__changedDeadline=JSON.parse(opts.body).deadline;data={changed:true,deadline:window.__changedDeadline};}
+        else if(u.includes('/tasks/1/decide')){window.__decision=JSON.parse(opts.body);data={state:window.__decision.decision==='approved'?'approved':'correction_required'};}
         else data={ok:true,assigned:1};
         return {ok:true,json:async()=>data,status:200};
       }}""",role)
-      page.add_script_tag(content=(BASE/'hod-dashboard.js').read_text())
-      page.add_script_tag(content=(BASE/'tasks.js').read_text())
+      page.add_script_tag(content=(BASE/'hod-dashboard.js').read_text(encoding='utf-8'))
+      page.add_script_tag(content=(BASE/'tasks.js').read_text(encoding='utf-8'))
       page.locator('#tasks strong[title="Academic_Audit.pdf"]').wait_for()
       assert page.get_by_text('Academic audit assigned').count()==1
       if role=='hod':
@@ -63,12 +62,13 @@ def test_browser():
         assert page.locator('#dash-trend-chart .daily-column').count()==14
         page.locator('[data-select="1"]').check()
         assert '1 unassigned PDFs selected' in page.locator('#selected-ids').inner_text()
-        page.get_by_text('Rules extracted from the uploaded PDF').wait_for()
+        assert page.locator('#rules-mode').input_value()=='manual'
+        assert page.locator('#manual-rules').is_visible()
+        page.locator('.manual-rule input[type="text"]').first.fill('Include approval block')
+        page.locator('.manual-rule input[type="text"]').nth(1).fill('Approved by department head')
         assert page.locator('#rules').count()==0, 'Legacy line-by-line rule parser must be removed'
-        assert page.locator('#review-confirm').is_enabled()
         page.locator('#staff-id').select_option('5')
         page.locator('#notes').fill('Complete the academic document following the reference PDF.')
-        page.locator('#review-confirm').check()
         assert page.locator('#assignment-deadline[type="datetime-local"]').is_visible()
         date_value=page.evaluate("""() => {
           const d=new Date(Date.now()+3*86400000);
@@ -77,11 +77,14 @@ def test_browser():
         }""")
         page.locator('#assignment-deadline').fill(date_value)
         page.locator('#assign-form button[type=submit]').click()
-        page.wait_for_function('window.__assigned && window.__assigned.use_generated_rules===true')
+        page.wait_for_function('window.__assigned && window.__assigned.use_generated_rules===false')
         data=page.evaluate('window.__assigned')
-        assert data['confirmed_task_ids']==[1]
+        assert data['confirmed_task_ids']==[]
         assert data['task_ids']==[1]
-        assert data['deadline'] and data['deadline'].startswith(date_value[:10])
+        expected_deadline=page.evaluate('(value)=>new Date(value).toISOString()',date_value)
+        assert data['deadline']==expected_deadline
+        assert data['rules'][0]['title']=='Include approval block'
+        assert data['rules'][0]['value']=='Approved by department head'
         page.locator('button[data-op="deadline"]').wait_for(state='visible')
         page.locator('button[data-op="deadline"]').click()
         assert page.locator('#deadline-dialog').is_visible()
@@ -113,10 +116,65 @@ def test_browser():
         # Responsive HOD dashboard checks: metric grid, charts and task drilldown.
         for width in (320,390,768,1024,1366):
           page.set_viewport_size({'width':width,'height':850})
-          assert page.evaluate('document.documentElement.scrollWidth <= innerWidth + 2'),width
+          assert page.evaluate('document.documentElement.scrollWidth <= innerWidth + 2'),(width,page.evaluate("[...document.querySelectorAll('body *')].map(e=>({tag:e.tagName,id:e.id,cls:String(e.className||''),right:Math.round(e.getBoundingClientRect().right),width:Math.round(e.getBoundingClientRect().width),display:getComputedStyle(e).display})).filter(x=>x.right>innerWidth+2&&x.display!=='none').slice(0,12)"))
           assert page.locator('#dashboard-metrics [data-dash-status="all"]').is_visible(),width
           assert page.locator('#dash-stage-chart').is_visible(),width
         page.set_viewport_size({'width':1366,'height':840})
+        # Exercise the no-AI checklist path through the actual HOD form and request payload.
+        page.evaluate('window.__assigned=null;window.__changedDeadline=null')
+        page.locator('#refresh').click()
+        page.locator('[data-select="1"]').wait_for()
+        page.locator('[data-select="1"]').check()
+        page.locator('#rules-mode').select_option('manual')
+        page.locator('#staff-id').select_option('5')
+        page.locator('#notes').fill('Complete the academic document following the reference PDF.')
+        page.locator('#assign-form button[type=submit]').click()
+        page.wait_for_function('window.__assigned && window.__assigned.use_generated_rules===false')
+        manual=page.evaluate('window.__assigned')
+        assert manual['rules'][0]['title']=='Include approval block'
+        assert manual['rules'][0]['value']=='Approved by department head'
+        assert manual['confirmed_task_ids']==[]
+        page.evaluate('window.__multi=true;window.__assigned=null;window.__taskState=null')
+        page.locator('#refresh').click()
+        page.locator('[data-select="1"]').check()
+        page.locator('[data-select="2"]').check()
+        assert page.locator('#per-file-toggle-label').is_visible()
+        page.locator('#per-file-toggle').check()
+        cards=page.locator('.per-file-checklist')
+        assert cards.count()==2
+        cards.nth(0).locator('.manual-rule input[type="text"]').nth(0).fill('Department cover page')
+        cards.nth(0).locator('.manual-rule input[type="text"]').nth(1).fill('Department Cover')
+        cards.nth(1).locator('.manual-rule input[type="text"]').nth(0).fill('Course outcomes section')
+        cards.nth(1).locator('.manual-rule input[type="text"]').nth(1).fill('Course Outcomes')
+        page.locator('#staff-id').select_option('5')
+        page.locator('#notes').fill('Complete the separate academic documents using their own checklists.')
+        page.locator('#assign-form button[type=submit]').click()
+        page.wait_for_function("window.__assigned && window.__assigned.rules_by_task['1'] && window.__assigned.rules_by_task['2']")
+        per_file=page.evaluate('window.__assigned.rules_by_task')
+        assert per_file['1'][0]['value']=='Department Cover'
+        assert per_file['2'][0]['value']=='Course Outcomes'
+        page.evaluate("window.__taskState='manual_review'")
+        page.locator('#refresh').click()
+        page.locator('button[data-op="decide"]').first.wait_for(state='visible')
+        page.locator('button[data-op="decide"]').first.click()
+        assert page.locator('#task-review-dialog').is_visible()
+        assert page.locator('#task-review-title').inner_text()=='Request a correction'
+        page.locator('#task-review-note').fill('Please add the missing department approval signature.')
+        page.locator('#task-review-submit').click()
+        page.wait_for_function('window.__decision !== undefined')
+        decision=page.evaluate('window.__decision')
+        assert decision['decision']=='needs_correction'
+        assert len(decision['note'])>=10
+        assert page.locator('#task-review-dialog').is_hidden()
+        page.evaluate("window.__taskState='awaiting_hod'")
+        page.locator('#refresh').click()
+        page.locator('button[data-op="decide"]').first.wait_for(state='visible')
+        page.locator('button[data-op="decide"]').first.click()
+        assert page.locator('#task-review-title').inner_text()=='Approve submitted work'
+        page.locator('#task-review-note').fill('Checked against the reference and approved for filing.')
+        page.locator('#task-review-submit').click()
+        page.wait_for_function("window.__decision && window.__decision.decision==='approved'")
+        assert page.locator('#task-review-dialog').is_hidden()
 
       else:
         assert page.locator('#hod-section').is_hidden()

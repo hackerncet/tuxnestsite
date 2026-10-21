@@ -15,6 +15,7 @@ os.environ['DATABASE_URL']='sqlite:///'+path
 os.environ['STORAGE_BACKEND']='database'
 from fastapi.testclient import TestClient
 from playwright.sync_api import sync_playwright
+from browser_runtime import launch_chromium
 from app.main import app
 from app.database import Base,DBSession,engine,User
 from app.student_models import BCAStudent
@@ -43,7 +44,7 @@ with TestClient(app) as client:
 assert 'Student Project' in html and 'Programming Certificate' in html
 
 with sync_playwright() as p:
-    browser=p.chromium.launch(headless=True)
+    browser=launch_chromium(p,headless=True)
     switches=[]
     for width in (320,375,390,768,1024,1440):
         page=browser.new_page(viewport={'width':width,'height':850},device_scale_factor=1)
@@ -114,6 +115,7 @@ with sync_playwright() as p:
     assert page.locator('.resume-anchors[role="tablist"]').count()==0
     nojs.close()
     browser.close()
+engine.dispose()
 os.unlink(path)
 switches.sort()
 p95=switches[min(len(switches)-1,int(len(switches)*.95))]

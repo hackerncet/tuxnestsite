@@ -1,4 +1,4 @@
-/* BCA HOD only. Server returns authorized, filtered case summaries;
+/* Department HOD only. Server returns authorized, filtered case summaries;
    full complaint bodies are loaded only when HOD opens a specific case. */
 (()=>{'use strict';
  const $=id=>document.getElementById(id);
@@ -159,8 +159,10 @@
  (async()=>{
    try{
      const session=await api('/api/auth/me');
-     if(session.user?.role!=='hod'||!['bca','computer applications','bachelor of computer applications'].includes(String(session.user.department||'').trim().toLowerCase()))
-       throw Error('Only the authorized BCA HOD can manage private student complaints.');
+     if(session.user?.role!=='hod'||!String(session.user.department||'').trim())
+       throw Error('Only an authorized department HOD can manage private student requests.');
+     const bcaDepartments=['bca','computer applications','bachelor of computer applications'];
+     $('department-enrollment').hidden=!bcaDepartments.includes(String(session.user.department).trim().toLowerCase());
      csrf=session.csrf;await load();
    }catch(err){info(err.message,true);}
  })();
