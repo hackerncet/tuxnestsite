@@ -48,10 +48,10 @@ def test_csv_enrollment_role_scope_validation_and_no_overwrite(client,login):
 def test_student_roster_server_pagination_search_and_export(client,login):
     prepare_bca()
     token=login(client,'hod')
-    csv=(b'usn,full_name,branch,semester\\n'
-         b'1NC24BCA991,Student Alpha,Computer Applications,2\\n'
-         b'1NC24BCA992,Student Beta,Computer Applications,3\\n'
-         b'1NC24BCA993,Student Gamma,Computer Applications,4\\n')
+    csv=(b'usn,full_name,branch,semester\n'
+         b'1NC24BCA991,Student Alpha,Computer Applications,2\n'
+         b'1NC24BCA992,Student Beta,Computer Applications,3\n'
+         b'1NC24BCA993,Student Gamma,Computer Applications,4\n')
     imported=client.post('/api/bca/students/import',headers={'X-CSRF-Token':token},
                          files={'file':('students.csv',csv,'text/csv')})
     assert imported.status_code==200,imported.text
