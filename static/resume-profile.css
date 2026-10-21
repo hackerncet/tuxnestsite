@@ -234,3 +234,11 @@ body.ncet-profile-page{margin:0;background:#F4F6F9;color:#172033;font-family:Int
 }
 @media(prefers-reduced-motion:reduce){.resume-action{transition:none!important}.resume-action:hover{transform:none}}
 
+
+/* Portfolio project gallery: clear, responsive cards that students can keep publishing. */
+.resume-project-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:14px;align-items:stretch}
+.resume-project-grid .resume-project{height:100%;margin:0;display:flex;flex-direction:column}
+.resume-project-grid .resume-project .resume-links{margin-top:auto;padding-top:10px}
+.resume-project-grid .resume-empty{grid-column:1/-1}
+.resume-manage{letter-spacing:.01em}
+@media(max-width:570px){.resume-project-grid{grid-template-columns:minmax(0,1fr);gap:10px}}
