@@ -51,6 +51,7 @@ def test_browser():
       page.add_script_tag(content=(BASE/'hod-dashboard.js').read_text(encoding='utf-8'))
       page.add_script_tag(content=(BASE/'tasks.js').read_text(encoding='utf-8'))
       page.locator('#tasks strong[title="Academic_Audit.pdf"]').wait_for()
+      assert page.locator('#management-complaints').is_visible() == (role=='hod')
       assert page.get_by_text('Academic audit assigned').count()==1
       if role=='hod':
         assert page.locator('#hod-section').is_visible()
