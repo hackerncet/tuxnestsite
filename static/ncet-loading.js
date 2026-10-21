@@ -35,9 +35,8 @@
   const request=args[0];const init=args[1]||{};
   const url=typeof request==='string'?request:request?.url||'';
   const method=String(init.method||(request instanceof Request?request.method:'GET')).toUpperCase();
-  const active=!skip(url)&&(
-   method!=='GET'||/^\/(?:api\/|students\/)/.test(url)
-  );
+  // Background reads must not leave a global busy indicator over the page.
+  const active=method!=='GET'&&!skip(url);
   if(active)start();
   try{
    const result=originalFetch(...args);
