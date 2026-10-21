@@ -264,3 +264,11 @@ html:has(.ncet-profile-page){scroll-behavior:smooth}
 .resume-project-grid .resume-project h3{font-size:18px;line-height:1.3}
 .resume-project-grid .resume-project .resume-project-outcome{margin-top:12px}
 @media(prefers-reduced-motion:reduce){.resume-project-grid .resume-project{transition:none}.resume-project-grid .resume-project:hover{transform:none}}
+
+/* Clear student publishing action, freshness, and keyboard access on portfolio cards. */
+.resume-owner-prompt a{color:#0E2455;font-weight:750;text-decoration-color:#F6872A;text-decoration-thickness:2px;text-underline-offset:3px}
+.resume-owner-prompt a:hover{color:#A84D0C}
+.resume-action.resume-manage{white-space:normal;text-align:center;line-height:1.35}
+.resume-highlights .resume-highlight-note dd{overflow-wrap:anywhere}
+.resume-project-grid .resume-project:focus-within{border-color:#F6872A;box-shadow:0 0 0 3px #F6872A24}
+@media(max-width:570px){.resume-owner-prompt{line-height:1.65}.resume-action.resume-manage{min-height:46px}}
