@@ -35,7 +35,7 @@ with DBSession() as db:
            about='Building useful campus tools and learning responsible engineering.',
            skills_json='["Python","C++","FastAPI"]',
            interests_json='["Artificial Intelligence","Open Source"]',
-           projects_json='[{"title":"Student Project","description":"A campus workflow application","technologies":["Python","React"],"github_url":"https://github.com/example/demo","live_url":"https://example.org/demo"}]',
+           projects_json='[{"title":"Student Project","description":"A campus workflow application","technologies":["Python","React"],"github_url":"https://github.com/example/demo","live_url":"https://example.org/demo"},{"title":"Research Project","description":"A research tool for academic teams","technologies":["FastAPI","PostgreSQL"]},{"title":"Design Project","description":"An accessible student-facing interface","technologies":["HTML","CSS"]}]',
            certificates_json='[{"title":"Programming Certificate","issuer":"Cisco","proof_url":"https://example.org/cert"}]',
            social_links_json='{"github":"https://github.com/example"}'))
     db.commit()
@@ -81,7 +81,10 @@ with sync_playwright() as p:
         assert page.locator('.resume-anchors[role="tablist"]').count()==0
         assert page.locator('.resume-section:not([hidden])').count()==6
         assert page.locator('#projects').is_visible()
-        assert page.get_by_role('link',name='Student? Edit & publish').get_attribute('href')=='/students/portal#portfolio'
+        assert page.locator('.resume-project-grid .resume-project').count()==3
+        card_columns=page.locator('.resume-project-grid').evaluate("el => getComputedStyle(el).gridTemplateColumns.split(' ').length")
+        assert card_columns==(2 if width>=1024 else 1),(width,card_columns)
+        assert page.get_by_role('link',name='Create or update your portfolio').get_attribute('href')=='/students/portal#portfolio'
         assert 'publish updates or make this page private' in page.locator('.resume-owner-prompt').inner_text()
         page.get_by_role('button',name='Share portfolio').click()
         page.wait_for_function("document.querySelector('#resume-action-status').textContent.includes('copied')")
@@ -144,4 +147,3 @@ print(f'Critical CSS+JS bytes (uncompressed): previous={before}, updated={after}
 print(f'Critical stylesheet/script requests: previous=6, updated=3')
 print(f'Section anchor navigation, {len(switches)} interactions: median={median(switches):.0f} ms, p95={p95:.0f} ms')
 print('NCET portfolio audit passed: six widths, all sections visible, reduced motion, keyboard/history, no-JS fallback, all institutional images loaded.')
-
