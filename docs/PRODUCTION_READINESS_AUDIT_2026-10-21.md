@@ -1,41 +1,45 @@
 # NCET VerifyFlow production-readiness audit
 
-**Observed:** 21 October 2026, Asia/Kolkata  
-**Live service:** `ncet-verifyflow` on Render  
-**Source:** `hackerncet/tuxnestsite` `main`, commit `ed53a2a4e7970fbaccef799d3f633c22317eb947`  
-**Scope:** public pages, read-only role sign-ins, notification inbox, deployment configuration, Render service metrics, and GitHub CI/security workflows.
+**Observed:** 21 October 2026, 20:55 Asia/Kolkata  
+**Live service:** ncet-verifyflow on Render  
+**Source:** hackerncet/tuxnestsite main, deployed commit 9ecdfae4cd11cb63b1f6138784a0093c40817473  
+**Scope:** public profile and performance pages; supplied admin, HOD, and staff sign-ins; task and complaint panels; notifications; one authorized synthetic task submission; Render service, database, deployment, and metric evidence; GitHub CI/security checks.
 
-This is a focused release audit, not a penetration test or institutional approval. No production records were created or changed, no notification was marked read, and no AI provider was called.
+This is a focused release audit, not a penetration test or institutional approval. The production AI gate remained disabled. The synthetic task submission described below was the only production data change made during this run.
 
 ## Verified release state
 
-- Render reports the service as live on `main`, sourced from `hackerncet/tuxnestsite`, with automatic deploys enabled. The service uses the free plan and one instance.
-- GitHub Actions run 799 (NCET VerifyFlow CI) and run 214 (NCET Security Audit) for the deployed commit completed successfully. CI includes the Python suite, Chromium role and responsive UI workflows, installer/Compose validation, Bandit, and `pip-audit`.
-- Read-only sign-in succeeded for the supplied administrator, HOD, and staff roles on the Render hostname. The role-specific dashboards rendered; HOD and staff notification inboxes loaded. The staff inbox displayed an existing unread task notice. No document, task, user, or read-state records were changed.
-- `/notifications` requires authentication. For the authenticated HOD and staff sessions it rendered the inbox and the “updates automatically every 1.5 seconds” status. The live notification panel showed existing role activity.
-- Public home and About pages rendered the NCET lockup and NAAC A+ identity. The published lockup is a 2000 × 964 PNG.
-- The HOD's department complaint, enrollment, and project pages returned their department-scoped views during the read-only session. No updates were submitted.
-- The live `/plot` page reported one browser sample: LCP 736 ms, CLS 0.000, TTFB 268 ms, 5.3 KB transferred, and a successful `/healthz` response in 344 ms. INP had no value because no qualifying interaction occurred. These are one-visit measurements, not field percentiles.
-- Render metrics returned memory samples up to 269,766,660 bytes (about 257 MiB). Its HTTP request-count and latency queries returned no samples, so no live p95 latency conclusion can be drawn.
+- Render reports the service connected to https://github.com/hackerncet/tuxnestsite, branch main, with automatic deploys on commit. It runs one instance on the free plan.
+- Admin, HOD, and staff sign-ins succeeded on the Render hostname. Role-specific dashboards loaded. No account, password, rule, complaint, or HOD decision was changed.
+- The HOD complaints dashboard loaded and showed zero cases. The HOD task dashboard loaded three records; the staff view showed one assigned test task and its inbox.
+- The user-provided student profile at /students/profile/1NC24CS146 loads as a student-owned portfolio with projects first, share and PDF actions, and an edit/publish path.
+- The live /plot page reported one browser sample: LCP 944 ms, CLS 0.000, TTFB 256 ms, 5.3 KB transferred, and a successful /healthz response in 373 ms. INP was not measured because no qualifying interaction occurred. These are one-visit measurements, not field percentiles.
+- Render metrics for the queried 24-hour period returned memory samples, with the latest around 260 MB. CPU, HTTP request-count, and latency series returned no usable samples; no live p95 latency conclusion can be drawn.
+- GitHub Actions for PR #66 head 39c0091cce715199dfd37d96525f2af4b75c6ceb completed successfully: NCET VerifyFlow CI run 983 and NCET Security Audit run 399.
+- The notification inbox showed a new staff task notice and HOD submission/verification notices. Render request logs show /api/alerts/inbox requests at approximately 1.5-second intervals, matching the intended refresh cadence.
+
+## Authorized production workflow simulation
+
+Using the existing synthetic task ncet-workflow-test.pdf (task 3) and the existing staff account, the task's reference PDF was downloaded from the app and submitted through the staff upload control. Render logged POST /api/tasks/3/submit as 201 Created. Deterministic processing completed and moved the task to manual review; the UI clearly said the HOD should review the findings manually and that no AI decision was assumed. The HOD inbox received both submission-started and verification-completed notices.
+
+The submitted file and task record remain in production in manual review. No task was deleted, no student was created or deleted, no inbox item was marked read, and no HOD approval/rejection was issued. AI-provider calls were not tested or requested.
 
 ## Findings and actions
 
 | Priority | Finding | Evidence and recommended action |
 |---|---|---|
-| High | The requested custom hostname does not complete TLS negotiation. | Browser navigation to `https://ncet.paladuguganeshnaidu.tech/app` returned `ERR_SSL_VERSION_OR_CIPHER_MISMATCH` before the app loaded. Do not enter credentials on that hostname until its DNS target and certificate are corrected and verified. The Render hostname remains reachable. |
-| High | Account passwords were shared in the task. | Admin, HOD, and staff sign-ins worked on Render. Rotate the shared passwords through the supported account-management flow, then store replacements only in the operator’s password manager. Password values are intentionally omitted here. |
-| High | Render’s checked-in Blueprint sets `SCAN_MODE=off` and declares no scanner service. | The active Render environment was not read because it can contain secrets, so this finding describes repository configuration rather than an asserted live override. Verify the effective setting privately. Before accepting untrusted documents, provision a reachable scanner and enable fail-closed scanning; otherwise pause uploads or keep the service in controlled pilot use. The Ubuntu Compose deployment includes private ClamAV. |
-| High | Render runs on the free plan with one instance. | Free capacity can sleep and is not a reliable always-on worker for institutional deadlines. Move to always-on compute and a separately monitored worker before promising continuous processing. |
-| High | The active Render database and its continuity are unconfirmed. | Render lists one free Postgres instance as suspended after its 30-day expiry on 9 October 2026 and another free instance as available until 14 November 2026. Both list inbound access as `0.0.0.0/0`. The service's active `DATABASE_URL` was not read, so the attached instance cannot be identified from this audit. Privately confirm which database the live service uses, take and verify a backup, restrict inbound access to required sources, and migrate to durable storage before expiry. |
-| Medium | Render has no configured service health-check path. | The service settings report an empty `healthCheckPath`, although `/healthz` returned healthy in the browser sample. Set `/healthz` in the service configuration so deploy readiness and health replacement use the application's health endpoint. |
-| Medium | HTTP latency and request metrics are unavailable in the queried Render series. | Add or enable operational telemetry and alerting for request latency, worker queue age/failures, and database/storage health. The `/plot` page is intentionally a local browser sample and is not a substitute. |
-| Medium | The custom-domain certificate and end-to-end DNS route remain unverified. | No certificate bypass was attempted. After fixing the domain at the DNS/Render controls, validate the certificate chain and health route before inviting users to sign in. |
-| Medium | VPS automatic deployment is not yet proven active. | The repository contains a one-command Ubuntu installer and a `main`-to-VPS Actions job, but that job is gated by `VPS_DEPLOY_ENABLED` and private SSH/host/origin secrets. No VPS host or secrets were provided to this audit, and the installer was not run on a real Ubuntu VPS. Configure these privately and verify a controlled deployment before relying on auto-updates. |
-| Medium | Student-authenticated production journeys were not exercised. | No student login was included in the supplied test accounts. Local API/browser tests cover the student portal; production account creation, requests, replies, project contributions, and student notifications still need a non-production or explicitly approved disposable student account. |
-| Medium | Production restore and retention were not demonstrated. | Confirm the database’s backup schedule, retention, restore procedure, upload retention, and encryption outside this code-only audit. Run a restore drill before using sensitive academic records. |
-| Low | A full external penetration/load test has not been performed. | Passing Bandit, dependency scanning, automated application tests, and browser checks is valuable release evidence, but it does not establish resistance to real-world attacks or capacity under representative load. Schedule an authorized independent review before institution-wide production use. |
+| High | The custom hostname does not complete TLS negotiation. | Browser navigation to https://ncet.paladuguganeshnaidu.tech/app returns ERR_SSL_VERSION_CIPHER_MISMATCH before the app loads. Earlier DNS checks showed the hostname resolving to Render, but the current Render dashboard session redirects to sign-in and the connector does not expose domain-certificate controls. Fix/verify the domain and certificate in the authenticated Render dashboard before using that hostname for logins. |
+| High | Passwords were shared in the task and used for the three successful Render sign-ins. | The values are intentionally omitted. Rotate them through the supported account-management flow and store replacements in the operator's password manager. |
+| High | Render Blueprint configuration sets SCAN_MODE=off and defines no scanner service. | This is a repository configuration finding; the effective secret environment was not read. Before accepting untrusted institutional documents, configure a reachable malware scanner with fail-closed behavior or keep uploads restricted to controlled pilot use. |
+| High | The active database is a free instance named test and expires 14 November 2026. | The live task submission updated task 3 to manual_review in that database at 2026-10-21 14:55:17Z, confirming it serves the running app. The older 3dulpin-db is suspended for billing after its 9 October expiry. Both instances list inbound access as 0.0.0.0/0. Take and verify a backup, restrict access to required sources, and migrate to durable managed storage before expiry. |
+| High | Render compute is free tier with one instance. | Free capacity can sleep and does not guarantee always-on verification work. Move to always-on compute and a separately monitored worker before promising institutional deadlines. |
+| Medium | The Render service health-check path is empty. | The app's /healthz endpoint returned healthy, but Render's service settings report no health-check path. Configure /healthz in the service settings so deploy readiness and health replacement use it. |
+| Medium | Render HTTP latency and request metrics are unavailable in the queried series. | Add operational telemetry and alerting for request latency, worker queue age/failures, and database/storage health. The /plot page is intentionally a local browser sample and is not site-wide telemetry. |
+| Medium | VPS auto-deployment is not proven active. | The repository includes a one-command Ubuntu installer and a main-to-VPS workflow, but deployment is gated by VPS_DEPLOY_ENABLED and private SSH/host/origin secrets. No VPS host was available to verify a real deployment. Configure the values privately and verify a controlled deployment before relying on automatic updates. |
+| Medium | Student-authenticated production workflows remain unverified. | The supplied test accounts are admin, HOD, and staff. Student account creation, private requests/replies, contribution requests, and student notifications still need an authorized non-production or disposable student account. |
+| Medium | Backup recovery and retention have not been demonstrated. | Confirm backup schedule, retention, restore procedure, upload retention, and encryption. Run a restore drill before handling sensitive academic records. |
+| Low | Full external penetration and load testing have not been performed. | Passing application tests, Chromium checks, Bandit, and dependency scans is useful release evidence but does not prove resistance to real-world attacks or capacity under representative load. Arrange an authorized independent review before institution-wide use. |
 
 ## Release gate
 
-The Render release is healthy enough for continued controlled pilot use, but the evidence does **not** support a claim of 100% correctness or unrestricted production readiness. Fix the custom-domain TLS issue, rotate the task-shared credentials, privately confirm malware-scanning configuration, and establish backups/always-on processing before accepting sensitive records at scale. Keep AI disabled until the institution explicitly configures and approves a provider.
-
+The Render hostname is usable for continued controlled pilot checks, but the evidence does not support a claim of 100% correctness or unrestricted production readiness. Resolve custom-domain TLS, rotate task-shared passwords, enable fail-closed malware scanning, and establish durable database backups and always-on processing before accepting sensitive records at scale. Keep AI disabled until the institution explicitly configures and approves a provider.
