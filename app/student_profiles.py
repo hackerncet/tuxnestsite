@@ -637,7 +637,7 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
 <link rel="icon" href="/static/ncet-brand.svg">
 <script type="application/ld+json">{json_ld}</script>
 <link rel="preload" as="image" href="/static/ncet-official-uhd.png?v=20261021-uhd-brand" fetchpriority="high">
-<link rel="stylesheet" href="/static/resume-profile.css?v=20261021-project-story">
+<link rel="stylesheet" href="/static/resume-profile.css?v=20261021-full-portfolio">
 <link rel="stylesheet" href="/static/institutional-ui.css?v=20261021-clear-lockup-2">
 <!-- Native anchors keep the full public portfolio visible and crawlable. -->
 <script src="/static/student-profile-actions.js?v=20261021-portfolio-actions" defer></script>
