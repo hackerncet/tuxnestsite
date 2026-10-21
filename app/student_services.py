@@ -192,7 +192,7 @@ def roster_query(db,actor:User,search:str='',include_disabled:bool=False):
 
 @router.get('/students')
 def list_students(actor:User=Depends(as_role('staff','hod','admin')),db:DbSession=Depends(get_db),
-                  search:str=Query(default='',max_length=80),include_disabled:bool=Query(default=False),
+                  search:str=Query(default='',max_length=80),include_disabled:bool=Query(default=True),
                   page:int=Query(default=1,ge=1),page_size:int=Query(default=50,ge=1,le=500)):
     query=roster_query(db,actor,search,include_disabled)
     total=query.order_by(None).count()
