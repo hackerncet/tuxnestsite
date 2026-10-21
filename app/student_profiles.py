@@ -569,6 +569,12 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
     if portfolio_intro and len(info['about'].strip())>220:
         portfolio_intro+='…'
     canonical=f"{URL_ROOT}/students/profile/{sid}"
+    updated_label='Not provided'
+    if info.get('updated_at'):
+        try:
+            updated_label=datetime.fromisoformat(info['updated_at'].replace('Z','+00:00')).strftime('%d %b %Y')
+        except (TypeError,ValueError):
+            pass
     photo=info.get('photo_url')
     absolute_photo=URL_ROOT+photo if photo else ''
     initials=escape(''.join(part[0] for part in info['name'].split()[:2]).upper() or 'NCET')
@@ -676,15 +682,15 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
 <div class="resume-action-bar" aria-label="Portfolio actions">
 <button type="button" class="resume-action resume-share" id="resume-share" data-share-url="{escape(canonical,quote=True)}">Share portfolio</button>
 <button type="button" class="resume-action resume-print" id="resume-print">Save as PDF</button>
-<a class="resume-action resume-manage" href="/students/portal#portfolio">Student sign in · Edit &amp; publish</a>
+<a class="resume-action resume-manage" href="/students/portal#portfolio">Student sign in · Add work &amp; publish</a>
 <span class="resume-action-status" id="resume-action-status" role="status" aria-live="polite"></span>
 </div>
-<p class="resume-owner-prompt">Student-owned portfolio. Sign in to add projects, describe your role and results, update skills and credentials, publish changes, or make this page private. Personal contact details and academic requests stay private.</p>
+<p class="resume-owner-prompt">This portfolio is controlled by the student. <a href="/students/portal#portfolio">Sign in to add projects, update skills and credentials, then publish changes</a> or make the portfolio private. Email, mobile and academic requests remain private.</p>
 <dl class="resume-highlights" aria-label="Portfolio overview">
 <div><dt>Skills</dt><dd>{len(info['skills'])}</dd></div>
 <div><dt>Projects</dt><dd>{len(info['projects'])}</dd></div>
 <div><dt>Credentials</dt><dd>{len(info['certificates'])}</dd></div>
-<div class="resume-highlight-note"><dt>Published by</dt><dd>Student</dd></div>
+<div class="resume-highlight-note"><dt>Last updated</dt><dd>{escape(updated_label)}</dd></div>
 </dl>
 <nav class="resume-anchors" aria-label="Portfolio sections">
 <a href="#projects" id="profile-tab-projects">Projects</a><a href="#about" id="profile-tab-about">About</a><a href="#skills" id="profile-tab-skills">Skills</a>
