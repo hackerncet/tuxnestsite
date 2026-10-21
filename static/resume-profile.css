@@ -177,7 +177,7 @@ body.ncet-profile-page{margin:0;background:#F4F6F9;color:#172033;font-family:Int
 /* Student portfolio refresh: confident editorial hero, clear ownership and project showcase. */
 .ncet-profile-page{background:radial-gradient(ellipse at 50% -15%,#e5ebf6 0,transparent 48%),#f3f5f8}
 .resume-site-inner{min-height:82px}
-.resume-paper{border-radius:16px;box-shadow:0 24px 70px #10234814;border-color:#e5eaf1}
+.resume-paper{overflow:clip;border-radius:16px;box-shadow:0 24px 70px #10234814;border-color:#e5eaf1}
 .resume-accreditation{padding-top:14px}
 .resume-heading{position:relative;isolation:isolate;overflow:hidden;min-height:178px;margin:10px 20px 0;padding:28px 30px;border-radius:14px;background:linear-gradient(112deg,#0b1d48 0%,#12336c 58%,#1c477e 100%);color:#fff}
 .resume-heading::after{position:absolute;z-index:-1;content:"";width:300px;height:300px;right:-90px;top:-175px;border:1px solid #ffffff24;border-radius:50%;box-shadow:0 0 0 26px #ffffff09,0 0 0 58px #ffffff06}
@@ -199,7 +199,12 @@ body.ncet-profile-page{margin:0;background:#F4F6F9;color:#172033;font-family:Int
 .resume-highlights dd{font-size:21px}
 .resume-highlights .resume-highlight-note dd{font-size:13px}
 .resume-anchors{padding:12px 30px;border-top-width:3px}
-.resume-tab-stage.tabs-enhanced .resume-section{padding-top:30px;padding-bottom:34px}
+.resume-anchors{position:sticky;top:0;z-index:5;box-shadow:0 8px 20px #10234810}
+.resume-anchors a[aria-current="location"]{color:#fff;background:#ffffff18;box-shadow:inset 0 -3px #f6872a}
+.resume-tab-stage{display:grid;grid-template-columns:minmax(0,1fr);scroll-margin-top:84px}
+.resume-tab-stage .resume-section{padding-top:30px;padding-bottom:34px;scroll-margin-top:88px}
+.resume-section{scroll-margin-top:88px}
+.resume-tab-stage .resume-section:nth-child(even){background:linear-gradient(90deg,#fbfcfe,#fff 28%,#fff)}
 .resume-section h2{letter-spacing:.045em;text-transform:none;font-size:20px}
 .resume-section h2::before{height:22px;width:4px}
 .resume-project{position:relative;padding:20px 21px;margin-bottom:14px;border:1px solid #e4eaf2;border-left:4px solid #f6872a;border-radius:12px;background:linear-gradient(145deg,#fff,#fbfcfe);box-shadow:0 5px 18px #0e245508}
@@ -228,17 +233,13 @@ body.ncet-profile-page{margin:0;background:#F4F6F9;color:#172033;font-family:Int
  .resume-action-bar{padding:13px 17px 6px}
  .resume-owner-prompt{margin:3px 17px 15px}
  .resume-highlights{padding:0 17px 16px}
- .resume-anchors{padding-inline:12px}
+ .resume-anchors{padding-inline:12px;top:0}
+ .resume-tab-stage .resume-section{padding-inline:17px;scroll-margin-top:72px}
+ .resume-section{scroll-margin-top:72px}
  .resume-disclaimer{margin:0 10px 12px;padding:15px}
  .resume-project,.resume-project:last-child{padding:15px}
 }
 @media(prefers-reduced-motion:reduce){.resume-action{transition:none!important}.resume-action:hover{transform:none}}
+html:has(.ncet-profile-page){scroll-behavior:smooth}
+@media(prefers-reduced-motion:reduce){html:has(.ncet-profile-page){scroll-behavior:auto}}
 
-
-/* Portfolio project gallery: clear, responsive cards that students can keep publishing. */
-.resume-project-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:14px;align-items:stretch}
-.resume-project-grid .resume-project{height:100%;margin:0;display:flex;flex-direction:column}
-.resume-project-grid .resume-project .resume-links{margin-top:auto;padding-top:10px}
-.resume-project-grid .resume-empty{grid-column:1/-1}
-.resume-manage{letter-spacing:.01em}
-@media(max-width:570px){.resume-project-grid{grid-template-columns:minmax(0,1fr);gap:10px}}

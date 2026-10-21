@@ -77,11 +77,12 @@ with sync_playwright() as p:
         assert report['sections']==['projects','about','skills','certifications','interests','links']
         assert all(x['loaded'] for x in report['images']),(width,report['images'])
         assert not errors,(width,errors)
-        # Once JS initializes, the portfolio is a single in-page accessible tab view.
-        assert page.locator('.resume-anchors[role="tablist"]').count()==1
-        assert page.locator('.resume-section:not([hidden])').count()==1
+        # The published portfolio stays open as a one-page experience; anchors jump to sections.
+        assert page.locator('.resume-anchors[role="tablist"]').count()==0
+        assert page.locator('.resume-section:not([hidden])').count()==6
         assert page.locator('#projects').is_visible()
-        assert page.get_by_role('link',name='Student sign in to edit or publish this portfolio').get_attribute('href')=='/students/portal#portfolio'
+        assert page.get_by_role('link',name='Student? Edit & publish').get_attribute('href')=='/students/portal#portfolio'
+        assert 'publish updates or make this page private' in page.locator('.resume-owner-prompt').inner_text()
         page.get_by_role('button',name='Share portfolio').click()
         page.wait_for_function("document.querySelector('#resume-action-status').textContent.includes('copied')")
         assert page.evaluate('window.__copiedProfile')=='https://ncet-verifyflow.onrender.com/students/profile/1NC24CS150'
@@ -90,21 +91,25 @@ with sync_playwright() as p:
         page.locator('a[href="#projects"]').click()
         assert page.url.endswith('#projects'),page.url
         assert page.locator('#projects').is_visible()
-        assert page.locator('#about').is_hidden()
-        assert page.locator('#projects').get_attribute('aria-labelledby')=='profile-tab-projects'
-        page.locator('a[href="#projects"]').press('ArrowRight')
         assert page.locator('#about').is_visible()
-        assert page.locator('a[href="#about"]').get_attribute('aria-selected')=='true'
+        assert page.locator('a[href="#projects"]').get_attribute('aria-current')=='location'
+        page.locator('a[href="#about"]').click()
+        assert page.url.endswith('#about'),page.url
+        assert page.locator('#about').is_visible()
+        assert page.locator('#projects').is_visible()
+        page.locator('a[href="#links"]').focus()
+        page.keyboard.press('Enter')
+        assert page.url.endswith('#links'),page.url
         page.go_back(wait_until='domcontentloaded')
         assert page.locator('#projects').is_visible()
         page.goto('http://ncet.test/students/profile/1NC24CS150#links',wait_until='load')
         assert page.locator('#links').is_visible()
-        assert page.locator('.resume-section:not([hidden])').count()==1
+        assert page.locator('.resume-section:not([hidden])').count()==6
         # Browser-perceived, measured in the test runner (not a synthetic Lighthouse score).
         for target in ('skills','interests','about'):
             start=perf_counter()
             page.locator('a[href="#'+target+'"]').click()
-            page.wait_for_function("document.querySelector('#resume-tab-stage').style.height === ''",timeout=3000)
+            page.wait_for_function("location.hash === '#"+target+"'",timeout=3000)
             switches.append((perf_counter()-start)*1000)
             assert page.locator('#'+target).is_visible()
         page.emulate_media(reduced_motion='reduce')
@@ -136,6 +141,6 @@ assert after<before*.75,(before,after)
 print('NCET RESUME PERFORMANCE BENCHMARK')
 print(f'Critical CSS+JS bytes (uncompressed): previous={before}, updated={after}, reduction={(before-after)/before*100:.1f}%')
 print(f'Critical stylesheet/script requests: previous=6, updated=3')
-print(f'Tab switch browser timings, 18 interactions: median={median(switches):.0f} ms, p95={p95:.0f} ms')
-print('NCET résumé audit passed: six widths, six sections, reduced motion, keyboard/history, no-JS fallback, all institutional images loaded.')
+print(f'Section anchor navigation, {len(switches)} interactions: median={median(switches):.0f} ms, p95={p95:.0f} ms')
+print('NCET portfolio audit passed: six widths, all sections visible, reduced motion, keyboard/history, no-JS fallback, all institutional images loaded.')
 

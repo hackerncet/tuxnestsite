@@ -1,5 +1,6 @@
 """Public institutional résumé sections, image assets, and profile security regressions."""
 from pathlib import Path
+import secrets
 
 from app.database import DBSession, User
 from app.student_models import BCAStudent
@@ -7,16 +8,19 @@ from app.security import hash_password
 
 BASE = Path(__file__).resolve().parents[1]
 USN = "1NC24CS150"
+TEST_PASSWORD = secrets.token_urlsafe(24)
+PRIVATE_EMAIL = secrets.token_hex(8) + "@example.invalid"
+PRIVATE_MOBILE = "+999" + f"{secrets.randbelow(10**9):09d}"
 
 def make_student(client):
     with DBSession() as db:
         user = User(username=USN.lower(),display_name="College Demo Student",
                     role="student",department="Computer Science & Engineering",
-                    password_hash=hash_password("SecurePassword-123!"),active=True)
+                    password_hash=hash_password(TEST_PASSWORD),active=True)
         db.add(user);db.flush()
         db.add(BCAStudent(user_id=user.id,usn=USN,semester=5,must_change_password=False))
         db.commit()
-    reply=client.post("/api/auth/login",json={"username":USN.lower(),"password":"SecurePassword-123!","role":"student"})
+    reply=client.post("/api/auth/login",json={"username":USN.lower(),"password":TEST_PASSWORD,"role":"student"})
     assert reply.status_code==200,reply.text
     return {"X-CSRF-Token":reply.json()["csrf"]}
 
@@ -41,8 +45,8 @@ def test_portfolio_sections_projects_and_public_links(client):
     assert client.get("/students/profile/"+USN).status_code==404
     payload={
         "full_name":"College Demo Student",
-        "mobile":"+919988776655",
-        "email":"private@institution.example",
+        "mobile":PRIVATE_MOBILE,
+        "email":PRIVATE_EMAIL,
         "about":"Software engineering student creating research and academic tools.",
         "skills":["Python","C","Machine Learning"],
         "interests":["AI Agents","Cloud Computing","Open Source"],
@@ -76,12 +80,15 @@ def test_portfolio_sections_projects_and_public_links(client):
         assert label in html,label
     assert 'id="resume-share"' in html and 'id="resume-print"' in html
     assert 'href="/students/portal#portfolio"' in html
+    assert 'Student? Edit &amp; publish' in html
+    assert 'publish updates or make this page private' in html
+    assert html.index('id="projects"') < html.index('id="about"')
     assert '<dt>Skills</dt><dd>3</dd>' in html
     assert '<dt>Projects</dt><dd>1</dd>' in html
     assert 'student-profile-actions.js' in html
     assert "application/ld+json" in html
     assert "<lastmod>" in client.get("/sitemap.xml").text
-    for confidential in ("private@institution.example","+919988776655"):
+    for confidential in (PRIVATE_EMAIL,PRIVATE_MOBILE):
         assert confidential not in html
         assert confidential not in str(public)
 
@@ -96,7 +103,7 @@ def test_unsafe_external_links_and_contact_fields_rejected(client):
         **base,"projects":[{"title":"Wrong GitHub","github_url":"https://github-notreal.example/project"}]})
     assert response.status_code==422
     response=client.put("/api/bca/showcase/me",headers=token,json={
-        **base,"interests":["Email me at private@example.org"]})
+        **base,"interests":["Email me at "+secrets.token_hex(8)+"@example.invalid"]})
     assert response.status_code==422
     assert client.get("/students/profile/"+USN).status_code==404
 
