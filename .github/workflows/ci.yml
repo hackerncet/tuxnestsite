@@ -169,10 +169,16 @@ jobs:
         run: |
           set -euo pipefail
           curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 3 "${RENDER_ORIGIN}/healthz" | python3 -c 'import json,sys; assert json.load(sys.stdin).get("ok") is True'
-          curl --fail --silent --show-error "${RENDER_ORIGIN}/students/portal" | grep -Fq 'Sign in using your USN'
-          curl --fail --silent --show-error "${RENDER_ORIGIN}/students/directory" | grep -Fq 'Student portfolios'
-          curl --fail --silent --show-error "${RENDER_ORIGIN}/plot" | grep -Fq 'Performance, made visible.'
-          curl --fail --silent --show-error "${RENDER_ORIGIN}/static/resume-profile.css" | grep -Fq '.resume-project-meta'
+          body_dir="$(mktemp -d)"
+          trap 'rm -rf "$body_dir"' EXIT
+          curl --fail --silent --show-error "${RENDER_ORIGIN}/students/portal" --output "$body_dir/student-portal.html"
+          grep -Fq 'Sign in using your USN' "$body_dir/student-portal.html"
+          curl --fail --silent --show-error "${RENDER_ORIGIN}/students/directory" --output "$body_dir/student-directory.html"
+          grep -Fq 'Student portfolios' "$body_dir/student-directory.html"
+          curl --fail --silent --show-error "${RENDER_ORIGIN}/plot" --output "$body_dir/plot.html"
+          grep -Fq 'Performance, made visible.' "$body_dir/plot.html"
+          curl --fail --silent --show-error "${RENDER_ORIGIN}/static/resume-profile.css" --output "$body_dir/resume-profile.css"
+          grep -Fq '.resume-project-meta' "$body_dir/resume-profile.css"
 
   deploy-vps:
     name: Deploy verified main to Ubuntu VPS
