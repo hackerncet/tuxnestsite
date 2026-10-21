@@ -16,6 +16,8 @@ services:
     envVars:
       - key: APP_ENV
         value: production
+      - key: AI_EXTERNAL_CALLS_ENABLED
+        value: "false"
       - key: APP_RUN_WORKER_IN_WEB
         value: "true"
       - key: STORAGE_BACKEND

@@ -270,27 +270,29 @@
     const ready=Boolean(integrations.configured);
     const dedicated=Boolean(integrations.deepseek_configured);
     const fallback=Boolean(integrations.openrouter_configured);
-    return `${pageHeader('SUPER ADMIN / INTEGRATIONS','DeepSeek AI settings','Connect DeepSeek to document review and task verification.')}
+    const outboundEnabled=integrations.outbound_ai_enabled!==false;
+    const saved=Boolean(integrations.provider_saved||integrations.key_stored||fallback);
+    return `${pageHeader('SUPER ADMIN / INTEGRATIONS','DeepSeek AI settings','Manage credentials; external processing requires a separate server-side opt-in.')}
     <div class="manage-grid"><section class="panel form-panel">
     <div class="model-name">${icon('sparkle','lg')} <div><strong>DeepSeek AI document review</strong><span>Preferred provider · Direct DeepSeek</span></div></div>
-    <div class="notice" role="status"><strong>${ready ? (dedicated?'DeepSeek configured':'Fallback provider configured') : 'AI provider not configured'}</strong>
-      <p>Active provider: <b>${txt(provider)}</b>${integrations.model ? ' · '+txt(integrations.model) : ''}.
-      ${ready?'Document verification will use the available provider.':'Without an available key, submissions require manual review.'}</p></div>
+    <div class="notice" role="status"><strong>${!outboundEnabled?'External AI disabled by server policy':ready ? (dedicated?'DeepSeek configured':'Fallback provider configured') : 'AI provider not configured'}</strong>
+      <p>${!outboundEnabled?(saved?'A provider key is saved, but external AI calls are off. Document text will not be sent to an AI provider; submissions require human review.':'External AI calls are off. Submissions require human review.'):
+      ready?`Active provider: <b>${txt(provider)}</b>${integrations.model ? ' · '+txt(integrations.model) : ''}. Document verification will use the available provider.`:'Without an available key, submissions require manual review.'}</p></div>
     <form id="integration-form" autocomplete="off">
       <div class="field"><label class="field-label" for="deepseek-key">DeepSeek API key</label>
       <input id="deepseek-key" type="password" name="api_key" class="form-control" minlength="15" maxlength="300" required autocomplete="new-password" placeholder="Paste your DeepSeek API key" /></div>
       <button class="btn btn-primary" type="submit">${icon('lock','sm')} Save DeepSeek key securely</button>
     </form>
-    <p class="small muted" style="margin-top:15px">Saved keys are encrypted on the server. A configured key does not guarantee provider connectivity or available usage balance.</p>
+    <p class="small muted" style="margin-top:15px">Keys are encrypted on the server. In production, external AI calls remain disabled until an administrator explicitly enables <code>AI_EXTERNAL_CALLS_ENABLED</code> in the server environment.</p>
     <details style="margin-top:20px"><summary class="field-label">Optional: OpenRouter fallback</summary>
-      <p class="small muted">Used only when a dedicated DeepSeek key is unavailable. Existing OpenRouter configuration is retained.</p>
-      <p class="small muted">Fallback: ${fallback?'Configured':'Not configured'}</p>
+      <p class="small muted">Used only when external AI is explicitly enabled and a dedicated DeepSeek key is unavailable. Existing OpenRouter configuration is retained.</p>
+      <p class="small muted">Fallback key: ${fallback?'Saved':'Not saved'}</p>
       <form id="fallback-form" autocomplete="off"><div class="field"><label class="field-label" for="fallback-key">OpenRouter fallback API key</label>
       <input id="fallback-key" type="password" name="api_key" class="form-control" minlength="15" maxlength="300" required autocomplete="new-password" placeholder="OpenRouter API key" /></div>
       <button class="btn btn-secondary" type="submit">Save fallback key</button></form>
     </details></section>
     <section class="panel info-panel"><h3>Privacy & verification</h3>
-      <p>Document text and HOD rules are sent to the selected external AI provider only when configured. Obtain institutional authorization before processing sensitive records.</p>
+      <p>When external AI is disabled by server policy, no document text is sent to a provider. Enable <code>AI_EXTERNAL_CALLS_ENABLED</code> only after the institution has approved the provider and its data handling.</p>
       <div class="info-list"><div class="info-row"><span class="info-mark">${icon('shield')}</span><div><b>Server-side credentials</b><p>Only administrators can change integration credentials.</p></div></div>
       <div class="info-row"><span class="info-mark">${icon('file')}</span><div><b>Structured review</b><p>AI findings are validated. Failed or uncertain evaluations require human review.</p></div></div>
       <div class="info-row"><span class="info-mark">${icon('lock')}</span><div><b>Protected records</b><p>Private documents remain behind authenticated endpoints.</p></div></div></div>
@@ -469,7 +471,7 @@ function cleanupHTML() {
       return;
     }
     if(e.target.id==='rule-form'){e.preventDefault();if(role!=='hod')return;syncRuleForm();try{const result=await api('/api/rules',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({rules:rulebook.rules})});rulebook=await api('/api/rules');render();notify(`Rules saved as version ${result.version}.`);}catch(err){notify(err.message,'error');}return;}
-    if(e.target.id==='integration-form'||e.target.id==='fallback-form'){e.preventDefault();if(role!=='admin')return;const fallback=e.target.id==='fallback-form';const val=e.target.querySelector('[name=api_key]').value.trim();try{await api(fallback?'/api/admin/integrations/openrouter':'/api/tasks/ai/key',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({api_key:val})});integrations=await api('/api/admin/integrations');render();notify(fallback?'Fallback key encrypted and saved.':'DeepSeek key encrypted and saved. Provider connectivity must be tested with a document review.');}catch(err){notify(err.message,'error');}return;}
+    if(e.target.id==='integration-form'||e.target.id==='fallback-form'){e.preventDefault();if(role!=='admin')return;const fallback=e.target.id==='fallback-form';const val=e.target.querySelector('[name=api_key]').value.trim();try{await api(fallback?'/api/admin/integrations/openrouter':'/api/tasks/ai/key',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({api_key:val})});integrations=await api('/api/admin/integrations');render();notify((fallback?'Fallback':'DeepSeek')+' key encrypted and saved. '+(integrations.outbound_ai_enabled===false?'External AI calls remain disabled by server policy.':'No provider connectivity check was made.'));}catch(err){notify(err.message,'error');}return;}
     if(e.target.id==='login-form'){
       e.preventDefault();const data=new FormData(e.target);
       try{const auth=await api('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:String(data.get('username')||'').trim().toLowerCase(),password:String(data.get('password')||''),role:null})});

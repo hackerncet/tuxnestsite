@@ -627,14 +627,18 @@ def verification_report(public_id:str,user:User=Depends(current),db:DbSession=De
 
 @app.get('/api/admin/integrations')
 def integration_status(user:User=Depends(as_role('admin')),db:DbSession=Depends(get_db)):
-    from .ai_gateway import select_provider
+    from .ai_gateway import external_ai_enabled, select_provider
     provider=select_provider(db)
+    deepseek_saved=bool(db.get(IntegrationSetting,'deepseek_key')) or bool(os.getenv('DEEPSEEK_API_KEY'))
+    openrouter_saved=bool(db.get(IntegrationSetting,'openrouter_key')) or bool(os.getenv('OPENROUTER_API_KEY'))
     return {'configured':bool(provider),
             'provider':provider.name if provider else None,
             'model':provider.model if provider else None,
             'deepseek_configured':bool(provider and provider.name=='DeepSeek'),
-            'openrouter_configured':bool(db.get(IntegrationSetting,'openrouter_key')) or bool(os.getenv('OPENROUTER_API_KEY')),
-            'key_stored':bool(db.get(IntegrationSetting,'deepseek_key') or db.get(IntegrationSetting,'openrouter_key'))}
+            'openrouter_configured':openrouter_saved,
+            'key_stored':bool(db.get(IntegrationSetting,'deepseek_key') or db.get(IntegrationSetting,'openrouter_key')),
+            'provider_saved':deepseek_saved or openrouter_saved,
+            'outbound_ai_enabled':external_ai_enabled()}
 
 @app.put('/api/admin/integrations/openrouter')
 def integration_update(body:IntegrationBody,user:User=Depends(as_role_mutation('admin')),db:DbSession=Depends(get_db)):

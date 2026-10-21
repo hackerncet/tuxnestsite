@@ -7,7 +7,7 @@ import os
 import re
 from dataclasses import dataclass
 from contextvars import ContextVar
-from .ai_gateway import select_provider
+from .ai_gateway import external_ai_enabled, select_provider
 from pathlib import Path
 from typing import Any
 import fitz
@@ -199,6 +199,8 @@ def read_api_key(db):
 
 
 def call_ai(extracted: Extracted,rules:list[Rule],api_key:str) -> AIResponse:
+    if not external_ai_enabled():
+        raise RuntimeError('External AI processing is disabled by server policy.')
     # A free model supports JSON object output but NOT guaranteed schema-enforced JSON.
     # Validate every field locally, and fail to manual review on malformed answers.
     paged='\n\n'.join(f'[PAGE {i+1}]\n{page}' for i,page in enumerate(extracted.pages))

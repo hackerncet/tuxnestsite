@@ -147,6 +147,32 @@ def test_admin_api_key_encrypted_never_returned(client,monkeypatch):
     assert client.delete('/api/admin/integrations/openrouter',headers=h).status_code==200
 
 
+ 
+def test_production_ai_provider_requires_explicit_opt_in(monkeypatch):
+    from app.ai_gateway import select_provider
+    monkeypatch.setenv('APP_ENV','production')
+    monkeypatch.delenv('AI_EXTERNAL_CALLS_ENABLED',raising=False)
+    monkeypatch.setenv('OPENROUTER_API_KEY','fake-key-that-must-not-be-used')
+    with DBSession() as db:
+        assert select_provider(db) is None
+
+    monkeypatch.setenv('AI_EXTERNAL_CALLS_ENABLED','true')
+    with DBSession() as db:
+        provider=select_provider(db)
+        assert provider is not None and provider.name.startswith('OpenRouter')
+
+
+def test_ai_request_sink_obeys_disabled_policy_without_network(monkeypatch):
+    from app.ai_gateway import Provider, review_json
+    monkeypatch.setenv('APP_ENV','production')
+    monkeypatch.delenv('AI_EXTERNAL_CALLS_ENABLED',raising=False)
+    def unexpected_network(*args,**kwargs):
+        raise AssertionError('The disabled AI integration must not create an HTTP client.')
+    monkeypatch.setattr('app.ai_gateway.httpx.Client',unexpected_network)
+    provider=Provider('test','test-model','https://example.invalid/chat','not-a-real-key')
+    with pytest.raises(RuntimeError,match='disabled by server policy'):
+        review_json(provider,'test',{'document':'private sample'})
+
 def test_unreliable_ai_is_manual_not_auto_fail(client,monkeypatch):
     monkeypatch.setenv('OPENROUTER_API_KEY','test-key')
     def failing_ai(*args):raise ValueError('malformed JSON')

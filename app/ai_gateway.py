@@ -16,6 +16,14 @@ from sqlalchemy.orm import Session
 from .database import IntegrationSetting
 
 
+def external_ai_enabled() -> bool:
+    """Require an explicit production opt-in before sending records to a provider."""
+    setting=os.getenv('AI_EXTERNAL_CALLS_ENABLED')
+    if setting is not None:
+        return setting.strip().casefold() in {'1','true','yes','on'}
+    return os.getenv('APP_ENV','development').strip().casefold() not in {'production','staging'}
+
+
 @dataclass(frozen=True)
 class Provider:
     name: str
@@ -34,6 +42,8 @@ def _decrypt(setting, master):
 
 
 def select_provider(db: Session) -> Provider | None:
+    if not external_ai_enabled():
+        return None
     master = os.getenv('SETTINGS_ENCRYPTION_KEY')
     direct = _decrypt(db.get(IntegrationSetting, 'deepseek_key'), master) or os.getenv('DEEPSEEK_API_KEY')
     if direct:
@@ -48,6 +58,8 @@ def select_provider(db: Session) -> Provider | None:
 
 def review_json(provider: Provider, system: str, payload: dict, *, max_tokens: int = 2200):
     """Only trusted server constants define API URLs; document text stays data."""
+    if not external_ai_enabled():
+        raise RuntimeError('External AI processing is disabled by server policy.')
     body = {'model':provider.model,'max_tokens':max_tokens,'temperature':0,
             'response_format':{'type':'json_object'},
             'messages':[{'role':'system','content':system+' Respond using only a valid JSON object.'},
