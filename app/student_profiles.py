@@ -396,7 +396,8 @@ def edit_showcase(body:ShowcaseEdit,user:User=Depends(csrf_required),db:DbSessio
         check_public_text(certificate.proof_url.split('?',1)[-1] if '?' in certificate.proof_url else '')
         certificates.append({'title':certificate.title.strip(),'issuer':certificate.issuer.strip(),
                             'proof_url':validate_proof(certificate.proof_url)})
-    profile=_showcase(db,user)    if not profile:
+    profile=_showcase(db,user)
+    if not profile:
         profile=StudentShowcase(student_id=user.id)
         db.add(profile)
     user.display_name=name
@@ -595,7 +596,8 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
                         project_meta+'<p>'+escape(project.get('description') or 'Student project')+'</p>'+outcome+tags+
                         ('<div class="resume-links">'+links+'</div>' if links else '')+'</article>')
     project_html=''.join(projects) if projects else empty('Student projects have not been added yet.')
-    certificates=[]    for cert in info['certificates']:
+    certificates=[]
+    for cert in info['certificates']:
         certificates.append('<li class="resume-certificate"><div><strong>'+escape(cert['title'])+
                             '</strong><p>'+escape(cert['issuer'])+'</p></div>'+
                             link(cert['proof_url'],'View credential')+'</li>')
