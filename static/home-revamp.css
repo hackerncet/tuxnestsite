@@ -205,3 +205,7 @@
  .topnav .brand .brand-subtitle{display:block;font-size:9px}
  .topnav .brand .brand-title{font-size:13px}
 }
+
+/* The public campus story now uses a single text column after removing its broken remote image. */
+.ncet-campus-layout--copy{grid-template-columns:minmax(0,1fr);max-width:880px;margin-inline:auto}
+.ncet-campus-layout--copy .ncet-campus-copy{max-width:760px}
