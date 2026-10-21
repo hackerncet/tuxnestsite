@@ -77,9 +77,9 @@ with sync_playwright() as p:
         assert report['sections']==['about','skills','projects','certifications','interests','links']
         assert all(x['loaded'] for x in report['images']),(width,report['images'])
         assert not errors,(width,errors)
-        # Once JS initializes, the portfolio is a single in-page accessible tab view.
-        assert page.locator('.resume-anchors[role="tablist"]').count()==1
-        assert page.locator('.resume-section:not([hidden])').count()==1
+        # Native anchors keep the complete portfolio visible while providing quick section jumps.
+        assert page.locator('.resume-anchors[role="tablist"]').count()==0
+        assert page.locator('.resume-section:visible').count()==6
         assert page.locator('#about').is_visible()
         assert page.get_by_role('link',name='Create or update your portfolio').get_attribute('href')=='/students/portal#portfolio'
         page.get_by_role('button',name='Share portfolio').click()
@@ -90,21 +90,16 @@ with sync_playwright() as p:
         page.locator('a[href="#projects"]').click()
         assert page.url.endswith('#projects'),page.url
         assert page.locator('#projects').is_visible()
-        assert page.locator('#about').is_hidden()
-        assert page.locator('#projects').get_attribute('aria-labelledby')=='profile-tab-projects'
-        page.locator('a[href="#projects"]').press('ArrowRight')
-        assert page.locator('#certifications').is_visible()
-        assert page.locator('a[href="#certifications"]').get_attribute('aria-selected')=='true'
+        assert page.locator('#about').is_visible()
         page.go_back(wait_until='domcontentloaded')
         assert page.locator('#projects').is_visible()
         page.goto('http://ncet.test/students/profile/1NC24CS150#links',wait_until='load')
         assert page.locator('#links').is_visible()
-        assert page.locator('.resume-section:not([hidden])').count()==1
+        assert page.locator('.resume-section:visible').count()==6
         # Browser-perceived, measured in the test runner (not a synthetic Lighthouse score).
         for target in ('skills','interests','about'):
             start=perf_counter()
             page.locator('a[href="#'+target+'"]').click()
-            page.wait_for_function("document.querySelector('#resume-tab-stage').style.height === ''",timeout=3000)
             switches.append((perf_counter()-start)*1000)
             assert page.locator('#'+target).is_visible()
         page.emulate_media(reduced_motion='reduce')
