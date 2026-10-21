@@ -593,7 +593,7 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
         return (f'<a class="{klass}" href="{escape(url,quote=True)}" target="_blank" rel="noopener noreferrer nofollow">'
                 f'{escape(title)} <span aria-hidden="true">↗</span></a>')
     projects=[]
-    for project in info['projects']:
+    for project_number,project in enumerate(info['projects'],1):
         links=''.join(filter(None,[
             link(project.get('github_url',''),'GitHub source') if project.get('github_url') else '',
             link(project.get('live_url',''),'Live project') if project.get('live_url') else ''
@@ -605,7 +605,8 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
         project_meta=('<dl class="resume-project-meta">'+project_meta+'</dl>') if project_meta else ''
         outcome=('<p class="resume-project-outcome"><strong>Outcome</strong> '+
                  escape(project['outcome'])+'</p>') if project.get('outcome') else ''
-        projects.append('<article class="resume-project"><h3>'+escape(project['title'])+'</h3>'+
+        project_label=f'PROJECT {project_number:02d}'
+        projects.append('<article class="resume-project"><p class="resume-project-kicker">'+project_label+'</p><h3>'+escape(project['title'])+'</h3>'+
                         project_meta+'<p>'+escape(project.get('description') or 'Student project')+'</p>'+outcome+tags+
                         ('<div class="resume-links">'+links+'</div>' if links else '')+'</article>')
     project_html=''.join(projects) if projects else empty('Student projects have not been added yet.')
@@ -675,10 +676,10 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
 <div class="resume-action-bar" aria-label="Portfolio actions">
 <button type="button" class="resume-action resume-share" id="resume-share" data-share-url="{escape(canonical,quote=True)}">Share portfolio</button>
 <button type="button" class="resume-action resume-print" id="resume-print">Save as PDF</button>
-<a class="resume-action resume-manage" href="/students/portal#portfolio">Edit &amp; publish portfolio</a>
+<a class="resume-action resume-manage" href="/students/portal#portfolio">Student sign in · Edit &amp; publish</a>
 <span class="resume-action-status" id="resume-action-status" role="status" aria-live="polite"></span>
 </div>
-<p class="resume-owner-prompt">Created and published by the student. Sign in to update projects, skills, credentials and public links, or make this page private. Personal contact details and academic requests stay private.</p>
+<p class="resume-owner-prompt">Student-owned portfolio. Sign in to add projects, describe your role and results, update skills and credentials, publish changes, or make this page private. Personal contact details and academic requests stay private.</p>
 <dl class="resume-highlights" aria-label="Portfolio overview">
 <div><dt>Skills</dt><dd>{len(info['skills'])}</dd></div>
 <div><dt>Projects</dt><dd>{len(info['projects'])}</dd></div>
