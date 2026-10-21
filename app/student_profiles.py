@@ -631,7 +631,7 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
 <header class="resume-site-header">
 <div class="resume-site-inner">
 <a class="resume-college" href="/students" aria-label="NCET Student Portal">
-<img src="/static/ncet-brand.svg" alt="Nagarjuna College of Engineering and Technology" width="178" height="88" fetchpriority="high" decoding="async">
+<img src="/static/ncet-official-uhd.png?v=20261021-uhd-brand" alt="Nagarjuna College of Engineering and Technology" width="178" height="88" fetchpriority="high" decoding="async">
 <span>Student portfolios<small>Official NCET student portal</small></span></a>
 <nav aria-label="Profile navigation"><a href="/students/directory">Student directory</a><a href="/students">Student Portal</a></nav>
 <img class="resume-group-logo" src="/static/ngi-brand.svg" alt="Nagarjuna Group of Institutions" width="78" height="70" decoding="async">
@@ -639,7 +639,7 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
 <main id="student-resume" class="resume-container">
 <div class="resume-paper">
 <div class="resume-accreditation"><span>NCET · STUDENT PORTFOLIO</span>
-<img src="/static/naac-brand.svg" alt="Institutional accreditation: NAAC A+" width="61" height="61" decoding="async"></div>
+<img src="/static/naac-brand.svg?v=20261021-clear-brand" alt="Institutional accreditation: NAAC A+" width="61" height="61" decoding="async"></div>
 <div class="resume-heading">{avatar}<div class="resume-heading-copy">
 <p class="resume-overline">Student profile · Voluntarily published</p>
 <h1>{name}</h1><p class="resume-subtitle">{branch} <span aria-hidden="true">·</span> Semester {info['semester']}</p>

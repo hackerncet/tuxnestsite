@@ -37,7 +37,7 @@
 
 /* Unified, small, non-rotating logo shimmer. */
 .btn[aria-busy="true"]::before,button[aria-busy="true"]::before,
-.spinner{background:transparent url('/static/ncet-brand.svg') center/contain no-repeat!important;
+.spinner{background:transparent url('/static/ncet-official-uhd.png?v=20261021-uhd-brand') center/contain no-repeat!important;
  border:0!important;border-radius:0!important;animation:ncet-logo-shine 1.5s ease-in-out infinite!important;
  transform:none!important}
 .btn[aria-busy="true"]::before,button[aria-busy="true"]::before{

@@ -28,6 +28,11 @@ body{background:#F4F6F9;color:#172033}
 .identity-center .identity-sub{color:#53617B!important;font-size:12px!important;margin:0 auto!important;max-width:340px;line-height:1.5}
 .identity-panel-bottom{padding:15px 24px;background:#F7F9FC;border-top:1px solid #E3E8F1;color:#0E2455;gap:15px;min-height:83px}
 .identity-panel-bottom img{width:100px;height:66px;max-width:100px;max-height:66px;object-fit:contain;background:transparent}
+.identity-panel-bottom .home-accreditation{display:flex;align-items:center;gap:9px;color:#0E2455}
+.identity-panel-bottom .home-accreditation img{width:56px;height:56px;max-width:56px;max-height:56px}
+.identity-panel-bottom .home-accreditation strong,.identity-panel-bottom .home-accreditation small{display:block;white-space:nowrap}
+.identity-panel-bottom .home-accreditation strong{font-size:12px;font-weight:800}
+.identity-panel-bottom .home-accreditation small{margin-top:2px;font-size:10px;color:#566E85}
 .section-kicker{color:#A65111}
 .experience-services{padding:clamp(42px,5vw,64px) 0}
 .service-grid{gap:17px}

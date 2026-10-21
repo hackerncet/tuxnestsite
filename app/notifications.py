@@ -1,7 +1,7 @@
 """Persistent in-app alerts, scoped to accounts and roles."""
 from datetime import datetime
 from pathlib import Path
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import FileResponse
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, Session
@@ -42,14 +42,16 @@ def all_members(db):
 
 
 @router.get('/api/alerts/inbox')
-def inbox(user:User=Depends(current),db:Session=Depends(get_db)):
+def inbox(request:Request,response:Response,user:User=Depends(current),db:Session=Depends(get_db)):
+    response.headers['Cache-Control']='private, no-store'
     from .taskflow import TaskNotification
     current_items=db.query(AppNotification).filter(AppNotification.recipient_id==user.id).order_by(AppNotification.id.desc()).limit(80).all()
     tasks=db.query(TaskNotification).filter(TaskNotification.user_id==user.id).order_by(TaskNotification.id.desc()).limit(50).all()
     items=[{'id':f'a-{n.id}','text':n.text,'link':n.link,'category':n.category,'seen':n.seen,'at':n.created_at.isoformat()} for n in current_items]
     items.extend({'id':f't-{n.id}','text':n.text,'link':'/tasks','category':'tasks','seen':n.seen,'at':n.created_at.isoformat()} for n in tasks)
     items.sort(key=lambda n:n['at'],reverse=True)
-    return {'unread':sum(not n['seen'] for n in items),'items':items[:100]}
+    return {'unread':sum(not n['seen'] for n in items),'items':items[:100],
+            'csrf':request.state.session.csrf_token}
 
 
 @router.post('/api/alerts/{notification_id}/read')

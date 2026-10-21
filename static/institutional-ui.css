@@ -76,7 +76,7 @@ button,a,input,select,textarea,summary{touch-action:manipulation}
 }
 :where(button,.btn)[aria-busy=true]{pointer-events:none;cursor:progress}
 :where(button,.btn)[aria-busy=true]::before,.spinner{
- background:transparent url('/static/ncet-brand.svg') center/contain no-repeat!important;
+ background:transparent url('/static/ncet-official-uhd.png?v=20261021-uhd-brand') center/contain no-repeat!important;
  width:31px!important;height:23px!important;display:inline-block!important;
  border:0!important;animation:ncet-mark-breathe 1.5s ease-in-out infinite!important;
  transform:none!important;filter:none!important

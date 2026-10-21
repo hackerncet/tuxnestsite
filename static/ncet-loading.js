@@ -15,7 +15,7 @@
   loader.setAttribute('aria-label','Loading');
   loader.hidden=true;
   const mark=document.createElement('img');
-  mark.src='/static/ncet-brand.svg';mark.alt='';mark.width=65;mark.height=37;
+  mark.src='/static/ncet-official-uhd.png?v=20261021-uhd-brand';mark.alt='';mark.width=65;mark.height=37;
   const label=document.createElement('span');label.textContent='Working on your request…';
   loader.append(mark,label);document.body.append(loader);
   return loader;

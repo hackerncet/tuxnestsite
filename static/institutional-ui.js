@@ -11,7 +11,7 @@ function init(){
    if(img.dataset.ncetFallback)return;
    img.dataset.ncetFallback='1';
    img.classList.add('ncet-campus-fallback');
-   img.src='/static/ncet-brand.svg';
+   img.src='/static/ncet-official-uhd.png?v=20261021-uhd-brand';
    img.alt='Nagarjuna College of Engineering and Technology official emblem';
   };
   img.addEventListener('error',fallback,{once:true});

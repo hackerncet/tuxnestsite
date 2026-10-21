@@ -557,6 +557,8 @@ async def submit(task_id:int,file:UploadFile=File(...),user:User=Depends(csrf_re
     db.add(TaskSubmission(task_id=task.id,uploaded_by=user.id,filename=filename,content=data,revision=revision))
     task.state='verifying';task.score=None;task.report_json='{}';task.updated_at=utcnow()
     record_event(db,task,user,'submitted',f'Revision {revision} uploaded')
+    if task.assigned_by:
+        notify(db,task.assigned_by,f'{task.filename} submitted by staff; verification is starting.',task.id)
     task_audit(db,user,'task.submitted',f'{task.id}:{revision}')
     db.commit()
     return {'queued':True,'task_id':task.id,'revision':revision}
