@@ -24,6 +24,15 @@ This recheck supersedes earlier release-state bullets below where they differ. E
 ---
 
 
+## Passive external security-header scan — 21 October 2026, 23:47 IST
+
+- SecurityHeaders.com scanned `https://ncet-verifyflow.onrender.com` at 18:17 UTC and returned **A+**. The report observed Content-Security-Policy, Permissions-Policy, Referrer-Policy, Strict-Transport-Security, X-Content-Type-Options, and X-Frame-Options. The CSP has `object-src 'none'`, `base-uri 'none'`, `frame-ancestors 'none'`, and `form-action 'self'`; `style-src 'unsafe-inline'` remains in place for current inline styles.
+- The response also exposed `server: cloudflare` and `x-render-origin-server: uvicorn`; treat this as minor technology fingerprinting, not proof of an exploitable vulnerability. Removing provider-generated headers would require Render-side controls.
+- The same scanner could not complete a TLS handshake to `https://ncet.paladuguganeshnaidu.tech`, consistent with the direct browser failure. It could not assess that hostname's response headers.
+- This was an unauthenticated passive HTTP-header scan only. It does not test authenticated workflows, application/API vulnerabilities, dependency behavior at runtime, or exploit resistance, and is not a penetration test.
+
+---
+
 ## Live role and student-branch check — 21 October 2026, 23:36 IST
 
 - Against Render commit `53f98ac65e203256f6432fd96917f3b988fb8cd9`, fresh sign-ins succeeded for the supplied `testap` staff, `hod`, and `admin` accounts. Each landed on the expected role dashboard: Staff submissions, HOD department review queue, and the administrator control centre. The HOD navigation exposed the review queue, rules, staff, student requests, and tasks; the admin dashboard exposed user management, AI configuration, and security audit. No account, document, task, complaint, or workflow record was edited.
