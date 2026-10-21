@@ -148,3 +148,28 @@ body.ncet-profile-page{margin:0;background:#F4F6F9;color:#172033;font-family:Int
 @media(prefers-reduced-motion:reduce){
  ::view-transition-old(root),::view-transition-new(root){animation-duration:.01ms!important}
 }
+
+/* Portfolio actions and accurate, student-provided highlights. */
+.resume-action-bar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:0 37px 18px}
+.resume-action{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:9px 14px;border:1px solid #DCE5F0;border-radius:8px;background:#fff;color:#0E2455;font:700 12px/1.2 system-ui,sans-serif;text-decoration:none;cursor:pointer}
+.resume-action:hover{border-color:#F6872A;background:#FFF7F0}
+.resume-manage{background:#0E2455;border-color:#0E2455;color:#fff}
+.resume-manage:hover{background:#17356f;color:#fff}
+.resume-action-status{color:#087C59;font-size:11px;font-weight:700}
+.resume-highlights{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding:0 37px 22px;margin:0}
+.resume-highlights div{padding:12px 15px;background:#F7F9FC;border:1px solid #E3E9F2;border-radius:9px}
+.resume-highlights dt{font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:#64748B;font-weight:800}
+.resume-highlights dd{margin:4px 0 0;font-size:18px;line-height:1.15;color:#0E2455;font-weight:850}
+.resume-highlights .resume-highlight-note dd{font-size:13px}
+.resume-project{padding:16px;margin:0 0 12px;border:1px solid #E3E9F2;border-left:4px solid #F6872A;border-radius:10px;background:#FBFCFE}
+.resume-project:last-child{padding:16px;margin:0}
+@media(max-width:570px){
+ .resume-action-bar{padding:0 17px 15px;gap:7px}
+ .resume-action{min-height:42px;padding:8px 10px;font-size:11px}
+ .resume-manage{flex:1 1 100%}
+ .resume-highlights{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;padding:0 17px 17px}
+ .resume-highlights div{padding:9px}
+ .resume-highlights dd{font-size:16px}
+ .resume-highlights .resume-highlight-note{grid-column:1/-1}
+}
+@media print{.resume-action-bar{display:none!important}}

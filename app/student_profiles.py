@@ -623,9 +623,10 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
 <link rel="icon" href="/static/ncet-brand.svg">
 <script type="application/ld+json">{json_ld}</script>
 <link rel="preload" as="image" href="/static/ncet-official-uhd.png?v=20261021-uhd-brand" fetchpriority="high">
-<link rel="stylesheet" href="/static/resume-profile.css?v=20261017-2">
+<link rel="stylesheet" href="/static/resume-profile.css?v=20261021-portfolio-layout">
 <link rel="stylesheet" href="/static/institutional-ui.css?v=20261021-clear-lockup-2">
 <script src="/static/student-profile-tabs.js?v=20261017" defer></script>
+<script src="/static/student-profile-actions.js?v=20261021-portfolio-actions" defer></script>
 </head><body class="ncet-profile-page">
 <a class="skip-link" href="#student-resume">Skip to portfolio</a>
 <header class="resume-site-header">
@@ -644,6 +645,18 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
 <p class="resume-overline">Student profile · Voluntarily published</p>
 <h1>{name}</h1><p class="resume-subtitle">{branch} <span aria-hidden="true">·</span> Semester {info['semester']}</p>
 <p class="resume-usn"><strong>USN</strong> {sid}</p></div></div>
+<div class="resume-action-bar" aria-label="Portfolio actions">
+<button type="button" class="resume-action resume-share" id="resume-share" data-share-url="{escape(canonical,quote=True)}">Share portfolio</button>
+<button type="button" class="resume-action resume-print" id="resume-print">Save as PDF</button>
+<a class="resume-action resume-manage" href="/students/portal#portfolio">Create or update your portfolio</a>
+<span class="resume-action-status" id="resume-action-status" role="status" aria-live="polite"></span>
+</div>
+<dl class="resume-highlights" aria-label="Portfolio overview">
+<div><dt>Skills</dt><dd>{len(info['skills'])}</dd></div>
+<div><dt>Projects</dt><dd>{len(info['projects'])}</dd></div>
+<div><dt>Credentials</dt><dd>{len(info['certificates'])}</dd></div>
+<div class="resume-highlight-note"><dt>Published by</dt><dd>Student</dd></div>
+</dl>
 <nav class="resume-anchors" aria-label="Portfolio sections">
 <a href="#about" id="profile-tab-about">About</a><a href="#skills" id="profile-tab-skills">Skills</a><a href="#projects" id="profile-tab-projects">Projects</a>
 <a href="#certifications" id="profile-tab-certifications">Certifications</a><a href="#interests" id="profile-tab-interests">Interests</a><a href="#links" id="profile-tab-links">Links</a>
