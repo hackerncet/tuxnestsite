@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 9235)
-Total output lines: 661
-
 """NCET VerifyFlow: server-authorized AI-assisted document verification and approval."""
 import csv
 import io
@@ -324,7 +321,95 @@ def sitemap():
 
 @app.get('/sitemap/base.xml')
 def sitemap_base():
-    return _sitemap_xml([('/', ''),('/students',''),('/about',''),…1235 tokens truncated…characters.')
+    return _sitemap_xml([('/', ''),('/students',''),('/about',''),
+                         ('/students/directory','')])
+
+
+@app.get('/sitemap/students/{page}.xml')
+def sitemap_students(page:int):
+    if page<1:raise HTTPException(404,'Sitemap not found.')
+    with DBSession() as db:
+        from .student_profiles import public_query
+        from .student_profiles import StudentShowcase
+        total=public_query(db).with_entities(func.count(StudentShowcase.id)).scalar() or 0
+        if (page-1)*10000>=total:raise HTTPException(404,'Sitemap not found.')
+        return _sitemap_xml(_published_sitemap_batch(db,limit=10000,
+                                                      offset=(page-1)*10000))
+
+
+@app.get('/api/auth/me')
+def me(request:Request,user:User=Depends(current)):
+    return {'user':user_json(user),'csrf':request.state.session.csrf_token}
+
+@app.post('/api/auth/login')
+def login(body:LoginBody, request:Request, response:Response, db:DbSession=Depends(get_db)):
+    name = body.username.strip().lower()
+    ip = request.client.host if request.client else 'unknown'
+    # IP-based rate limit uses a digest and never logs the raw password.
+    iphash=hashlib.sha256(ip.encode()).hexdigest()
+    window = utcnow()-timedelta(minutes=15)
+    attempt_count=db.query(func.count(LoginFailure.id)).filter(LoginFailure.ip_hash==iphash,
+                                                                LoginFailure.at>window).scalar()
+    if attempt_count >= 12:
+        raise HTTPException(429,'Too many attempts. Try again after 15 minutes.')
+    user=db.query(User).filter(User.username==name, User.active.is_(True)).first()
+    stored_hash=user.password_hash if user else DUMMY_PASSWORD_HASH
+    password_valid=verify_password(body.password,stored_hash)
+    valid = bool(user and password_valid)
+    if not valid or (body.role and body.role!=user.role):
+        db.add(LoginFailure(ip_hash=iphash,username=name[:80]));db.commit()
+        raise HTTPException(401,'Invalid username, password or role.')
+    csrf=set_session(db,user,response)
+    audit(db,user,'auth.login');db.commit()
+    return {'user':user_json(user),'csrf':csrf}
+
+@app.post('/api/auth/logout')
+def logout(request:Request,response:Response,user:User=Depends(csrf_required),db:DbSession=Depends(get_db)):
+    db.delete(request.state.session)
+    audit(db,user,'auth.logout')
+    db.commit()
+    response.delete_cookie(COOKIE,path='/')
+    return {'ok':True}
+
+@app.post('/api/auth/change-password')
+def change_password(body:ChangePassword,request:Request,response:Response,
+                    user:User=Depends(csrf_required),db:DbSession=Depends(get_db)):
+    if not verify_password(body.old_password,user.password_hash):
+        raise HTTPException(400,'Current password is incorrect.')
+    if body.old_password==body.new_password:
+        raise HTTPException(422,'Choose a new password.')
+    user.password_hash=hash_password(body.new_password)
+    if user.role=='student':
+        from .student_models import BCAStudent
+        student=db.query(BCAStudent).filter(BCAStudent.user_id==user.id).first()
+        if student:student.must_change_password=False
+    user.password_changed_at=utcnow()
+    db.query(Session).filter(Session.user_id==user.id,Session.id!=request.state.session.id).delete()
+    audit(db,user,'auth.password_changed');db.commit()
+    return {'ok':True}
+
+@app.get('/api/documents')
+def documents(q:str='', status:str='all',offset:int=0, limit:int=100,
+              user:User=Depends(current),db:DbSession=Depends(get_db)):
+    if not 0 <= offset <= 100000 or not 1 <= limit <= 200:raise HTTPException(422,'Invalid pagination.')
+    base=doc_query(db,user)
+    if status in ('verifying','pending','manual_review','needs_correction','approved','rejected'):base=base.filter(Document.status==status)
+    if q.strip():
+        needle=f'%{q.strip()[:80]}%'
+        base=base.filter(or_(Document.title.ilike(needle),Document.public_id.ilike(needle),
+                             Document.category.ilike(needle)))
+    total=base.with_entities(func.count(Document.id)).scalar()
+    records=base.options(selectinload(Document.events).selectinload(DocumentEvent.actor),
+                         selectinload(Document.attachments),selectinload(Document.submitter),selectinload(Document.verifications)).order_by(
+                         Document.created_at.desc(),Document.id.desc()).offset(offset).limit(limit).all()
+    return {'items':[doc_json(d) for d in records], 'total':total}
+
+@app.post('/api/documents',status_code=201)
+async def upload(title:str=Form(...),category:str=Form(...),year:str=Form(...),description:str=Form(...),
+                 file:UploadFile=File(...),user:User=Depends(as_role_mutation('staff')),
+                 db:DbSession=Depends(get_db)):
+    title=title.strip(); description=description.strip()
+    if not 5<=len(title)<=140: raise HTTPException(422,'Document title must contain 5 to 140 characters.')
     if not 10<=len(description)<=2000: raise HTTPException(422,'Description must contain 10 to 2,000 characters.')
     if not 3<=len(category)<=100: raise HTTPException(422,'Select a valid document category.')
     if not re.fullmatch(r'20\d{2}[-–]\d{2,4}',year): raise HTTPException(422,'Select a valid academic year.')
@@ -573,4 +658,3 @@ def integration_delete(user:User=Depends(as_role_mutation('admin')),db:DbSession
     row=db.get(IntegrationSetting,'openrouter_key')
     if row:db.delete(row)
     audit(db,user,'integration.openrouter.deleted');db.commit();return {'ok':True}
-
