@@ -1,3 +1,15 @@
+## Live state recheck — 22 October 2026, 02:05 IST
+
+- GitHub `hackerncet/tuxnestsite` `main` is at `5d36741b49dd656b86cd4989fbf0f8e30ef656fe` (PR #93). Render deploy `dep-dbci2bm1egvs73apmu70` is `live` on that exact commit; auto-deploy remains enabled for commits on `main`.
+- CI run #1145 and security audit #561 passed. CI covered the Python suite, Node syntax checks, multi-role Chromium UI, student profile/public-page browser checks, and Ubuntu 22.04/24.04/26.04 installer checks.
+- A fresh authenticated staff session on the Render hostname showed the dashboard and existing records. The global loading indicator cleared after its eight-second form-navigation fallback, confirming the PR #93 fix. Render application logs showed `GET /api/alerts/inbox` completing with HTTP 200 at the configured 1.5-second polling cadence. Prior read-only HOD and admin logins also succeeded. No production records or account settings were modified.
+- A fresh browser request to `https://ncet.paladuguganeshnaidu.tech/app` still fails with `ERR_SSL_VERSION_OR_CIPHER_MISMATCH`. Render Dashboard access redirects to the sign-in page; the available Render connector exposes no service-domain or health-check mutation action. The live service reports an empty health-check path although `render.yaml` declares `/healthz`.
+- The active Render Postgres remains on the free plan, expires 14 November 2026, and allows network access from `0.0.0.0/0`. No allowlist change or backup/restore test was performed because the app-to-database private connection and recovery path are not yet verified.
+- The connected GitHub identity is `hackerncet`. Read-only metadata for `paladuguganeshnaidu/ncet` reports `pull: true`, `push: false`; the GitHub integration therefore cannot synchronize or update that separate repository. Render continues to deploy from `hackerncet/tuxnestsite`.
+- AI provider calls remain disabled and were not tested. Student-only authenticated save/request/reply workflows remain unverified; the supplied test account is a staff account, and no student account or records were created.
+
+---
+
 # NCET VerifyFlow production-readiness audit
 
 ## Live state recheck — 21 October 2026, 23:27 IST
