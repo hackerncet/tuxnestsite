@@ -43,6 +43,7 @@ body.student-modern,body.student-public{background:var(--bca-bg);color:var(--bca
 .student-photo-panel{display:flex;align-items:center;gap:24px;padding:19px 25px!important;margin-bottom:16px}
 .student-avatar-wrap{flex:0 0 112px;position:relative}
 .student-avatar-wrap img{border:2px solid #dfe7f4;border-radius:50%;width:106px;height:106px;object-fit:cover;background:#f0f3f8;padding:3px}
+.student-avatar-wrap img.is-placeholder{object-fit:contain;background:#fff;padding:12px}
 .student-avatar-wrap span{display:block;font-size:11px;text-align:center;margin-top:2px}
 .student-photo-fields{min-width:0;flex:1}
 .student-photo-fields p{margin:3px 0 11px;max-width:600px}

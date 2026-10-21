@@ -143,6 +143,7 @@ for(const tab of document.querySelectorAll('[data-student-tab]')){
 }
 function setProfilePhoto(available){
  const img=$('showcase-photo-preview');
+ img.classList.toggle('is-placeholder',!available);
  if(available){
   img.src='/api/bca/showcase/me/photo?ts='+Date.now();
   img.alt='Your saved student profile photo';
