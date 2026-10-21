@@ -161,3 +161,23 @@ The Render hostname is usable for continued controlled pilot checks, but the evi
 - The account is staff, not a student. Attempting it on the student portal returned the expected invalid username/password/role response; student-only publish, request, and reply workflows remain unverified without a student account.
 - PR #73 and PR #74 CI and security checks passed. The main-push Render smoke job passed after the current SHA was manually deployed. Repeated delayed auto-deploys continued to promote prior commits before the exact main SHA was restored.
 
+
+
+## Production verification update — 22 October 2026
+
+- GitHub `hackerncet/tuxnestsite` main is at `c76cf597ca58d534f6c889b3628437eb989f09b8`. Render deploy `dep-dbcgr7rm8hqs738rcur0` completed `live` on that exact commit; the web service reports auto-deploy enabled for commits on main.
+- Fresh read-only logins to the supplied administrator, HOD, and staff accounts succeeded on the Render hostname. HOD review queue listed two department documents; staff document library listed the same two records. HOD task tracking and complaints dashboards both loaded as separate workspaces and each showed zero current records. No document, student, task, complaint, or account was created or edited in this check. All test sessions were logged out.
+- The live staff submission form states that provider checks run only if an approved provider is configured and enabled; otherwise submissions require HOD manual review. The administrator's AI settings page reports external AI calls disabled by server policy, while indicating a provider key is saved. No key was viewed or changed, and no AI request was sent.
+- The live `/plot` page's browser sample reported LCP 1.98 s, TTFB 700 ms, CLS 0.000, transfer 5.3 KB, and a read-only health result of 297 ms. This is one browser sample only. Render metrics for the observed window returned CPU and memory samples (CPU about 0.0037–0.0209 cores; memory peak about 289 MB, latest about 237 MB) but no HTTP request-count or latency series. Production p95 latency remains unverified.
+- The custom hostname `ncet.paladuguganeshnaidu.tech` still fails TLS negotiation in the browser with `ERR_SSL_VERSION_OR_CIPHER_MISMATCH`. Its DNS chain had previously been verified. Render's live service readback still reports an empty `healthCheckPath`, although `render.yaml` declares `/healthz`; the endpoint itself returned healthy in the browser. The Render connector has no service-domain or health-check update action, and the dashboard session is unauthenticated, so these settings remain unresolved.
+- Render's attached Postgres remains on a free plan with an expiry date of 14 November 2026 and a public `0.0.0.0/0` network allowlist. The web service remains on a free plan with one instance. These are operational and access-control risks before institutional production use. Malware scanning is still disabled (`SCAN_MODE=off`); enabling uploads scanning without a provisioned scanner would break document processing.
+- The VPS target `paladuguganeshnaidu/ncet` is a separate history and is 117 changed files behind the Render source in the checked local comparison. The connected GitHub App installation currently covers only the `hackerncet` account; creating a branch in the VPS repository returned GitHub 403 `Resource not accessible by integration`. No VPS repository files were changed. The VPS workflow remains gated until repository access and deployment secrets are configured.
+
+## Remaining production gates
+
+1. Repair custom-domain TLS and configure the live Render health-check path.
+2. Move the database to durable production capacity, restrict its network allowlist, and verify backup/restore.
+3. Provision and verify malware scanning before enabling scanned uploads.
+4. Obtain write access to `paladuguganeshnaidu/ncet`, synchronize it from the Render source, then configure and verify the Ubuntu VPS deployment gate.
+5. Add server-side request latency and queue monitoring; browser-local `/plot` data cannot substitute for production percentiles.
+6. Use a disposable, explicitly cleaned-up test workflow for write-path verification. Keep AI calls disabled and do not use student records for synthetic tests.
