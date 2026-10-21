@@ -1,5 +1,26 @@
 # NCET VerifyFlow production-readiness audit
 
+## Latest state check — 21 October 2026, 22:39 IST
+
+This section supersedes the older deployment snapshot below where release state differs. Earlier sections remain historical evidence for the actions performed at their recorded times.
+
+- GitHub `hackerncet/tuxnestsite` `main` and Render's latest live deployment are commit `8da75c69e494532fcc56542dc5e871faa92a6b0a`. Render deploy `dep-dbcf1enlk1mc73fv40ug` succeeded; `/healthz` returned that exact commit.
+- PR #78 changed the public student profile into a continuous one-page portfolio. The live `/students/profile/1NC24CS146` page showed all six sections, four projects, 26 skills, student-owned publication controls, Share, and Save as PDF. The profile record was only read; no student data was changed.
+- GitHub's full CI and Chromium multi-role audit passed for the merged PR; the security/dependency workflow also passed. The focused portfolio backend suite passed 9 tests, and its browser audit passed at six viewport widths, including keyboard section links, reduced motion, no-JavaScript fallback, sharing, and print.
+- Render still reports automatic deploys enabled on `main`, but the service is on the free plan with one instance. Its dashboard `healthCheckPath` remains empty even though the repository Blueprint declares `/healthz`.
+- The custom hostname `https://ncet.paladuguganeshnaidu.tech/app` still fails TLS negotiation with `ERR_SSL_VERSION_CIPHER_MISMATCH`. The connected Cloudflare identity call failed with an internal connector error; DNS/certificate changes were not made.
+- Render lists the active Postgres instance `test` as free, available until 14 November 2026, with an external IP allow-list of `0.0.0.0/0`. The older `3dulpin-db` is suspended and expired. No database, allow-list, plan, backup, or production record was changed during this check.
+- AI external calls remain disabled and no AI service was contacted. The current deployment and security checks do not constitute an independent penetration test, a backup restore drill, or authenticated student publish test.
+
+### Open production actions
+
+1. Repair and verify custom-domain DNS/TLS before using that hostname for account credentials.
+2. Verify that Render's `DATABASE_URL` uses the same-region internal connection before restricting external IP access; then confirm backup/restore and migrate from the expiring free database to durable, paid storage with owner-approved spend.
+3. Configure fail-closed malware scanning on a reachable scanner before opening document uploads beyond the controlled pilot. Do not set `SCAN_MODE=clamav` until the scanner is actually provisioned and its memory requirements are measured.
+4. Set and verify `/healthz` in the Render service settings or synchronize the Blueprint configuration.
+5. Rotate the credentials that were shared in the task, without recording the values in this audit.
+6. Keep verifying the deployed commit after each main merge because earlier Render webhook events arrived out of order.
+
 **Observed:** 21 October 2026, 21:46 Asia/Kolkata  
 **Live service:** ncet-verifyflow on Render  
 **Source:** hackerncet/tuxnestsite main, deployed commit bad4683e57c87ad1497e10a43c8ce6d7fb231e66  
@@ -79,3 +100,4 @@ The Render hostname is usable for continued controlled pilot checks, but the evi
 - The supplied `testap` credentials authenticated successfully as a STAFF account in Computer Science & Engineering. Read-only checks covered overview, document list, status filter and search, submission form, activity timeline, account information, and help. The submission form was inspected but not submitted; no documents, passwords, or workflow records were changed.
 - The account is staff, not a student. Attempting it on the student portal returned the expected invalid username/password/role response; student-only publish, request, and reply workflows remain unverified without a student account.
 - PR #73 and PR #74 CI and security checks passed. The main-push Render smoke job passed after the current SHA was manually deployed. Repeated delayed auto-deploys continued to promote prior commits before the exact main SHA was restored.
+
