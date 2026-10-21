@@ -124,6 +124,8 @@ def test_missing_api_key_or_ambiguous_signature_goes_manual_review(client,monkey
     h=login_role(client,'hod');store_rulebook(client,h,[{'id':'sig','title':'Signed by Principal','type':'signature'}]);signout(client,h)
     h=login_role(client,'staff');id=upload(client,h,'Digitally signed?');finish(id)
     assert client.get('/api/documents').json()['items'][0]['status']=='manual_review'
+    report=client.get(f'/api/documents/{id}/verification').json()['report']
+    assert any('Automated AI review is unavailable' in note for note in report['notes'])
     signout(client,h)
     h=login_role(client,'hod')
     assert client.post(f'/api/documents/{id}/review',headers=h,json={'decision':'approved','note':'Original signed document verified manually'}).status_code==200
