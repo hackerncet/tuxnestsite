@@ -68,7 +68,7 @@ with sync_playwright() as p:
     page.reload(wait_until='domcontentloaded')
     page.evaluate("() => { window.__slowOperation=fetch('/api/ui-motion-slow',{method:'POST'}); }")
     page.locator('.ncet-network-loader:not([hidden])').wait_for(state='visible',timeout=1500)
-    assert page.locator('.ncet-network-loader img').get_attribute('src')=='/static/ncet-brand.svg'
+    assert page.locator('.ncet-network-loader img').get_attribute('src')=='/static/ncet-official-uhd.png?v=20261021-uhd-brand'
     page.evaluate('() => window.__slowOperation')
     page.locator('.ncet-network-loader').wait_for(state='hidden',timeout=2000)
     page.emulate_media(reduced_motion='reduce')

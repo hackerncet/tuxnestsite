@@ -17,7 +17,7 @@ with sync_playwright() as tool:
         assert page.locator("h1").inner_text()=="We couldn't find that page."
         assert page.locator("a[href='/students']").count()==1
         assert page.locator("a[href='/students/directory']").count()==1
-        assert page.locator("img[src='/static/ncet-official-hd.png']").count()==2
+        assert page.locator("img[src^='/static/ncet-official-uhd.png']").count()==2
         for img in page.locator("img[src='/static/ncet-brand.svg']").all():
             assert img.evaluate("(img)=>img.complete && img.naturalWidth>0"),width
         assert page.evaluate("document.documentElement.scrollWidth<=innerWidth+2"),width

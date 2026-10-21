@@ -24,9 +24,9 @@ def test_homepage_branding_terminology_and_footer_order(client):
     assert "BCA directory" not in html
     assert "your department HOD" in html
     assert "home-revamp.css?v=20261021-hd-logo" in html
-    assert "homepage-polish.css" not in html
-    assert '<link rel="preload" href="/static/ncet-official-hd.png" as="image" fetchpriority="high">' in html
-    assert "/static/ncet-official-hd.png" in html
+    assert "homepage-polish.css?v=20261021-accreditation-row" in html
+    assert '<link rel="preload" href="/static/ncet-official-uhd.png?v=20261021-uhd-brand" as="image" fetchpriority="high">' in html
+    assert "/static/ncet-official-uhd.png" in html
     assert 'width="500" height="241"' in html
     assert "NCET Student Portal</p>" in html
     assert "Nagarjuna College of Engineering and Technology" in html
@@ -41,7 +41,7 @@ def test_homepage_branding_terminology_and_footer_order(client):
 
 
 def test_logo_assets_and_homepage_css_exist(client):
-    for asset in ("ncet-brand.svg","ncet-brand.png","ncet-official-hd.png","ngi-brand.svg"):
+    for asset in ("ncet-brand.svg","ncet-brand.png","ncet-official-uhd.png","ngi-brand.svg"):
         result=client.get("/static/"+asset)
         assert result.status_code==200,asset
     for path in ("homepage-polish.css","ncet-brand-system.css"):
@@ -53,7 +53,7 @@ def test_logo_assets_and_homepage_css_exist(client):
     css=(STATIC/"homepage-polish.css").read_text()
     assert "#F6872A" in css and "#0E2455" in css
     assert "aspect-ratio:1056/512" in css
-    with Image.open(STATIC/"ncet-official-hd.png") as logo:
+    with Image.open(STATIC/"ncet-official-uhd.png") as logo:
         assert logo.width==2000 and logo.height==964
 
 
