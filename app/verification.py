@@ -339,4 +339,3 @@ def run_job(job_id:int):
         doc.status='pending' if job.state=='passed' else job.state
         doc.updated_at=utcnow()
         db.commit()
-
