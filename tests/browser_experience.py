@@ -63,18 +63,27 @@ def main():
             blob.text().then(text=>window.__exportedCSV=text);
             return oldCreate(blob);
           };
+          const students=[
+            {usn:'1NC24BCA901',name:'Student Alpha',branch:'Computer Applications',branch_name:'Computer Applications',semester:3,active:true},
+            {usn:'1NC24BCA902',name:'Student Beta',branch:'Computer Applications',branch_name:'Computer Applications',semester:2,active:true}
+          ];
           window.fetch=async(url)=>{
-            const data=String(url).endsWith('/api/auth/me')?
-              {csrf:'mock-csrf',user:{role:'staff',name:'Demo BCA Faculty',department:'Computer Applications'}}:
-              String(url).endsWith('/api/academic/departments')?
-              {items:[{code:'Computer Applications',name:'Computer Applications',active:true}]}:
-              String(url).endsWith('/api/bca/students')?
-              {items:[
-                {usn:'1NC24BCA901',name:'Student Alpha',semester:3,active:true},
-                {usn:'1NC24BCA902',name:'Student Beta',semester:2,active:true}
-              ]}:{items:[]};
-            return new Response(JSON.stringify(data),{
-              status:200,headers:{'Content-Type':'application/json'}});
+            const target=new URL(String(url),'http://example.test');
+            const path=target.pathname,params=target.searchParams;
+            let data={items:[]};
+            if(path==='/api/auth/me')data={csrf:'mock-csrf',user:{role:'staff',name:'Demo BCA Faculty',department:'Computer Applications'}};
+            else if(path==='/api/academic/departments')data={items:[{code:'Computer Applications',name:'Computer Applications',active:true}]};
+            else if(path==='/api/bca/students'){
+              const term=(params.get('search')||'').toLowerCase();
+              const includeDisabled=params.get('include_disabled')==='true';
+              const rows=students.filter(x=>(includeDisabled||x.active)&&(!term||
+                x.name.toLowerCase().includes(term)||x.usn.toLowerCase().includes(term)||x.branch.toLowerCase().includes(term)));
+              const pageSize=Number(params.get('page_size')||50),total=rows.length,total_pages=Math.max(1,Math.ceil(total/pageSize));
+              const page=Math.min(Number(params.get('page')||1),total_pages);
+              data={items:rows.slice((page-1)*pageSize,page*pageSize),total,page,page_size:pageSize,total_pages,
+                has_previous:page>1,has_next:page<total_pages};
+            }
+            return new Response(JSON.stringify(data),{status:200,headers:{'Content-Type':'application/json'}});
           };
         }""")
         page.add_script_tag(content=(STATIC/"bca-management.js").read_text(encoding='utf-8'))
@@ -83,10 +92,10 @@ def main():
         assert page.locator(".brand small").inner_text()=="Computer Applications"
         assert page.locator("#roster .entry").count()==2
         page.locator("#roster-search").fill("bca901")
-        assert page.locator("#roster .entry").count()==1
+        page.wait_for_function("document.querySelectorAll('#roster .entry').length===1")
         assert "Student Alpha" in page.locator("#roster").inner_text()
         page.locator("#roster-search").fill("unknown")
-        assert page.get_by_text("No students match your search.").is_visible()
+        page.get_by_text("No students match your search.").wait_for()
         page.locator("#roster-search").fill("")
         with page.expect_download() as download_info:
             page.locator("#export-roster").click()
@@ -103,17 +112,18 @@ def main():
         load_page(page,"bca-management.html")
         page.evaluate("""() => {
           window.fetch=async(url)=>{
-            const path=String(url);
-            const data=path.endsWith('/api/auth/me')?
-              {csrf:'mock-csrf',user:{role:'admin',name:'Demo Admin',department:'Computer Science & Engineering'}}:
-              path.endsWith('/api/academic/departments')?
-              {items:[{code:'Computer Science & Engineering',name:'Computer Science & Engineering',active:true}]}:
-              path.endsWith('/api/bca/students')?
-              {items:[{usn:'1NC24CS901',name:'Admin Student',branch:'Computer Science & Engineering',
-                branch_name:'Computer Science & Engineering',semester:3,active:true}]}:
-              {items:[]};
-            return new Response(JSON.stringify(data),{
-              status:200,headers:{'Content-Type':'application/json'}});
+            const target=new URL(String(url),'http://example.test');
+            const path=target.pathname,params=target.searchParams;
+            let data={items:[]};
+            if(path==='/api/auth/me')data={csrf:'mock-csrf',user:{role:'admin',name:'Demo Admin',department:'Computer Science & Engineering'}};
+            else if(path==='/api/academic/departments')data={items:[{code:'Computer Science & Engineering',name:'Computer Science & Engineering',active:true}]};
+            else if(path==='/api/bca/students'){
+              const rows=[{usn:'1NC24CS901',name:'Admin Student',branch:'Computer Science & Engineering',
+                branch_name:'Computer Science & Engineering',semester:3,active:true}];
+              const pageSize=Number(params.get('page_size')||50);
+              data={items:rows,total:rows.length,page:1,page_size:pageSize,total_pages:1,has_previous:false,has_next:false};
+            }
+            return new Response(JSON.stringify(data),{status:200,headers:{'Content-Type':'application/json'}});
           };
         }""")
         page.add_script_tag(content=(STATIC/"bca-management.js").read_text(encoding="utf-8"))
