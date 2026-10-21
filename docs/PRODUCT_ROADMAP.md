@@ -2,7 +2,7 @@
 
 This roadmap reflects the current repository, with priority on a reliable HOD document pipeline, branch-specific work visibility, and useful student self-service. It keeps the existing NCET theme and makes AI an optional later addition. None of the future AI items assume a provider key is configured.
 
-Features marked implemented are present in deployed `hackerncet/tuxnestsite` `main` at `6a50a9b` (21 October 2026). Render confirmed the matching deploy is live. GitHub PR CI run 934 and Security Audit run 349 passed before merge; the PR smoke and VPS deployment jobs were skipped for the pull-request event and unset VPS configuration. Read-only live checks confirmed `/healthz` reports the deployed commit, the public student portfolio displays all sections, and the student portal exposes the authenticated profile editor and publish controls. This pass made no production data changes and no AI-provider requests.
+Features marked implemented are present in `hackerncet/tuxnestsite` `main` at `2d460e3af53f5df1957fbac9e3525da4a6d1fdb7` (21 October 2026). Render `/healthz` confirmed that commit live after a manual redeploy. PR #69 polished the student portfolio gallery and publish handoff. Render later processed an older `a65eb62` commit event and replaced the newer deploy; see the production-readiness audit. The PR #69 combined-status connector returned no CI statuses, so no new automated CI result is claimed for that change. Read-only live checks confirmed `/healthz` reports the deployed commit, the public student portfolio displays all sections, and the student portal exposes the authenticated profile editor and publish controls. This pass made no production data changes and no AI-provider requests.
 
 ## Production verification priorities
 
@@ -21,6 +21,7 @@ Features marked implemented are present in deployed `hackerncet/tuxnestsite` `ma
 - Deterministic document inspection plus an asynchronous verification worker. When no AI provider is available, submitted work goes to human review.
 - Separate student request/complaint desk with private case messages, status transitions, branch scope, filters, pagination, and student notifications.
 - Student portal with profile, requests, replies, and student-owned public portfolios. Students can add project role, timeframe, outcome, links, skills, certificates, and interests, then publish or unpublish their profile. Public portfolios keep all sections visible with sticky section links, sharing, and PDF print controls. Request status cards filter the private queue; request cards summarize the next step and latest HOD response.
+- **Implemented and live:** Public portfolios show projects as responsive cards and provide a clear “Student: edit & publish” route to the authenticated portal. The live route handoff was checked; the authenticated student save flow was not exercised in production.
 - Students can print/save a private request receipt and reopen a resolved request by replying within 14 days of its latest update. Closed cases remain immutable.
 - All-departments roster no longer labels a missing branch as Computer Applications; missing branch data is called out and must be selected during admin edits.
 - The administrator can import students for active academic departments from CSV/XLSX; each student's department code is stored on the user account and displayed through the current department catalog.
@@ -112,7 +113,7 @@ Ship in this order on the now-connected repository and production service:
 
 ## Deployment readiness follow-up
 
-- Confirm the Render service is building the current `hackerncet/tuxnestsite` main branch, then verify `/healthz` and role-based pages after each deployment. The 21 October 2026 release is live and passed its GitHub CI and security workflows.
+- Verify the Render service's deployed SHA against the current `hackerncet/tuxnestsite` main head after each merge. A delayed Render `new_commit` event deployed an older revision after the latest manual release; the branch-head deploy was restored manually. Investigate webhook/event ordering before relying on automatic deploys. The live service reports an empty health-check path even though `render.yaml` declares `/healthz`.
 - Move institutional use to durable, always-on compute with tested backups and recovery. Enable malware scanning only where its scanner is provisioned and reachable.
 - Verify the institution's custom domain and certificate in a browser before entering credentials.
 - Add server-side latency, queue-age, and failure monitoring; `/plot` reports a single browser sample and cannot replace production telemetry.
