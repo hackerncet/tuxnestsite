@@ -45,6 +45,32 @@ def test_csv_enrollment_role_scope_validation_and_no_overwrite(client,login):
     assert len(client.get('/api/bca/students').json()['items'])==2
 
 
+def test_student_roster_server_pagination_search_and_export(client,login):
+    prepare_bca()
+    token=login(client,'hod')
+    csv=(b'usn,full_name,branch,semester\\n'
+         b'1NC24BCA991,Student Alpha,Computer Applications,2\\n'
+         b'1NC24BCA992,Student Beta,Computer Applications,3\\n'
+         b'1NC24BCA993,Student Gamma,Computer Applications,4\\n')
+    imported=client.post('/api/bca/students/import',headers={'X-CSRF-Token':token},
+                         files={'file':('students.csv',csv,'text/csv')})
+    assert imported.status_code==200,imported.text
+    first=client.get('/api/bca/students?page=1&page_size=2')
+    assert first.status_code==200,first.text
+    assert first.json()['total']==3
+    assert first.json()['page']==1 and first.json()['page_size']==2
+    assert first.json()['total_pages']==2 and first.json()['has_next']
+    assert [row['usn'] for row in first.json()['items']]==['1NC24BCA991','1NC24BCA992']
+    second=client.get('/api/bca/students?page=2&page_size=2')
+    assert [row['usn'] for row in second.json()['items']]==['1NC24BCA993']
+    assert second.json()['has_previous'] and not second.json()['has_next']
+    search=client.get('/api/bca/students?search=Student%20Beta')
+    assert search.json()['total']==1 and search.json()['items'][0]['usn']=='1NC24BCA992'
+    export=client.get('/api/bca/students?include_disabled=true&page_size=500')
+    assert export.status_code==200
+    assert {x['usn'] for x in export.json()['items']}=={'1NC24BCA991','1NC24BCA992','1NC24BCA993'}
+
+
 def test_case_privacy_password_change_hod_replies_and_closure(client,login):
     hod_token,pwd=import_one(client,login)
     # HOD session belongs to TestClient, students are separate sessions.
