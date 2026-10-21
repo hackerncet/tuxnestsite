@@ -60,6 +60,17 @@ def test_browser():
         assert page.locator('#dashboard-metrics [data-dash-status="approved"] strong').inner_text()=='0'
         assert page.locator('#dash-stage-chart .stage-ring').is_visible()
         assert page.locator('#dash-trend-chart .daily-column').count()==14
+        remove_task=page.get_by_role('button',name='Delete unsubmitted task')
+        assert remove_task.count()==1
+        remove_task.click()
+        assert page.locator('#task-delete-dialog').is_visible()
+        assert 'DELETE 1 Academic_Audit.pdf' in page.locator('#task-delete-confirmation').inner_text()
+        page.locator('#task-delete-confirmation-input').fill('DELETE the wrong task')
+        assert page.locator('#task-delete-submit').is_disabled()
+        page.locator('#task-delete-confirmation-input').fill('DELETE 1 Academic_Audit.pdf')
+        assert page.locator('#task-delete-submit').is_enabled()
+        page.locator('#task-delete-cancel').click()
+        assert page.locator('#task-delete-dialog').is_hidden()
         page.locator('[data-select="1"]').check()
         assert '1 unassigned PDFs selected' in page.locator('#selected-ids').inner_text()
         assert page.locator('#rules-mode').input_value()=='manual'

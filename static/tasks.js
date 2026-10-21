@@ -1,7 +1,7 @@
 /* NCET tasks: all data from authenticated, department-scoped APIs. No secret values in frontend. */
 (()=>{'use strict';
 const $=s=>document.querySelector(s), safe=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let me=null,csrf='',tasks=[],staff=[],role='',selected=new Set(),poll=null,checklistTemplates=[],selectedChecklistId='',checklistVersions=[],reviewingTaskId=null;
+let me=null,csrf='',tasks=[],staff=[],role='',selected=new Set(),poll=null,checklistTemplates=[],selectedChecklistId='',checklistVersions=[],reviewingTaskId=null,deletingTaskId=null,deleteConfirmation='';
 function say(text,error=false){const el=$('#toast');el.hidden=false;el.textContent=text;el.style.background=error?'#973e31':'#0e2455';clearTimeout(el._timer);el._timer=setTimeout(()=>{el.hidden=true},4800)}
 async function api(path,options={}){const method=options.method||'GET';const h={...(options.headers||{})};if(method!=='GET')h['X-CSRF-Token']=csrf;const r=await fetch(path,{...options,headers:h,credentials:'same-origin'});const payload=await r.json().catch(()=>null);if(!r.ok)throw Error(typeof payload?.detail==='string'?payload.detail:`Request failed (${r.status})`);return payload}
 const dueDate=value=>value?new Date(value).toLocaleString(undefined,{year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):'';
@@ -177,7 +177,7 @@ $('#per-file-rules').addEventListener('click',event=>{
 });
 addManualRule();setRulesMode();
 
-function actions(t){let html=`<button class="btn secondary smallbtn" data-op="reference" data-id="${t.id}">PDF</button>`;if(role==='staff'&&['assigned','correction_required'].includes(t.state))html+=`<button class="btn smallbtn" data-op="submit" data-id="${t.id}">Submit</button>`;if(role==='hod'&&['assigned','on_hold'].includes(t.state))html+=`<button class="btn secondary smallbtn" data-op="hold" data-id="${t.id}" data-value="${t.state==='assigned'}">${t.state==='assigned'?'Hold':'Release'}</button>`;if(role==='hod'&&t.assigned_staff_id&&!['unassigned','approved'].includes(t.state))html+=`<button class="btn secondary smallbtn" data-op="deadline" data-id="${t.id}">Edit deadline</button>`;if(role==='hod'&&['awaiting_hod','manual_review'].includes(t.state))html+=`<button class="btn smallbtn" data-op="decide" data-id="${t.id}">Decide</button>`;if(t.report?.summary||t.report?.findings?.length)html+=`<button class="btn secondary smallbtn" data-op="report" data-id="${t.id}">Report</button>`;return html;}
+function actions(t){let html=`<button class="btn secondary smallbtn" data-op="reference" data-id="${t.id}">PDF</button>`;if(role==='staff'&&['assigned','correction_required'].includes(t.state))html+=`<button class="btn smallbtn" data-op="submit" data-id="${t.id}">Submit</button>`;if(role==='hod'&&['assigned','on_hold'].includes(t.state))html+=`<button class="btn secondary smallbtn" data-op="hold" data-id="${t.id}" data-value="${t.state==='assigned'}">${t.state==='assigned'?'Hold':'Release'}</button>`;if(role==='hod'&&t.assigned_staff_id&&!['unassigned','approved'].includes(t.state))html+=`<button class="btn secondary smallbtn" data-op="deadline" data-id="${t.id}">Edit deadline</button>`;if(role==='hod'&&['awaiting_hod','manual_review'].includes(t.state))html+=`<button class="btn smallbtn" data-op="decide" data-id="${t.id}">Decide</button>`;if(role==='hod'&&['unassigned','assigned','on_hold'].includes(t.state))html+=`<button class="btn secondary smallbtn" data-op="delete" data-id="${t.id}">Delete unsubmitted task</button>`;if(t.report?.summary||t.report?.findings?.length)html+=`<button class="btn secondary smallbtn" data-op="report" data-id="${t.id}">Report</button>`;return html;}
 function table(){
  const body=$('#tasks');$('#queue-count').textContent=tasks.length+' tasks';
  $('#check-header').hidden=role!=='hod';
@@ -234,6 +234,22 @@ $('#assign-form').addEventListener('submit',async e=>{e.preventDefault();if(!sel
 }catch(err){say(err.message,true)}});
 
 let editingDeadlineTask=null;
+$('#task-delete-cancel').addEventListener('click',()=>$('#task-delete-dialog').close());
+$('#task-delete-confirmation-input').addEventListener('input',()=>{
+ $('#task-delete-submit').disabled=$('#task-delete-confirmation-input').value!==deleteConfirmation;
+});
+$('#task-delete-dialog').addEventListener('close',()=>{
+ deletingTaskId=null;deleteConfirmation='';$('#task-delete-form').reset();$('#task-delete-submit').disabled=true;
+});
+$('#task-delete-form').addEventListener('submit',async event=>{
+ event.preventDefault();
+ if(role!=='hod'||deletingTaskId===null||$('#task-delete-confirmation-input').value!==deleteConfirmation)return;
+ const button=$('#task-delete-submit');button.disabled=true;
+ try{
+  await api(`/api/tasks/${deletingTaskId}`,{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirmation:deleteConfirmation})});
+  $('#task-delete-dialog').close();say('Unsubmitted task removed. Audit history was retained.');await refresh();
+ }catch(err){say(err.message,true);button.disabled=false}
+});
 $('#deadline-cancel').addEventListener('click',()=>$('#deadline-dialog').close());
 $('#deadline-form').addEventListener('submit',async event=>{
  event.preventDefault();
@@ -269,6 +285,15 @@ if(btn.dataset.op==='deadline'){
  setMinDeadline();
  $('#edit-deadline').value=localPickerDate(t.deadline);
  $('#deadline-dialog').showModal();
+ return;
+}
+if(btn.dataset.op==='delete'){
+ if(role!=='hod'||!['unassigned','assigned','on_hold'].includes(t.state))return;
+ deletingTaskId=id;deleteConfirmation=`DELETE ${t.id} ${t.file}`;
+ $('#task-delete-name').textContent=`${t.file} · task ${t.id}`;
+ $('#task-delete-confirmation').textContent=deleteConfirmation;
+ $('#task-delete-confirmation-input').value='';$('#task-delete-submit').disabled=true;
+ $('#task-delete-dialog').showModal();$('#task-delete-confirmation-input').focus();
  return;
 }
 if(btn.dataset.op==='hold'){await api(`/api/tasks/${id}/hold?hold=${btn.dataset.value}`,{method:'POST'});say('Task status updated.');return refresh()}

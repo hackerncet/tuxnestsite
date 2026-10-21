@@ -150,6 +150,10 @@ class DeadlineUpdate(BaseModel):
     deadline:datetime|None
 
 
+class DeleteTaskBody(BaseModel):
+    confirmation:str=Field(min_length=8,max_length=250)
+
+
 class ChecklistTemplateBody(BaseModel):
     name:str=Field(min_length=3,max_length=100)
     rules:list[dict]=Field(min_length=1,max_length=30)
@@ -229,7 +233,7 @@ def is_manager(user):
 
 
 def scope(db,user):
-    q=db.query(TaskItem)
+    q=db.query(TaskItem).filter(TaskItem.state!='removed')
     if user.role=='staff':q=q.filter(TaskItem.assigned_to==user.id)
     elif user.role=='hod':q=q.filter(TaskItem.department==user.department)
     elif user.role not in ('principal','iqac','admin'):raise HTTPException(403,'Not authorized for faculty tasks.')
@@ -393,6 +397,55 @@ def list_tasks(user:User=Depends(current),db:DbSession=Depends(get_db)):
                      for task in rows]}
 
 
+@router.delete('/{task_id}')
+def delete_unsubmitted_task(task_id:int,body:DeleteTaskBody,
+                            user:User=Depends(csrf_required),db:DbSession=Depends(get_db)):
+    """Remove an unsubmitted task and its PDF from queues while retaining its history."""
+    if user.role!='hod':
+        raise HTTPException(403,'Department HOD required to remove a task.')
+    task=_get(db,user,task_id,lock=True)
+    expected=f'DELETE {task.id} {task.filename}'
+    if body.confirmation!=expected:
+        raise HTTPException(422,'Enter the exact task confirmation shown in the dialog.')
+    submission_count=db.query(TaskSubmission).filter(TaskSubmission.task_id==task.id).count()
+    decision_count=db.query(TaskDecision).filter(TaskDecision.task_id==task.id).count()
+    if submission_count or decision_count or task.state not in ('unassigned','assigned','on_hold'):
+        raise HTTPException(409,'Only tasks with no submissions or HOD decisions can be removed.')
+
+    task_id=task.id
+    batch_id=task.batch_id
+    filename=task.filename
+    previous_state=task.state
+    batch=db.get(TaskBatch,batch_id)
+    batch_title=batch.title if batch else ''
+    event_count=db.query(TaskEvent).filter(TaskEvent.task_id==task_id).count()
+    db.query(TaskReminderDelivery).filter(TaskReminderDelivery.task_id==task_id).delete(synchronize_session=False)
+    # Keep staff inbox history while removing its dangling link to the deleted task.
+    db.query(TaskNotification).filter(TaskNotification.task_id==task_id).update(
+        {TaskNotification.task_id:None,
+         TaskNotification.text:f'Task removed by the department HOD: {filename}'},
+        synchronize_session=False)
+    from .reference_rules import RuleDraft
+    db.query(RuleDraft).filter(RuleDraft.task_id==task_id).delete(synchronize_session=False)
+    task.reference_pdf=b''
+    task.state='removed'
+    task.assigned_to=None
+    task.assigned_by=None
+    task.deadline=None
+    task.notes=''
+    task.rules_json='[]'
+    task.score=None
+    task.report_json='{}'
+    task.updated_at=utcnow()
+    record_event(db,task,user,'removed','Removed from active queue; reference PDF content cleared.')
+    task_audit(db,user,'task.unsubmitted_removed',
+               f'id={task_id}; file={filename}; batch={batch_id}:{batch_title}; '
+               f'previous_state={previous_state}; pdf_content_cleared; '
+               f'task_history_events_preserved={event_count}')
+    db.commit()
+    return {'removed':True,'task_id':task_id,'history_retained':True}
+
+
 @router.post('/assign')
 def assign(body:AssignBody,user:User=Depends(csrf_required),db:DbSession=Depends(get_db)):
     if user.role!='hod':raise HTTPException(403,'Department HOD required.')
@@ -539,7 +592,8 @@ def mark_read(notification_id:int,user:User=Depends(csrf_required),db:DbSession=
 
 def dashboard_listing(db,user,*,status,staff_id,search,deadline_filter,sort,from_date,to_date,now):
     """Build the same department-scoped filtered task query for UI and export."""
-    listing=db.query(TaskItem).filter(TaskItem.department==user.department)
+    listing=db.query(TaskItem).filter(TaskItem.department==user.department,
+                                      TaskItem.state!='removed')
     is_overdue=(TaskItem.assigned_to.isnot(None),TaskItem.deadline<now,
                 TaskItem.state.notin_(('approved','unassigned')))
     if status=='working':
@@ -596,7 +650,8 @@ def hod_dashboard(offset:int=Query(0,ge=0),
     search/pagination and durable per-task history. No document bytes are read."""
     if user.role!='hod':
         raise HTTPException(403,'Department HOD dashboard only.')
-    base=db.query(TaskItem).filter(TaskItem.department==user.department)
+    base=db.query(TaskItem).filter(TaskItem.department==user.department,
+                                   TaskItem.state!='removed')
     now=utcnow()
     groups=dict(base.with_entities(TaskItem.state,func.count(TaskItem.id))
                 .group_by(TaskItem.state).all())
