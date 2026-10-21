@@ -24,6 +24,16 @@ This recheck supersedes earlier release-state bullets below where they differ. E
 ---
 
 
+## Custom-domain TLS investigation — 21 October 2026, 23:55 IST
+
+- A fresh browser request to `https://ncet.paladuguganeshnaidu.tech/app` still fails with `ERR_SSL_VERSION_CIPHER_MISMATCH`.
+- Qualys SSL Labs assessed the hostname at 18:24 UTC and reported “Failed to communicate with the secure server” for both Render ingress addresses, `216.24.57.16` and `216.24.57.18`. SecurityHeaders.com also failed at the TLS handshake and could not inspect response headers.
+- Google Public DNS currently returns the CNAME chain `ncet.paladuguganeshnaidu.tech → ncet-verifyflow.onrender.com → gcp-us-west1-1.origin.onrender.com → Render's Cloudflare CDN`. The parent `paladuguganeshnaidu.tech` query returned no CAA record, so a restrictive parent CAA policy was not observed. Earlier DNS checks found no AAAA record.
+- Render's service details still show the correct Render hostname and GitHub source but an empty health-check path and no custom-domain/certificate fields. The Render dashboard URL redirects to sign-in, and the connected Render MCP has no domain mutation control. DNS and Render settings were not changed.
+- Evidence points toward an unverified/missing Render custom-domain association or certificate/edge state; it does not prove which Render-side setting is wrong. Verify the custom domain and certificate status in the authenticated Render service settings before using this hostname for logins.
+
+---
+
 ## Passive external security-header scan — 21 October 2026, 23:47 IST
 
 - SecurityHeaders.com scanned `https://ncet-verifyflow.onrender.com` at 18:17 UTC and returned **A+**. The report observed Content-Security-Policy, Permissions-Policy, Referrer-Policy, Strict-Transport-Security, X-Content-Type-Options, and X-Frame-Options. The CSP has `object-src 'none'`, `base-uri 'none'`, `frame-ancestors 'none'`, and `form-action 'self'`; `style-src 'unsafe-inline'` remains in place for current inline styles.
