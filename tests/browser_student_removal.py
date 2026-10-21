@@ -91,6 +91,7 @@ def audit():
    assert page.locator('#selected-student-count').inner_text()=='0 selected'
    assert page.locator('#roster .select-student').count()==50
    page.locator('#show-disabled-students').check()
+   page.wait_for_function("document.querySelector('#roster-count').textContent.includes('of 53 students')")
    assert page.locator('#roster .select-student').count()==50
    assert not errors,errors
    dimensions=page.evaluate("""() => ({
