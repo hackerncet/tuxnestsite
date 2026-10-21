@@ -240,3 +240,5 @@ body.ncet-profile-page{margin:0;background:#F4F6F9;color:#172033;font-family:Int
 .resume-anchors{position:sticky;top:0;z-index:12;box-shadow:0 6px 18px #07173524}
 .resume-section{scroll-margin-top:76px}
 @media(max-width:570px){.resume-section{scroll-margin-top:66px}}
+
+.resume-paper{overflow:clip}
