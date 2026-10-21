@@ -51,6 +51,11 @@ def main():
   assert page.locator('#who').inner_text()=='1NC24CSE901 · Computer Science & Engineering · Semester 5'
   page.locator('[data-student-tab=profile]').click()
   assert page.locator('#showcase-dept').input_value()=='Computer Science & Engineering'
+  preview=page.locator('#showcase-photo-preview')
+  assert preview.evaluate("img=>img.classList.contains('is-placeholder') && getComputedStyle(img).objectFit==='contain' && img.complete && img.naturalWidth>0")
+  page.evaluate('setProfilePhoto(true)')
+  assert preview.evaluate("img=>!img.classList.contains('is-placeholder') && getComputedStyle(img).objectFit==='cover'")
+  page.evaluate('setProfilePhoto(false)')
   page.locator('[data-student-tab=requests]').click()
   page.locator('#case-subject').fill('CSE lab schedule review')
   page.locator('#case-description').fill('Please review the updated Computer Science laboratory schedule.')

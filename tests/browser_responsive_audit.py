@@ -48,6 +48,13 @@ with sync_playwright() as playwright:
             }""")
             if measurements["scrollWidth"] > width + 3:
                 issues.append((width, route, "overflow", measurements))
+            logo_status = page.evaluate("""() => [...document.querySelectorAll('.brand img')].map(img => ({
+                src: img.currentSrc || img.src,
+                width: img.naturalWidth,
+                complete: img.complete
+            }))""")
+            if any(not img["complete"] or img["width"] < 1000 for img in logo_status):
+                issues.append((width, route, "brand logo missing or below HD source resolution", logo_status))
             for error in errors:
                 issues.append((width, route, "JavaScript", error))
             errors.clear()

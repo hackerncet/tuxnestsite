@@ -1,5 +1,6 @@
 """Regression: NCET homepage exact official branding, student portal wording and footer hierarchy."""
 from pathlib import Path
+from PIL import Image
 
 ROOT=Path(__file__).resolve().parents[1]
 STATIC=ROOT/"static"
@@ -22,10 +23,11 @@ def test_homepage_branding_terminology_and_footer_order(client):
     assert "BCA HOD" not in html
     assert "BCA directory" not in html
     assert "your department HOD" in html
-    assert "home-revamp.css?v=20261017e" in html
+    assert "home-revamp.css?v=20261021-hd-logo" in html
     assert "homepage-polish.css" not in html
-    assert "/static/ncet-brand.svg?v=20261017c" in html
-    assert 'width="455" height="225"' in html
+    assert '<link rel="preload" href="/static/ncet-official.webp" as="image" fetchpriority="high">' in html
+    assert "/static/ncet-official.webp" in html
+    assert 'width="1056" height="512"' in html
     assert "NCET Student Portal</p>" in html
     assert "Nagarjuna College of Engineering and Technology" in html
     assert "© 2026 NCET VerifyFlow" in html
@@ -39,7 +41,7 @@ def test_homepage_branding_terminology_and_footer_order(client):
 
 
 def test_logo_assets_and_homepage_css_exist(client):
-    for asset in ("ncet-brand.svg","ncet-brand.png","ngi-brand.svg"):
+    for asset in ("ncet-brand.svg","ncet-brand.png","ncet-official.webp","ngi-brand.svg"):
         result=client.get("/static/"+asset)
         assert result.status_code==200,asset
     for path in ("homepage-polish.css","ncet-brand-system.css"):
@@ -50,7 +52,9 @@ def test_logo_assets_and_homepage_css_exist(client):
     assert "data:image/png;base64," in svg
     css=(STATIC/"homepage-polish.css").read_text()
     assert "#F6872A" in css and "#0E2455" in css
-    assert "aspect-ratio:455/225" in css
+    assert "aspect-ratio:1056/512" in css
+    with Image.open(STATIC/"ncet-official.webp") as logo:
+        assert logo.width==1056 and logo.height==512
 
 
 def test_public_pages_use_student_portal_language(client):
