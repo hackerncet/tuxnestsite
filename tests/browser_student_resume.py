@@ -84,7 +84,7 @@ with sync_playwright() as p:
         assert page.locator('.resume-project-grid .resume-project').count()==3
         card_columns=page.locator('.resume-project-grid').evaluate("el => getComputedStyle(el).gridTemplateColumns.split(' ').length")
         assert card_columns==(2 if width>=1024 else 1),(width,card_columns)
-        assert page.get_by_role('link',name='Student sign in · Edit & publish').get_attribute('href')=='/students/portal#portfolio'
+        assert page.get_by_role('link',name='Student sign in · Add work & publish').get_attribute('href')=='/students/portal#portfolio'
         assert page.locator('.resume-intro').inner_text()=='Building useful campus tools and learning responsible engineering.'
         assert 'Student-owned portfolio. Sign in to add projects, describe your role and results' in page.locator('.resume-owner-prompt').inner_text()
         page.get_by_role('button',name='Share portfolio').click()
