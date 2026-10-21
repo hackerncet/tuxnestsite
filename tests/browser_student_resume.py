@@ -77,9 +77,10 @@ with sync_playwright() as p:
         assert report['sections']==['about','skills','projects','certifications','interests','links']
         assert all(x['loaded'] for x in report['images']),(width,report['images'])
         assert not errors,(width,errors)
-        # Once JS initializes, the portfolio is a single in-page accessible tab view.
-        assert page.locator('.resume-anchors[role="tablist"]').count()==1
-        assert page.locator('.resume-section:not([hidden])').count()==1
+        # Native anchors keep the complete portfolio visible while providing quick section jumps.
+        assert page.locator('.resume-anchors[role="tablist"]').count()==0
+        assert page.locator('.resume-section:visible').count()==6
+        assert page.locator('.resume-anchors').evaluate("el=>getComputedStyle(el).position")=='sticky'
         assert page.locator('#about').is_visible()
         assert page.get_by_role('link',name='Create or update your portfolio').get_attribute('href')=='/students/portal#portfolio'
         page.get_by_role('button',name='Share portfolio').click()
@@ -90,27 +91,22 @@ with sync_playwright() as p:
         page.locator('a[href="#projects"]').click()
         assert page.url.endswith('#projects'),page.url
         assert page.locator('#projects').is_visible()
-        assert page.locator('#about').is_hidden()
-        assert page.locator('#projects').get_attribute('aria-labelledby')=='profile-tab-projects'
-        page.locator('a[href="#projects"]').press('ArrowRight')
-        assert page.locator('#certifications').is_visible()
-        assert page.locator('a[href="#certifications"]').get_attribute('aria-selected')=='true'
+        assert page.locator('#about').is_visible()
         page.go_back(wait_until='domcontentloaded')
         assert page.locator('#projects').is_visible()
         page.goto('http://ncet.test/students/profile/1NC24CS150#links',wait_until='load')
         assert page.locator('#links').is_visible()
-        assert page.locator('.resume-section:not([hidden])').count()==1
+        assert page.locator('.resume-section:visible').count()==6
         # Browser-perceived, measured in the test runner (not a synthetic Lighthouse score).
         for target in ('skills','interests','about'):
             start=perf_counter()
             page.locator('a[href="#'+target+'"]').click()
-            page.wait_for_function("document.querySelector('#resume-tab-stage').style.height === ''",timeout=3000)
             switches.append((perf_counter()-start)*1000)
             assert page.locator('#'+target).is_visible()
         page.emulate_media(reduced_motion='reduce')
         page.locator('a[href="#projects"]').click()
         assert page.locator('#projects').is_visible()
-        assert page.locator('#resume-tab-stage').evaluate('(el)=>el.style.height')==''
+        assert page.locator('.resume-section:visible').count()==6
         assert not errors,(width,errors)
         page.close()
     # Without JavaScript, all sections remain indexable and readable.
@@ -129,13 +125,13 @@ p95=switches[min(len(switches)-1,int(len(switches)*.95))]
 original_css=10432+8120+6555+4636+7184
 original_js=1752
 updated_css=(static/'resume-profile.css').stat().st_size
-updated_js=(static/'student-profile-tabs.js').stat().st_size+(static/'student-profile-actions.js').stat().st_size
+updated_js=(static/'student-profile-actions.js').stat().st_size
 before=original_css+original_js
 after=updated_css+updated_js
 assert after<before*.75,(before,after)
 print('NCET RESUME PERFORMANCE BENCHMARK')
 print(f'Critical CSS+JS bytes (uncompressed): previous={before}, updated={after}, reduction={(before-after)/before*100:.1f}%')
 print(f'Critical stylesheet/script requests: previous=6, updated=3')
-print(f'Tab switch browser timings, 18 interactions: median={median(switches):.0f} ms, p95={p95:.0f} ms')
-print('NCET résumé audit passed: six widths, six sections, reduced motion, keyboard/history, no-JS fallback, all institutional images loaded.')
+print(f'Portfolio anchor interaction timings, 18 interactions: median={median(switches):.0f} ms, p95={p95:.0f} ms')
+print('NCET portfolio audit passed: six widths, full-page sections, reduced motion, history navigation, no-JS fallback, all institutional images loaded.')
 
