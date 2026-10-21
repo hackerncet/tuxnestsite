@@ -30,3 +30,14 @@ def test_existing_document_workflows_stay_intact():
 
 def test_legacy_bootstrap_secret_preserved():
     assert "NCET_BOOTSTRAP" in (ROOT / "app/bootstrap.py").read_text(encoding="utf-8")
+
+def test_healthz_exposes_only_a_valid_render_commit(client, monkeypatch):
+    monkeypatch.setenv("RENDER_GIT_COMMIT", "a" * 40)
+    response = client.get("/healthz")
+    assert response.status_code == 200
+    assert response.json() == {"ok": True, "commit": "a" * 40}
+
+    monkeypatch.setenv("RENDER_GIT_COMMIT", "not-a-commit-or-secret")
+    response = client.get("/healthz")
+    assert response.status_code == 200
+    assert response.json() == {"ok": True}
