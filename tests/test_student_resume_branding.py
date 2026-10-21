@@ -123,3 +123,14 @@ def test_unpublishing_removes_projects_from_public_search(client):
     assert client.put("/api/bca/showcase/me",headers=token,json=data).status_code==200
     assert client.get("/students/profile/"+USN).status_code==404
     assert USN not in client.get("/sitemap.xml").text
+def test_portfolio_hero_uses_a_complete_bio_excerpt(client):
+    token=make_student(client)
+    first_sentence="I build accessible software for students and local communities."
+    full_bio=first_sentence+" I am currently exploring distributed systems and cloud platforms through long-running projects and coursework."
+    saved=client.put("/api/bca/showcase/me",headers=token,json={
+        "full_name":"College Demo Student","about":full_bio,"publish":True,
+    })
+    assert saved.status_code==200,saved.text
+    html=client.get("/students/profile/"+USN).text
+    assert f'<p class="resume-intro">{first_sentence}</p>' in html
+    assert f'<p class="resume-about">{full_bio}</p>' in html
