@@ -23,7 +23,7 @@ def test_homepage_branding_terminology_and_footer_order(client):
     assert "BCA HOD" not in html
     assert "BCA directory" not in html
     assert "your department HOD" in html
-    assert "home-revamp.css?v=20261017e" in html
+    assert "home-revamp.css?v=20261021-hd-logo" in html
     assert "homepage-polish.css?v=20261021-accreditation-row" in html
     assert '<link rel="preload" href="/static/ncet-official-uhd.png?v=20261021-uhd-brand" as="image" fetchpriority="high">' in html
     assert "/static/ncet-official-uhd.png" in html
