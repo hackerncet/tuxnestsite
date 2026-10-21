@@ -7,8 +7,11 @@
 .topnav .brand span{font-size:12px;line-height:1.12;white-space:nowrap}
 .topnav .brand span strong{font-size:18px}
 .topnav .brand small{font-size:10px;max-width:175px;white-space:normal}
-.nav-accreditation{border-left:1px solid #D5DFED;padding-left:14px;display:grid;place-items:center;flex:0 0 62px}
-.nav-accreditation img{width:51px;height:51px;object-fit:contain}
+.nav-accreditation{border-left:1px solid #D5DFED;padding-left:14px;display:flex;align-items:center;gap:9px;flex:0 0 auto;color:#0E2455}
+.nav-accreditation img{width:45px;height:45px;object-fit:contain;flex:none}
+.nav-accreditation span strong,.nav-accreditation span small{display:block;white-space:nowrap}
+.nav-accreditation span strong{font-size:11px;font-weight:800}
+.nav-accreditation span small{margin-top:2px;color:#566E85;font-size:9px}
 .navlinks{margin-left:auto;gap:3px;flex-wrap:nowrap}
 .navlinks a{padding:10px 9px!important;white-space:nowrap;font-size:12px!important}
 .navlinks a.nav-portal-action{background:var(--ncet-orange);color:var(--ncet-blue)!important;
@@ -97,8 +100,8 @@
  .topnav .nav-inner{min-height:0;gap:10px}
  .topnav .brand img{width:110px}
  .topnav .brand span strong{font-size:16px}
- .nav-accreditation{flex-basis:50px;padding-left:7px}
- .nav-accreditation img{width:42px;height:42px}
+ .nav-accreditation{padding-left:8px;gap:6px}
+ .nav-accreditation img{width:38px;height:38px}
  .navlinks a{padding:9px 7px!important;font-size:11px!important}
 }
 @media(max-width:1050px){

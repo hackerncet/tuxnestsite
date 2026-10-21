@@ -622,9 +622,9 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
 {og_image}<link rel="canonical" href="{canonical}">
 <link rel="icon" href="/static/ncet-brand.svg">
 <script type="application/ld+json">{json_ld}</script>
-<link rel="preload" as="image" href="/static/ncet-brand.svg" fetchpriority="high">
+<link rel="preload" as="image" href="/static/ncet-official-uhd.png?v=20261021-uhd-brand" fetchpriority="high">
 <link rel="stylesheet" href="/static/resume-profile.css?v=20261017-2">
-<link rel="stylesheet" href="/static/institutional-ui.css?v=20261017d">
+<link rel="stylesheet" href="/static/institutional-ui.css?v=20261021-clear-lockup-2">
 <script src="/static/student-profile-tabs.js?v=20261017" defer></script>
 </head><body class="ncet-profile-page">
 <a class="skip-link" href="#student-resume">Skip to portfolio</a>

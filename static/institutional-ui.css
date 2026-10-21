@@ -33,6 +33,13 @@ button,a,input,select,textarea,summary{touch-action:manipulation}
 :where(.topnav,.site-header,.student-nav,.resume-site-header){background:#fff}
 :where(.topnav,.site-header,.resume-site-header) .brand,
 :where(.topnav,.site-header,.resume-site-header) a.brand{color:var(--ncet-blue)}
+:where(.topnav,.topbar,.site-header,.resume-site-header) .brand img[src*="ncet-official-uhd"]{
+ width:112px;height:auto;max-height:58px;object-fit:contain;object-position:center;
+ image-rendering:auto;filter:none;mix-blend-mode:normal;background:#fff;
+}
+@media(max-width:560px){
+ :where(.topnav,.topbar,.site-header,.resume-site-header) .brand img[src*="ncet-official-uhd"]{width:88px;max-height:50px}
+}
 :where(.brand,.sidebar-brand,.footer-brand,.brandmark-inline) img[src*="ncet-brand"],
 :where(.ncms-crest,.logo-stage) img[src*="ncet-brand"]{
  object-fit:contain;object-position:center;mix-blend-mode:normal;filter:none;
