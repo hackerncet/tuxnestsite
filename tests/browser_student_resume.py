@@ -84,8 +84,9 @@ with sync_playwright() as p:
         assert page.locator('.resume-project-grid .resume-project').count()==3
         card_columns=page.locator('.resume-project-grid').evaluate("el => getComputedStyle(el).gridTemplateColumns.split(' ').length")
         assert card_columns==(2 if width>=1024 else 1),(width,card_columns)
-        assert page.get_by_role('link',name='Create or update your portfolio').get_attribute('href')=='/students/portal#portfolio'
-        assert 'publish updates or make this page private' in page.locator('.resume-owner-prompt').inner_text()
+        assert page.get_by_role('link',name='Edit & publish portfolio').get_attribute('href')=='/students/portal#portfolio'
+        assert page.locator('.resume-intro').inner_text()=='Building useful campus tools and learning responsible engineering.'
+        assert 'Created and published by the student.' in page.locator('.resume-owner-prompt').inner_text()
         page.get_by_role('button',name='Share portfolio').click()
         page.wait_for_function("document.querySelector('#resume-action-status').textContent.includes('copied')")
         assert page.evaluate('window.__copiedProfile')=='https://ncet-verifyflow.onrender.com/students/profile/1NC24CS150'
