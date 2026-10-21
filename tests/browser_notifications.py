@@ -54,6 +54,41 @@ def main():
         assert errors==[],errors
         browser.close()
 
+def test_slow_notification_inbox_response_is_not_cancelled_at_poll_interval():
+    with sync_playwright() as pw:
+        browser=launch_chromium(pw,headless=True)
+        page=browser.new_page(viewport={'width':390,'height':844})
+        page.set_content('<main>NCET</main>')
+        page.evaluate("""() => {
+          window.slowAbortCount=0;
+          window.fetch=async (url,options={})=>{
+            if(!String(url).includes('/api/alerts/inbox'))
+              return new Response('{}',{status:200});
+            return await new Promise((resolve,reject)=>{
+              const signal=options.signal;
+              const abort=()=>{window.slowAbortCount++;reject(new DOMException('Aborted','AbortError'));};
+              signal?.addEventListener('abort',abort,{once:true});
+              setTimeout(()=>{
+                signal?.removeEventListener('abort',abort);
+                resolve(new Response(JSON.stringify({
+                  unread:1,csrf:'slow-token',items:[{
+                    id:'a-77',text:'Slow response delivered',category:'tasks',
+                    link:'/tasks',seen:false,at:'2026-10-21T10:00:00+00:00'
+                  }]
+                }),{status:200,headers:{'Content-Type':'application/json'}}));
+              },1800);
+            });
+          };
+        }""")
+        page.add_script_tag(content=(STATIC/'notifications.js').read_text(encoding='utf-8'))
+        page.locator('#alert-count').wait_for(state='visible')
+        page.wait_for_function("document.querySelector('#alert-count').textContent.includes('1 new')",timeout=5000)
+        assert 'Slow response delivered' in page.locator('#alert-items').inner_text()
+        assert page.evaluate('window.slowAbortCount')==0
+        browser.close()
+
+
 if __name__=='__main__':
     main()
+    test_slow_notification_inbox_response_is_not_cancelled_at_poll_interval()
     print('Skill and notification Chromium smoke tests passed')
