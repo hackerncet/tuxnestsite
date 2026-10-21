@@ -73,6 +73,9 @@ class Certificate(BaseModel):
 class StudentProject(BaseModel):
     title: str = Field(min_length=3,max_length=105)
     description: str = Field(default='',max_length=550)
+    role: str = Field(default='',max_length=120)
+    period: str = Field(default='',max_length=80)
+    outcome: str = Field(default='',max_length=240)
     technologies: list[str] = Field(default_factory=list,max_length=12)
     github_url: str = Field(default='',max_length=400)
     live_url: str = Field(default='',max_length=400)
@@ -367,8 +370,12 @@ def edit_showcase(body:ShowcaseEdit,user:User=Depends(csrf_required),db:DbSessio
     projects=[]
     for item in body.projects:
         title=item.title.strip();description=item.description.strip()
+        role=item.role.strip();period=item.period.strip();outcome=item.outcome.strip()
         if not 3<=len(title)<=105:raise HTTPException(422,'Project titles must contain 3–105 characters.')
+        if len(role)>120 or len(period)>80 or len(outcome)>240:
+            raise HTTPException(422,'Project role, timeframe or outcome is too long.')
         check_public_text(title);check_public_text(description)
+        check_public_text(role);check_public_text(period);check_public_text(outcome)
         tech=[]
         for value in item.technologies:
             entry=value.strip()
@@ -377,7 +384,8 @@ def edit_showcase(body:ShowcaseEdit,user:User=Depends(csrf_required),db:DbSessio
             if entry.casefold() not in [v.casefold() for v in tech]:tech.append(entry)
         github=validate_public_link(item.github_url,github_only=True) if item.github_url else ''
         live=validate_public_link(item.live_url) if item.live_url else ''
-        projects.append({'title':title,'description':description,'technologies':tech,
+        projects.append({'title':title,'description':description,'role':role,'period':period,
+                         'outcome':outcome,'technologies':tech,
                          'github_url':github,'live_url':live})
     check_public_text(name)
     check_public_text(body.about)
@@ -579,8 +587,14 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
             link(project.get('live_url',''),'Live project') if project.get('live_url') else ''
         ]))
         tags=('<ul class="resume-chips resume-project-tags">'+chips(project.get('technologies',[]))+'</ul>') if project.get('technologies') else ''
+        project_meta=''.join('<div><dt>'+label+'</dt><dd>'+escape(project[key])+'</dd></div>'
+                             for key,label in (('role','Role'),('period','Timeframe'))
+                             if project.get(key))
+        project_meta=('<dl class="resume-project-meta">'+project_meta+'</dl>') if project_meta else ''
+        outcome=('<p class="resume-project-outcome"><strong>Outcome</strong> '+
+                 escape(project['outcome'])+'</p>') if project.get('outcome') else ''
         projects.append('<article class="resume-project"><h3>'+escape(project['title'])+'</h3>'+
-                        '<p>'+escape(project.get('description') or 'Student project')+'</p>'+tags+
+                        project_meta+'<p>'+escape(project.get('description') or 'Student project')+'</p>'+outcome+tags+
                         ('<div class="resume-links">'+links+'</div>' if links else '')+'</article>')
     project_html=''.join(projects) if projects else empty('Student projects have not been added yet.')
     certificates=[]
@@ -623,7 +637,7 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
 <link rel="icon" href="/static/ncet-brand.svg">
 <script type="application/ld+json">{json_ld}</script>
 <link rel="preload" as="image" href="/static/ncet-official-uhd.png?v=20261021-uhd-brand" fetchpriority="high">
-<link rel="stylesheet" href="/static/resume-profile.css?v=20261021-portfolio-layout">
+<link rel="stylesheet" href="/static/resume-profile.css?v=20261021-project-story">
 <link rel="stylesheet" href="/static/institutional-ui.css?v=20261021-clear-lockup-2">
 <script src="/static/student-profile-tabs.js?v=20261017" defer></script>
 <script src="/static/student-profile-actions.js?v=20261021-portfolio-actions" defer></script>
@@ -723,3 +737,4 @@ def published_sitemap_paths(db:DbSession)->list[str]:
           .join(StudentShowcase,StudentShowcase.student_id==User.id)
           .filter(User.active.is_(True),BCAStudent.must_change_password.is_(False),
                   StudentShowcase.published.is_(True)).order_by(BCAStudent.usn).limit(10000).all())]
+
