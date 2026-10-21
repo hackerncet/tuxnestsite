@@ -69,7 +69,7 @@ def audit():
    assert page.locator('#roster .select-student').count()==50
    page.locator('#roster-pagination button[data-roster-page="2"]').click()
    page.wait_for_function("document.querySelector('#roster-pagination span').textContent==='Page 2 of 2'")
-   assert page.locator('#roster .select-student').count()==50
+   assert page.locator('#roster .select-student').count()==3
    page.locator('#roster-pagination button[data-roster-page="1"]').click()
    page.wait_for_function("document.querySelector('#roster-pagination span').textContent==='Page 1 of 2'")
    assert page.locator('#roster .select-student').count()==50
@@ -91,7 +91,7 @@ def audit():
    assert page.locator('#selected-student-count').inner_text()=='0 selected'
    assert page.locator('#roster .select-student').count()==50
    page.locator('#show-disabled-students').check()
-   assert page.locator('#roster .select-student').count()==3
+   assert page.locator('#roster .select-student').count()==50
    assert not errors,errors
    dimensions=page.evaluate("""() => ({
      viewport:innerWidth, page:document.documentElement.scrollWidth,
