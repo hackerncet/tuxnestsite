@@ -11,6 +11,8 @@ services:
     dockerfilePath: ./Dockerfile
     autoDeployTrigger: commit
     healthCheckPath: /healthz
+    domains:
+      - ncet.paladuguganeshnaidu.tech
     envVars:
       - key: APP_ENV
         value: production
