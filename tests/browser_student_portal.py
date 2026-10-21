@@ -1,5 +1,6 @@
 """Student portal browser smoke for accurate department labels and requests."""
 from pathlib import Path
+import base64,secrets
 from playwright.sync_api import sync_playwright
 from browser_runtime import launch_chromium
 
@@ -31,28 +32,32 @@ MOCK=r"""() => {
 def main():
  with sync_playwright() as playwright:
   browser=launch_chromium(playwright,headless=True)
+  test_password=secrets.token_urlsafe(24)
   page=browser.new_page(viewport={'width':390,'height':844})
   errors=[];page.on('pageerror',lambda error:errors.append(str(error)))
   html=HTML.read_text(encoding='utf-8')
+  logo=base64.b64encode((ROOT/'static'/'ncet-official-uhd.png').read_bytes()).decode('ascii')
+  html=html.replace('/static/ncet-official-uhd.png?v=20261021-uhd-brand','data:image/png;base64,'+logo)
   html=html.replace('<link rel="stylesheet" href="/static/bca.css">','<style>'+ (ROOT/'static'/'bca.css').read_text(encoding='utf-8')+'</style>')
   html=html.replace('<link rel="stylesheet" href="/static/experience.css">','<style>'+ (ROOT/'static'/'experience.css').read_text(encoding='utf-8')+'</style>')
   html=html.replace('<link rel="stylesheet" href="/static/notifications.css">','')
   html=html.replace('<link rel="stylesheet" href="/static/responsive-upgrade.css?v=20261017">','<style>'+ (ROOT/'static'/'responsive-upgrade.css').read_text(encoding='utf-8')+'</style>')
-  html=html.replace('<link rel="stylesheet" href="/static/student-redesign.css?v=20261017b">','<style>'+ (ROOT/'static'/'student-redesign.css').read_text(encoding='utf-8')+'</style>')
+  html=html.replace('<link rel="stylesheet" href="/static/student-redesign.css?v=20261021-hd-logo">','<style>'+ (ROOT/'static'/'student-redesign.css').read_text(encoding='utf-8')+'</style>')
   html=html.replace('<link rel="stylesheet" href="/static/ncet-brand-system.css?v=20261017">','<style>'+ (ROOT/'static'/'ncet-brand-system.css').read_text(encoding='utf-8')+'</style>')
   html=html.replace('<script src="/static/student-portal.js?v=20261021-department" defer></script><script src="/static/notifications.js" defer></script><script src="/static/institutional-ui.js?v=20261017d" defer></script>','')
   page.set_content(html)
   page.evaluate(MOCK)
-  page.add_script_tag(content=JS.read_text(encoding='utf-8'))
+  script=JS.read_text(encoding='utf-8').replace('/static/ncet-official-uhd.png?v=20261021-uhd-brand','data:image/png;base64,'+logo)
+  page.add_script_tag(content=script)
   page.locator('#login-usn').fill('1nc24cse901')
-  page.locator('#login-password').fill('local-only-password')
+  page.locator('#login-password').fill(test_password)
   page.locator('#login-form button[type=submit]').click()
   page.locator('#workspace:not(.hidden)').wait_for()
   assert page.locator('#who').inner_text()=='1NC24CSE901 · Computer Science & Engineering · Semester 5'
   page.locator('[data-student-tab=profile]').click()
   assert page.locator('#showcase-dept').input_value()=='Computer Science & Engineering'
   preview=page.locator('#showcase-photo-preview')
-  assert preview.evaluate("img=>img.classList.contains('is-placeholder') && getComputedStyle(img).objectFit==='contain' && img.complete && img.naturalWidth>0")
+  assert preview.evaluate("img=>img.classList.contains('is-placeholder') && getComputedStyle(img).objectFit==='contain' && img.complete && img.naturalWidth>0"),preview.evaluate("img=>({src:img.src,placeholder:img.classList.contains('is-placeholder'),fit:getComputedStyle(img).objectFit,complete:img.complete,width:img.naturalWidth})")
   page.evaluate('setProfilePhoto(true)')
   assert preview.evaluate("img=>!img.classList.contains('is-placeholder') && getComputedStyle(img).objectFit==='cover'")
   page.evaluate('setProfilePhoto(false)')

@@ -22,25 +22,33 @@ def main():
         assert page.locator('#showcase-skills').evaluate('(e)=>e.tagName')=='TEXTAREA'
         assert page.locator('.social-link').count()>=9
         page.goto('about:blank')
-        page.set_content('<main><h1>Logged-in NCET dashboard</h1></main>')
+        page.set_content('<main><h1>Logged-in NCET dashboard</h1><p id="notification-status"></p><section id="notification-page-items"></section><button id="notification-refresh">Refresh</button></main>')
         page.evaluate("""() => {
+          window.inboxRequests=0;
           window.fetch=async url=>{
             if(String(url).includes('/api/auth/me'))
               return new Response(JSON.stringify({csrf:'mock-token',user:{role:'principal'}}),{status:200,headers:{'Content-Type':'application/json'}});
-            if(String(url).includes('/api/alerts/inbox'))
+            if(String(url).includes('/api/alerts/inbox')){
+              window.inboxRequests++;
               return new Response(JSON.stringify({unread:2,items:[
                 {id:'a-1',text:'New BCA student request',category:'complaints',link:'/bca/oversight',seen:false,at:'2026-10-16T10:00:00+00:00'},
                 {id:'t-1',text:'A task was assigned',category:'tasks',link:'/tasks',seen:false,at:'2026-10-16T11:00:00+00:00'}
               ]}),{status:200,headers:{'Content-Type':'application/json'}});
+            }
             return new Response('{}',{status:200});
           };
         }""")
+        page.add_script_tag(content=(STATIC/'notifications-page.js').read_text(encoding='utf-8'))
         page.add_script_tag(content=(STATIC/'notifications.js').read_text(encoding='utf-8'))
         page.locator('#ncet-alerts').wait_for(state='visible')
         assert '2 new' in page.locator('#alert-count').inner_text()
         page.locator('#alert-toggle').click()
         assert page.locator('.alert-entry').count()==2
-        assert page.locator('a[href="/bca/oversight"]').count()==1
+        assert page.locator('#alert-list a[href="/bca/oversight"]').count()==1
+        assert page.locator('.notification-card').count()==2
+        assert page.locator('.alert-inbox-link').get_attribute('href')=='/notifications'
+        page.wait_for_function('window.inboxRequests >= 2',timeout=3500)
+        assert 'Updates automatically every 1.5 seconds' in page.locator('#notification-status').inner_text()
         page.keyboard.press('Escape')
         assert page.locator('#alert-list').is_hidden()
         assert errors==[],errors

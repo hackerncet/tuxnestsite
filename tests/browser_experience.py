@@ -28,6 +28,8 @@ def main():
         assert page.locator('.topnav .brand img').evaluate('(img)=>img.complete && img.naturalWidth>0')
         assert page.locator('.topnav .brand-title').inner_text()=='NCET Student Portal'
         assert page.locator('.topnav .brand-subtitle').inner_text()=='VerifyFlow · Student and faculty collaboration'
+        assert page.locator('.nav-accreditation').inner_text()=='NAAC A+ Accredited\nInstitutional recognition'
+        assert page.get_by_text('Learning, community and academic excellence at NCET.',exact=True).count()==0
         assert page.locator('.identity-crest').get_attribute('src').startswith('data:image/png;base64,')
         assert page.locator('.identity-crest').evaluate('(img)=>img.naturalWidth>=1000')
         assert page.locator('body').inner_text().lower().find('student services')==-1

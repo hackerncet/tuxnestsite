@@ -2,7 +2,7 @@
 // Authenticated notification inbox. Refreshes every 1.5 seconds while visible.
 (()=>{
  const container=document.createElement('aside');container.id='ncet-alerts';container.hidden=true;
- container.innerHTML='<button id="alert-toggle" type="button" aria-expanded="false" aria-controls="alert-list">Notifications <span id="alert-count" aria-live="polite"></span></button><section id="alert-list" role="region" aria-label="In-app notifications" hidden><h2>Notifications</h2><div id="alert-items" aria-live="polite">Loading…</div><button id="alert-close" type="button">Close</button></section>';
+ container.innerHTML='<button id="alert-toggle" type="button" aria-expanded="false" aria-controls="alert-list">Notifications <span id="alert-count" aria-live="polite"></span></button><section id="alert-list" role="region" aria-label="In-app notifications" hidden><h2>Notifications</h2><div id="alert-items" aria-live="polite">Loading…</div><a class="alert-inbox-link" href="/notifications">Open full inbox</a><button id="alert-close" type="button">Close</button></section>';
  document.body.append(container);
  const toggle=container.querySelector('#alert-toggle'),panel=container.querySelector('#alert-list'),list=container.querySelector('#alert-items'),badge=container.querySelector('#alert-count');
  const esc=v=>String(v??'').replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]));
@@ -17,6 +17,7 @@
    const response=await fetch('/api/alerts/inbox',{credentials:'same-origin',cache:'no-store'});
    if(!response.ok){container.hidden=true;return}
    const result=await response.json();csrf=result.csrf||csrf;
+   window.dispatchEvent(new CustomEvent('ncet:notifications-updated',{detail:result}));
    container.hidden=false;badge.textContent=result.unread?'('+result.unread+' new)':'';
    list.innerHTML=result.items.length?result.items.map(n=>'<a class="alert-entry '+(n.seen?'':'alert-unread')+'" href="'+esc(n.link)+'" data-notice="'+esc(n.id)+'"><span>'+esc(n.category)+'</span><strong>'+esc(n.text)+'</strong><small>'+esc(new Date(n.at).toLocaleString())+'</small></a>').join(''):'<p>No new activity yet.</p>';
   }catch(e){if(!container.hidden)list.textContent='Notifications could not be refreshed.'}

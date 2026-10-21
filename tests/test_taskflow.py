@@ -32,11 +32,15 @@ def test_hod_bulk_assignment_notifications_and_holds(client,login):
         s=login(staff,'staff')
         inbox=staff.get('/api/tasks/notifications/inbox').json()
         assert inbox['unread']==3
+        application_inbox=staff.get('/api/alerts/inbox').json()
+        assert any(n['category']=='tasks' and 'New task:' in n['text'] for n in application_inbox['items'])
         nid=inbox['items'][0]['id']
         assert staff.post(f'/api/tasks/notifications/{nid}/read',headers={'X-CSRF-Token':s}).status_code==200
         assert len(staff.get('/api/tasks').json()['items'])==3
         assert staff.get(f'/api/tasks/{ids[0]}/reference').status_code==200
         assert staff.post(f'/api/tasks/{ids[0]}/submit',headers={'X-CSRF-Token':s},files={'file':('done.pdf',PDF,'application/pdf')}).status_code==201
+    hod_inbox=client.get('/api/alerts/inbox').json()
+    assert any(n['category']=='tasks' and 'submitted by staff' in n['text'] for n in hod_inbox['items'])
     assert client.post(f'/api/tasks/{ids[1]}/hold',params={'hold':'true'},headers={'X-CSRF-Token':h}).json()['state']=='on_hold'
     assert client.post(f'/api/tasks/{ids[1]}/hold',params={'hold':'false'},headers={'X-CSRF-Token':h}).json()['state']=='assigned'
 

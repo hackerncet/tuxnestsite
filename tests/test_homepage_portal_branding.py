@@ -23,13 +23,17 @@ def test_homepage_branding_terminology_and_footer_order(client):
     assert "BCA HOD" not in html
     assert "BCA directory" not in html
     assert "your department HOD" in html
-    assert "home-revamp.css?v=20261021-hd-logo" in html
-    assert "homepage-polish.css?v=20261021-accreditation-row" in html
-    assert '<link rel="preload" href="/static/ncet-official-uhd.png?v=20261021-uhd-brand" as="image" fetchpriority="high">' in html
+    assert "home-revamp.css?v=20261021-clear-lockup-2" in html
+    assert "homepage-polish.css?v=20261021-clear-lockup-2" in html
+    assert '<link rel="preload" href="/static/ncet-official-uhd.png?v=20261021-clear-lockup-2" as="image" fetchpriority="high">' in html
     assert "/static/ncet-official-uhd.png" in html
-    assert 'width="500" height="241"' in html
+    assert 'width="1056" height="512"' in html
     assert "NCET Student Portal</p>" in html
     assert "Nagarjuna College of Engineering and Technology" in html
+    assert "NAAC A+ Accredited" in html
+    assert "Institutional recognition" in html
+    assert "Learning, community and academic excellence at NCET." not in html
+    assert "ncet-campus-photo" not in html
     assert "© 2026 NCET VerifyFlow" in html
     locations=[html.index(label) for label,_ in LINKS]
     assert locations==sorted(locations)
@@ -65,5 +69,8 @@ def test_public_pages_use_student_portal_language(client):
         assert "student services" not in html,route
     directory=client.get('/students/directory').text
     assert '1NC24BCA001' not in directory
+    about=client.get('/about').text
+    assert '/static/ncet-official-uhd.png?v=20261021-clear-lockup-2' in about
+    assert '/static/naac-brand.svg?v=20261021-clear-lockup-2' in about
     # Authenticated collaboration remains private, even when public terminology is updated.
     assert client.get("/community").status_code in (200,302,401,403)

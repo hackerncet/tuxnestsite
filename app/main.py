@@ -102,7 +102,7 @@ async def security_headers(request: Request, call_next):
             res.headers['Cache-Control'] = 'public, max-age=3600, stale-while-revalidate=86400'
         else:
             res.headers['Cache-Control'] = 'public, max-age=300'
-    if request.url.path.startswith('/api/') or request.url.path in ('/app','/students/portal','/bca/manage','/bca/complaints','/complaints','/bca/oversight','/community','/tasks'):
+    if request.url.path.startswith('/api/') or request.url.path in ('/app','/students/portal','/bca/manage','/bca/complaints','/complaints','/bca/oversight','/community','/tasks','/notifications'):
         res.headers['Cache-Control'] = 'no-store'
         res.headers['X-Robots-Tag'] = 'noindex, nofollow, noarchive'
     if ENV == 'production':
@@ -244,6 +244,13 @@ def task_portal(user:User=Depends(current)):
 @app.get('/app', response_class=HTMLResponse)
 def workspace():
     return FileResponse(STATIC/'index.html', headers={'X-Robots-Tag':'noindex, nofollow'})
+
+@app.get('/notifications', response_class=HTMLResponse)
+def notification_inbox(user:User=Depends(current)):
+    return FileResponse(STATIC/'notifications.html', headers={
+        'Cache-Control':'no-store',
+        'X-Robots-Tag':'noindex,nofollow,noarchive',
+    })
 
 @app.get('/about', response_class=HTMLResponse)
 def about():
@@ -414,6 +421,9 @@ async def upload(title:str=Form(...),category:str=Form(...),year:str=Form(...),d
         db.add(DocumentEvent(document_id=doc.id,actor_id=user.id,action='submitted',
                              note='Queued for automated checks; human review follows when evidence is missing or AI is unavailable.'))
         audit(db,user,'document.created',doc.public_id)
+        from .notifications import emit, hod_recipients
+        emit(db,hod_recipients(db,user.department),
+             f'New document submission awaiting review: {title}.','/app','submissions')
         db.commit()
         return {'id':doc.public_id,'ok':True}
     except Exception:
@@ -439,6 +449,10 @@ def review(public_id:str,body:ReviewBody,user:User=Depends(as_role_mutation('hod
     db.add(DocumentEvent(document_id=doc.id,actor_id=user.id,action=body.decision,
                          note=note or 'Reviewed and approved for institutional oversight.'))
     audit(db,user,'document.'+body.decision,doc.public_id)
+    from .notifications import emit
+    emit(db,[doc.submitter_id],
+         f'Your document “{doc.title}” was {"approved" if body.decision=="approved" else "rejected"} by the HOD.',
+         '/app','submissions')
     db.commit()
     return {'ok':True,'status':doc.status}
 
@@ -464,6 +478,9 @@ async def resubmit(public_id:str,note:str=Form(...),file:UploadFile=File(...),
                           sha256=digest(data),storage_key=key,bytes_content=content))
         db.add(DocumentEvent(document_id=doc.id,actor_id=user.id,action='resubmitted',note=note))
         audit(db,user,'document.resubmitted',doc.public_id)
+        from .notifications import emit, hod_recipients
+        emit(db,hod_recipients(db,doc.department),
+             f'Updated document submission awaiting review: {doc.title}.','/app','submissions')
         db.commit()
         return {'ok':True,'version':doc.version}
     except Exception:

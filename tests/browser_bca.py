@@ -66,7 +66,8 @@ def main():
         assert desktop.locator('.guide-grid details').first.get_attribute('open') == ''
         assert desktop.locator('header a[href="/students"]').inner_text().strip() == 'Student Portal'
         assert desktop.locator('header a[href="/app"]').count() == 0
-        assert desktop.locator('header small').count() == 1
+        assert desktop.locator('.brand-subtitle').inner_text() == 'VerifyFlow · Student and faculty collaboration'
+        assert desktop.locator('.nav-accreditation small').inner_text() == 'Institutional recognition'
 
         load_page(desktop, 'student-services.html')
         assert 'Everything students need.' in desktop.locator('main').inner_text()

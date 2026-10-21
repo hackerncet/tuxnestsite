@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+ <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+ <meta name="theme-color" content="#0E2455"><meta name="robots" content="noindex,nofollow,noarchive">
+ <title>Notifications · NCET VerifyFlow</title>
+ <link rel="icon" href="/static/ncet-brand.svg" type="image/svg+xml">
+ <link rel="stylesheet" href="/static/bca.css">
+ <link rel="stylesheet" href="/static/ncet-brand-system.css?v=20261017">
+ <link rel="stylesheet" href="/static/institutional-ui.css?v=20261021-clear-lockup-2">
+ <link rel="stylesheet" href="/static/notifications.css?v=20261021-inbox-page">
+</head>
+<body class="ncet-notifications-page">
+ <header class="topnav"><div class="container nav-inner">
+  <a class="brand" href="/app"><img src="/static/ncet-official-uhd.png?v=20261021-uhd-brand" alt="NCET official emblem and wordmark" width="120" height="58"><span>NCET VerifyFlow<small>Application inbox</small></span></a>
+  <nav class="navlinks" aria-label="Workspace navigation"><a href="/app">Workspace</a><a href="/tasks">Department tasks</a><a href="/students/portal">Student portal</a></nav>
+ </div></header>
+ <main class="container notification-page-main">
+  <div class="notification-page-heading"><div><span class="eyebrow">ACTIVITY CENTER</span><h1>Notifications</h1><p class="muted">Submissions, department requests, task updates, and project replies for your account.</p></div><button id="notification-refresh" class="btn btn-navy" type="button">Refresh now</button></div>
+  <p id="notification-status" class="notification-status" role="status" aria-live="polite">Loading your inbox…</p>
+  <section id="notification-page-items" class="notification-page-items" aria-label="Your notifications" aria-live="polite"></section>
+ </main>
+ <script src="/static/notifications-page.js?v=20261021-inbox-page" defer></script>
+ <script src="/static/notifications.js?v=20261021-full-inbox" defer></script>
+</body>
+</html>
