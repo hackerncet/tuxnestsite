@@ -648,9 +648,10 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
 <div class="resume-action-bar" aria-label="Portfolio actions">
 <button type="button" class="resume-action resume-share" id="resume-share" data-share-url="{escape(canonical,quote=True)}">Share portfolio</button>
 <button type="button" class="resume-action resume-print" id="resume-print">Save as PDF</button>
-<a class="resume-action resume-manage" href="/students/portal#portfolio">Create or update your portfolio</a>
+<a class="resume-action resume-manage" href="/students/portal#portfolio">Edit portfolio · add projects</a>
 <span class="resume-action-status" id="resume-action-status" role="status" aria-live="polite"></span>
 </div>
+<p class="resume-owner-prompt">Student at NCET? Sign in to add projects, update your skills and publish changes to this page.</p>
 <dl class="resume-highlights" aria-label="Portfolio overview">
 <div><dt>Skills</dt><dd>{len(info['skills'])}</dd></div>
 <div><dt>Projects</dt><dd>{len(info['projects'])}</dd></div>
