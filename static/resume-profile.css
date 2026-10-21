@@ -173,3 +173,57 @@ body.ncet-profile-page{margin:0;background:#F4F6F9;color:#172033;font-family:Int
  .resume-highlights .resume-highlight-note{grid-column:1/-1}
 }
 @media print{.resume-action-bar{display:none!important}}
+
+/* Student portfolio refresh: editorial hero, clear ownership and stronger project cards. */
+.ncet-profile-page{background:radial-gradient(ellipse at 50% -15%,#e5ebf6 0,transparent 48%),#f3f5f8}
+.resume-site-inner{min-height:82px}
+.resume-paper{border-radius:16px;box-shadow:0 24px 70px #10234814;border-color:#e5eaf1}
+.resume-accreditation{padding-top:14px}
+.resume-heading{position:relative;isolation:isolate;overflow:hidden;min-height:178px;margin:10px 20px 0;padding:28px 30px;border-radius:14px;background:linear-gradient(112deg,#0b1d48 0%,#12336c 58%,#1c477e 100%);color:#fff}
+.resume-heading::after{position:absolute;z-index:-1;content:"";width:300px;height:300px;right:-90px;top:-175px;border:1px solid #ffffff24;border-radius:50%;box-shadow:0 0 0 26px #ffffff09,0 0 0 58px #ffffff06}
+.resume-heading .resume-avatar,.resume-heading .resume-initials{width:118px;height:118px;flex-basis:118px;border-radius:50%;border:4px solid #ffffffd9;box-shadow:0 8px 25px #07173555;background:#fff;color:#0e2455}
+.resume-heading .resume-overline{color:#ffd0ad;letter-spacing:.14em}
+.resume-heading h1{color:#fff;font-size:clamp(29px,4vw,43px);letter-spacing:-.035em}
+.resume-heading .resume-subtitle{color:#e7edf7;font-weight:600}
+.resume-heading .resume-subtitle span{color:#ffb779}
+.resume-heading .resume-usn{color:#c9d5e7}
+.resume-heading .resume-usn strong{color:#fff}
+.resume-action-bar{padding:16px 30px 7px}
+.resume-action{min-height:43px;border-radius:9px;padding:10px 16px;transition:transform .16s ease,border-color .16s ease,background-color .16s ease,box-shadow .16s ease}
+.resume-action:hover{transform:translateY(-1px);box-shadow:0 5px 14px #10234812}
+.resume-manage{margin-left:auto}
+.resume-owner-prompt{margin:2px 30px 18px;color:#66758a;font-size:12px;line-height:1.55}
+.resume-highlights{gap:12px;padding:0 30px 20px}
+.resume-highlights div{position:relative;overflow:hidden;padding:15px 17px;background:linear-gradient(145deg,#fbfcfe,#f5f7fa);border:1px solid #e8edf3;border-radius:11px}
+.resume-highlights div::before{position:absolute;content:"";left:0;top:0;bottom:0;width:3px;background:#f6872a}
+.resume-highlights dd{font-size:21px}
+.resume-highlights .resume-highlight-note dd{font-size:13px}
+.resume-anchors{padding:12px 30px;border-top-width:3px}
+.resume-tab-stage.tabs-enhanced .resume-section{padding-top:30px;padding-bottom:34px}
+.resume-section h2{letter-spacing:.045em;text-transform:none;font-size:20px}
+.resume-section h2::before{height:22px;width:4px}
+.resume-project{position:relative;padding:20px 21px;margin-bottom:14px;border:1px solid #e4eaf2;border-left:4px solid #f6872a;border-radius:12px;background:linear-gradient(145deg,#fff,#fbfcfe);box-shadow:0 5px 18px #0e245508}
+.resume-project:last-child{padding:20px 21px}
+.resume-project h3{font-size:17px;letter-spacing:-.01em}
+.resume-project p{font-size:14px}
+.resume-project-tags li{background:#f4f6f9}
+.resume-text-link{display:inline-flex;align-items:center;gap:5px;padding:8px 11px;border-radius:7px;background:#eff3f9;text-decoration:none}
+.resume-text-link:hover{background:#fff1e7}
+.resume-certificate{padding:14px 0}
+.resume-social{border-radius:9px;background:#fff;padding:10px 15px;box-shadow:0 2px 8px #10234808}
+.resume-disclaimer{margin:0 20px 20px;padding:18px 20px;border:1px solid #e7ebf2;border-radius:11px;background:#f8f9fb}
+.resume-footer{border-top:4px solid #f6872a}
+@media(max-width:780px){.resume-manage{margin-left:0}}
+@media(max-width:570px){
+ .resume-paper{border-radius:12px}
+ .resume-heading{min-height:0;margin:9px 10px 0;padding:21px 17px;gap:13px}
+ .resume-heading .resume-avatar,.resume-heading .resume-initials{width:76px;height:76px;flex-basis:76px;font-size:22px}
+ .resume-heading h1{font-size:clamp(22px,6vw,30px)}
+ .resume-action-bar{padding:13px 17px 6px}
+ .resume-owner-prompt{margin:3px 17px 15px}
+ .resume-highlights{padding:0 17px 16px}
+ .resume-anchors{padding-inline:12px}
+ .resume-disclaimer{margin:0 10px 12px;padding:15px}
+ .resume-project,.resume-project:last-child{padding:15px}
+}
+@media(prefers-reduced-motion:reduce){.resume-action{transition:none!important}.resume-action:hover{transform:none}}
