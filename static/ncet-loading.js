@@ -50,7 +50,14 @@
    if(event.defaultPrevented)return;
    start();
    const form=event.target;form.dataset.ncetNavigating='true';
-   setTimeout(()=>{if(form.isConnected&&form.dataset.ncetNavigating){delete form.dataset.ncetNavigating;finish()}},8000);
+   setTimeout(()=>{
+    // A client-side render can detach the submitted form before the fallback fires.
+    // Always release this submission's loader count to prevent a permanent overlay.
+    if(form.dataset.ncetNavigating){
+     delete form.dataset.ncetNavigating;
+     finish();
+    }
+   },8000);
   });
  },true);
  window.addEventListener('pageshow',()=>{
