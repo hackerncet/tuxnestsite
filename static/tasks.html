@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#0E2455"><title>NCET Task Workspace · Department Document Review</title><link rel="icon" href="/static/ncet-brand.svg" type="image/svg+xml"><link rel="stylesheet" href="/static/tasks.css?v=20261021-per-file-checklists"><link rel="stylesheet" href="/static/workspace-experience.css"><link rel="stylesheet" href="/static/notifications.css"><link rel="stylesheet" href="/static/responsive-upgrade.css?v=20261017"><link rel="stylesheet" href="/static/ncet-brand-system.css?v=20261017"><script src="/static/ncet-loading.js?v=20261017" defer></script><link rel="stylesheet" href="/static/institutional-ui.css?v=20261017d"><link rel="stylesheet" href="/static/hod-dashboard.css?v=20261017f"></head><body>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#0E2455"><title>NCET Task Workspace · Department Document Review</title><link rel="icon" href="/static/ncet-brand.svg" type="image/svg+xml"><link rel="stylesheet" href="/static/tasks.css?v=20261021-task-removal"><link rel="stylesheet" href="/static/workspace-experience.css"><link rel="stylesheet" href="/static/notifications.css"><link rel="stylesheet" href="/static/responsive-upgrade.css?v=20261017"><link rel="stylesheet" href="/static/ncet-brand-system.css?v=20261017"><script src="/static/ncet-loading.js?v=20261017" defer></script><link rel="stylesheet" href="/static/institutional-ui.css?v=20261017d"><link rel="stylesheet" href="/static/hod-dashboard.css?v=20261017f"></head><body>
 <header class="topbar"><a class="brand" href="/app"><img src="/static/ncet-brand.svg" alt="Nagarjuna College of Engineering and Technology emblem"><span><b>NCET VerifyFlow</b><small>Department task management</small></span></a><nav><a href="/app">Document workspace</a><a href="/complaints">Student complaints</a><a href="/community">Student project board</a><button class="ghost" id="refresh">Refresh</button></nav></header>
 <main id="main"><section class="heading"><div class="overline">FACULTY & INSTITUTIONAL WORKSPACE</div><h1 id="heading">Task management</h1><p>Assign reference documents, review completed work and track departmental progress.</p><div id="connection" class="connection" role="status">Checking your account…</div></section>
 <div id="app" hidden>
@@ -98,5 +98,16 @@
     <div class="deadline-dialog-actions"><button class="btn secondary" id="task-review-cancel" type="button">Cancel</button><button class="btn" id="task-review-submit" type="submit">Save decision</button></div>
   </form>
 </dialog>
+<dialog id="task-delete-dialog" aria-labelledby="task-delete-title" aria-describedby="task-delete-description">
+  <form id="task-delete-form">
+    <h2 id="task-delete-title">Delete unsubmitted task</h2>
+    <p id="task-delete-name" class="subtle"></p>
+    <p id="task-delete-description">This removes the reference PDF and task from the department queue. Staff notifications will be retained without a task link, and an audit entry will remain. Tasks with submissions or HOD decisions cannot be deleted.</p>
+    <label for="task-delete-confirmation-input">Type this confirmation exactly: <code id="task-delete-confirmation"></code>
+      <input type="text" id="task-delete-confirmation-input" maxlength="250" autocomplete="off" required>
+    </label>
+    <div class="deadline-dialog-actions"><button class="btn secondary" id="task-delete-cancel" type="button">Cancel</button><button class="btn orange" id="task-delete-submit" type="submit" disabled>Delete task</button></div>
+  </form>
+</dialog>
 <div id="toast" role="status" aria-live="polite" hidden></div>
-<script src="/static/tasks.js?v=20261021-per-file-checklists" defer></script><script src="/static/hod-dashboard.js?v=20261021-reminders" defer></script><script src="/static/notifications.js" defer></script><script src="/static/institutional-ui.js?v=20261017d" defer></script></body></html>
+<script src="/static/tasks.js?v=20261021-task-removal" defer></script><script src="/static/hod-dashboard.js?v=20261021-reminders" defer></script><script src="/static/notifications.js" defer></script><script src="/static/institutional-ui.js?v=20261017d" defer></script></body></html>

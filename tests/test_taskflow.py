@@ -77,6 +77,86 @@ def test_permission_department_and_invalid_batch(client,login):
         assert staff.get(f'/api/tasks/{ids[0]}/reference').status_code==404
 
 
+def test_hod_can_remove_only_unsubmitted_tasks_and_audit_the_removal(client,login):
+    from app.database import AuditLog,DBSession,User
+    from app.taskflow import TaskBatch,TaskEvent,TaskItem,TaskNotification
+    hod_csrf=login(client,'hod')
+    task_id=_batch(client,hod_csrf,1)[0]
+    item=client.get('/api/tasks').json()['items'][0]
+    assert item['id']==task_id
+    exact=f"DELETE {task_id} {item['file']}"
+
+    bad=client.request('DELETE',f'/api/tasks/{task_id}',headers={'X-CSRF-Token':hod_csrf},
+                       json={'confirmation':'DELETE the wrong task'})
+    assert bad.status_code==422
+    assert client.get('/api/tasks').json()['items'][0]['id']==task_id
+
+    with DBSession() as db:
+        staff=db.query(User).filter(User.username=='staff').one()
+        db.add(TaskNotification(user_id=staff.id,task_id=task_id,text='New task: ref0.pdf'))
+        db.commit()
+
+    with TestClient(app) as other_hod:
+        login(other_hod,'hod2')
+        other_csrf=other_hod.get('/api/auth/me').json()['csrf']
+        assert other_hod.request('DELETE',f'/api/tasks/{task_id}',headers={'X-CSRF-Token':other_csrf},
+                                 json={'confirmation':exact}).status_code==404
+    with TestClient(app) as staff_client:
+        staff_csrf=login(staff_client,'staff')
+        assert staff_client.request('DELETE',f'/api/tasks/{task_id}',headers={'X-CSRF-Token':staff_csrf},
+                                    json={'confirmation':exact}).status_code==403
+
+    removed=client.request('DELETE',f'/api/tasks/{task_id}',headers={'X-CSRF-Token':hod_csrf},
+                           json={'confirmation':exact})
+    assert removed.status_code==200,removed.text
+    assert removed.json()=={'removed':True,'task_id':task_id,'history_retained':True}
+    assert all(task['id']!=task_id for task in client.get('/api/tasks').json()['items'])
+    assert client.get(f'/api/tasks/{task_id}/reference').status_code==404
+    assert client.get('/api/tasks/dashboard').json()['counts']['total']==0
+    with DBSession() as db:
+        removed_task=db.get(TaskItem,task_id)
+        assert removed_task.state=='removed' and removed_task.reference_pdf==b''
+        assert removed_task.assigned_to is None and removed_task.deadline is None
+        assert removed_task.notes=='' and removed_task.rules_json=='[]'
+        assert removed_task.report_json=='{}' and removed_task.score is None
+        assert db.query(TaskBatch).count()==1
+        assert db.query(TaskEvent).filter(TaskEvent.task_id==task_id).count()==2
+        assert db.query(TaskEvent).filter(TaskEvent.task_id==task_id,
+                                          TaskEvent.event=='removed').count()==1
+        notice=db.query(TaskNotification).one()
+        assert notice.task_id is None
+        assert notice.text=='Task removed by the department HOD: ref0.pdf'
+        audit=db.query(AuditLog).filter(AuditLog.event=='task.unsubmitted_removed').one()
+        assert f'id={task_id}' in audit.detail
+        assert 'task_history_events_preserved=1' in audit.detail
+
+
+def test_hod_cannot_remove_a_submitted_or_reviewed_task(client,login):
+    from app.database import DBSession,User
+    from app.taskflow import TaskDecision,TaskItem,TaskSubmission
+    hod_csrf=login(client,'hod')
+    task_id=_batch(client,hod_csrf,1)[0]
+    task=client.get('/api/tasks').json()['items'][0]
+    confirmation=f"DELETE {task_id} {task['file']}"
+    with DBSession() as db:
+        item=db.get(TaskItem,task_id)
+        staff=db.query(User).filter(User.username=='staff').one()
+        hod=db.query(User).filter(User.username=='hod').one()
+        db.add(TaskSubmission(task_id=task_id,uploaded_by=staff.id,revision=1,
+             filename='completed.pdf',content=PDF,state='complete'))
+        db.add(TaskDecision(task_id=task_id,actor_id=hod.id,decision='approved',
+             note='Reviewed the task as a fixture.'))
+        item.state='approved'
+        db.commit()
+    response=client.request('DELETE',f'/api/tasks/{task_id}',headers={'X-CSRF-Token':hod_csrf},
+                            json={'confirmation':confirmation})
+    assert response.status_code==409
+    with DBSession() as db:
+        assert db.get(TaskItem,task_id) is not None
+        assert db.query(TaskSubmission).filter(TaskSubmission.task_id==task_id).count()==1
+        assert db.query(TaskDecision).filter(TaskDecision.task_id==task_id).count()==1
+
+
 def test_ai_missing_is_manual_review_not_rejection(client,login):
     h=login(client,'hod');id=_batch(client,h,1)[0]
     assert client.post('/api/tasks/assign',headers={'X-CSRF-Token':h},json={'task_ids':[id],'staff_id':_staff_id(), 'notes':'Prepare final document with all specified parts.','rules':RULE}).status_code==200
