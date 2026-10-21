@@ -2,7 +2,7 @@
 
 This roadmap reflects the current repository, with priority on a reliable HOD document pipeline, branch-specific work visibility, and useful student self-service. It keeps the existing NCET theme and makes AI an optional later addition. None of the future AI items assume a provider key is configured.
 
-Features marked implemented are present in the deployed `hackerncet/tuxnestsite` `main` branch at `85311d1`. GitHub CI and Security Audit passed for that release, and Render confirmed the matching deploy is live. Read-only browser checks now cover the supplied administrator, HOD and staff accounts. The complete authenticated document/task transaction and temporary test-account cleanup still need a production simulation; AI-provider requests remain out of scope until the owner confirms the existing integration setting is intentional.
+Features marked implemented are present in deployed `hackerncet/tuxnestsite` `main` at `ed53a2a` (21 October 2026). Render confirmed the matching deploy is live; GitHub CI run 799 and Security Audit run 214 passed. Read-only live checks covered the supplied administrator, HOD and staff roles, public branding, the notification inbox and `/plot`. No production records were created or changed and no AI-provider requests were made. The custom-domain TLS failure and other release gates are tracked in [`PRODUCTION_READINESS_AUDIT_2026-10-21.md`](PRODUCTION_READINESS_AUDIT_2026-10-21.md).
 
 ## Production verification priorities
 
@@ -112,7 +112,7 @@ Ship in this order on the now-connected repository and production service:
 
 ## Deployment readiness follow-up
 
-- Confirm the Render service is building the current `hackerncet/tuxnestsite` main branch, then verify `/healthz` and role-based pages after each deployment.
+- Confirm the Render service is building the current `hackerncet/tuxnestsite` main branch, then verify `/healthz` and role-based pages after each deployment. The 21 October 2026 release is live and passed its GitHub CI and security workflows.
 - Move institutional use to durable, always-on compute with tested backups and recovery. Enable malware scanning only where its scanner is provisioned and reachable.
 - Verify the institution's custom domain and certificate in a browser before entering credentials.
 - Add server-side latency, queue-age, and failure monitoring; `/plot` reports a single browser sample and cannot replace production telemetry.

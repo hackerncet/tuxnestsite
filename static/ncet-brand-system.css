@@ -34,6 +34,11 @@
 .ncet-naac-badge{width:63px;height:63px;object-fit:contain}
 .ncet-site-logos{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .ncet-site-logos img{max-height:54px;width:auto;object-fit:contain}
+.ncet-accreditation-inline{display:flex;align-items:center;gap:8px;flex:none;color:var(--ncet-blue)}
+.ncet-accreditation-inline img{display:block;width:38px;height:38px;object-fit:contain}
+.ncet-accreditation-inline strong,.ncet-accreditation-inline small{display:block;white-space:nowrap}
+.ncet-accreditation-inline strong{font-size:10px;font-weight:800}
+.ncet-accreditation-inline small{margin-top:2px;color:var(--ncet-muted);font-size:9px}
 
 /* Unified, small, non-rotating logo shimmer. */
 .btn[aria-busy="true"]::before,button[aria-busy="true"]::before,
@@ -58,6 +63,7 @@
 .resume-edit-project .field{margin:10px 0}
 .resume-edit-project .field textarea{min-height:80px}
 @media(max-width:560px){.brand img{width:70px;max-height:42px}.ncet-network-loader{right:10px;bottom:10px}}
+@media(max-width:760px){.ncet-accreditation-inline span{display:none}.ncet-accreditation-inline img{width:34px;height:34px}}
 @media(prefers-reduced-motion:reduce){
  .ncet-network-loader img,.spinner,button[aria-busy="true"]::before,
  .btn[aria-busy="true"]::before{animation:none!important;opacity:1!important}
