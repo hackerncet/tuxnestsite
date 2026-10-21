@@ -1,5 +1,29 @@
 # NCET VerifyFlow production-readiness audit
 
+## Live state recheck — 21 October 2026, 23:27 IST
+
+This recheck supersedes earlier release-state bullets below where they differ. Earlier entries remain historical evidence.
+
+- GitHub `hackerncet/tuxnestsite` `main` is `2e6281ae668b9074ffc7f9e5a5c4a39bbe70c13e` (PR #82, unknown-account login timing hardening). Render deploy `dep-dbcfo1qjnfac73bt1hqg` is `live`; a fresh `/healthz` response reported the same commit.
+- Render confirms the service is connected to `hackerncet/tuxnestsite`, branch `main`, with commit auto-deploy enabled. The service remains free tier with one configured instance. Its live `healthCheckPath` field is empty although `render.yaml` declares `/healthz`.
+- A fresh 55-minute Render metrics query (17:00–17:55 UTC, 5-minute resolution) returned web CPU samples of about 0.0040–0.0065 CPU units and memory samples of about 216–276 MB across several instance identifiers during the deploy window. Render still reports one configured instance; the multiple historical identifiers do not establish concurrent scaling.
+- The same service metrics query returned no HTTP latency, request-count, or instance-count datapoints. A live p95 latency baseline cannot be inferred from this window.
+- The active Postgres instance returned 0–4 active connections, approximately 0.0073–0.0090 CPU units, and about 42–50 MB memory in the same window. It remains a free database expiring 14 November 2026, with external access allowlisted from `0.0.0.0/0`. These reads do not confirm the app's connection hostname or backup recoverability.
+- No production settings, DNS, database access rules, or student records were changed. AI external calls remain disabled.
+
+### Remaining production actions
+
+1. Fix the custom-domain TLS failure and verify it in a fresh browser session.
+2. Confirm the app uses the same-region internal database URL before restricting external access; establish and test backups, and migrate away from the expiring free database.
+3. Apply and verify the Render `/healthz` health-check setting.
+4. Provision and verify a fail-closed malware scanner before accepting untrusted institutional documents; the current Render Blueprint has scanning off.
+5. Configure VPS Actions secrets and perform a real deployment before claiming GitHub-to-VPS auto-deploy is active.
+6. Continue checking the exact deployed SHA after every merge because earlier Render auto-deploy events arrived out of order.
+7. Use a disposable student account outside production for student-only publish, request, reply, and inbox workflows.
+
+---
+
+
 ## Latest state check — 21 October 2026, 22:39 IST
 
 This section supersedes the older deployment snapshot below where release state differs. Earlier sections remain historical evidence for the actions performed at their recorded times.
