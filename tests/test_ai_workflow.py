@@ -147,6 +147,7 @@ def test_admin_api_key_encrypted_never_returned(client,monkeypatch):
     assert client.delete('/api/admin/integrations/openrouter',headers=h).status_code==200
 
 
+ 
 def test_production_ai_provider_requires_explicit_opt_in(monkeypatch):
     from app.ai_gateway import select_provider
     monkeypatch.setenv('APP_ENV','production')
@@ -172,7 +173,6 @@ def test_ai_request_sink_obeys_disabled_policy_without_network(monkeypatch):
     with pytest.raises(RuntimeError,match='disabled by server policy'):
         review_json(provider,'test',{'document':'private sample'})
 
-
 def test_unreliable_ai_is_manual_not_auto_fail(client,monkeypatch):
     monkeypatch.setenv('OPENROUTER_API_KEY','test-key')
     def failing_ai(*args):raise ValueError('malformed JSON')
@@ -194,4 +194,3 @@ def test_ocr_image_extracts_text():
     buff=io.BytesIO();im.save(buff,'PNG')
     result=extract_document('scanned.png',buff.getvalue())
     assert 'Executive Summary' in result.pages[0]
-
