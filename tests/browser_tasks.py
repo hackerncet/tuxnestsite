@@ -17,7 +17,7 @@ def test_browser():
         '<style>'+ (BASE/'hod-dashboard.css').read_text(encoding='utf-8')+'</style>')
       page.set_content(html)
       page.evaluate("""(role)=>{window.fetch=async(url,opts)=>{
-        const u=String(url);let data={};
+        window.__failDrafts=role==='hod';const u=String(url);let data={};
         if(u.includes('/auth/me'))data={user:{id:1,name:'Faculty Example',role,department:'Computer Applications'},csrf:'demo-token'};
         else if(u.endsWith('/tasks')){const task=id=>({id,batch_id:1,file:id===1?'Academic_Audit.pdf':'Course_Outcomes.pdf',state:role==='hod'&&!window.__assigned?'unassigned':window.__taskState||'assigned',department:'Computer Applications',assigned_to:'Faculty Example',assigned_staff_id:5,deadline:window.__changedDeadline||window.__assigned?.deadline||null,overdue:false,score:null,report:{},notes:'Please follow requirements',rules:[]});data={items:window.__multi?[task(1),task(2)]:[task(1)]};}
         else if(u.includes('/tasks/dashboard')){
@@ -41,7 +41,7 @@ def test_browser():
         else if(u.includes('/insights/summary'))data={staff:[],total:1,states:{assigned:1}};
         else if(u.includes('/insights/discussions'))data={items:[]};
         else if(u.includes('/ai/status'))data={configured:false,model:null};
-        else if(u.endsWith('/tasks/rules/drafts'))data={items:[{task_id:1,state:'ready',summary:'Rules extracted from the uploaded PDF',model:'deepseek-chat',rules:[{id:'reference_1',title:'Introduction',type:'required_heading',required:true,value:'Introduction',instructions:'Use the introduction heading'}]}]};
+        else if(u.endsWith('/tasks/rules/drafts')){if(window.__failDrafts)return {ok:false,status:503,json:async()=>({detail:'Draft service unavailable'})};data={items:[{task_id:1,state:'ready',summary:'Rules extracted from the uploaded PDF',model:'deepseek-chat',rules:[{id:'reference_1',title:'Introduction',type:'required_heading',required:true,value:'Introduction',instructions:'Use the introduction heading'}]}]};}
         else if(u.endsWith('/tasks/assign')){window.__assigned=JSON.parse(opts.body);data={assigned:window.__assigned.task_ids.length};}
         else if(u.includes('/deadline')){window.__changedDeadline=JSON.parse(opts.body).deadline;data={changed:true,deadline:window.__changedDeadline};}
         else if(u.includes('/tasks/1/decide')){window.__decision=JSON.parse(opts.body);data={state:window.__decision.decision==='approved'?'approved':'correction_required'};}
