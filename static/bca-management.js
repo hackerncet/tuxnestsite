@@ -1,5 +1,5 @@
 'use strict';
-const $=id=>document.getElementById(id);const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));let csrf='',role='',selected=null,rosterRows=[],departments=[],removalAllowed=false,rosterPage=1,rosterPageSize=50,rosterTotal=0,rosterPages=1;
+const $=id=>document.getElementById(id);const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));let csrf='',role='',selected=null,rosterRows=[],departments=[],removalAllowed=false,rosterPage=1,rosterPageSize=50,rosterTotal=0,rosterPages=1,rosterRequestGeneration=0;
 const selectedStudentUsns=new Set();let removalPreview=null,removalBusy=false;
 function show(id,yes){$(id).classList.toggle('hidden',!yes)}
 function notify(t,error=false){$('alert').textContent=t;$('alert').className=error?'error':'success'}
@@ -27,9 +27,11 @@ function renderRoster(){
 }
 
 async function loadRoster({preserveSelection=false}={}){
+ const request=++rosterRequestGeneration;
  $('roster-count').textContent='Loading students…';
  const params=new URLSearchParams({search:$('roster-search').value.trim(),include_disabled:String($('show-disabled-students').checked),page:String(rosterPage),page_size:String(rosterPageSize)});
  const response=await api('/api/bca/students?'+params.toString());
+ if(request!==rosterRequestGeneration)return;
  rosterRows=response.items;rosterTotal=response.total;rosterPages=response.total_pages;rosterPage=response.page;
  if(!preserveSelection){selectedStudentUsns.clear();discardRemovalPreview();}
  renderRoster();
@@ -116,10 +118,12 @@ $('roster').addEventListener('submit',async e=>{
 
 let rosterSearchTimer=null;
 $('roster-search').addEventListener('input',()=>{
+ rosterRequestGeneration++;
  clearTimeout(rosterSearchTimer);
  rosterSearchTimer=setTimeout(()=>{rosterPage=1;selectedStudentUsns.clear();selectionChanged();loadRoster().catch(err=>notify(err.message,true));},250);
 });
 $('show-disabled-students').addEventListener('change',()=>{
+ rosterRequestGeneration++;
  rosterPage=1;selectedStudentUsns.clear();selectionChanged();loadRoster().catch(err=>notify(err.message,true));
 });
 $('roster-pagination').addEventListener('click',event=>{
