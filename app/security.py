@@ -11,6 +11,9 @@ from sqlalchemy import delete
 from .database import Session, User, db_url, get_db, utcnow
 
 hasher = PasswordHasher(time_cost=3, memory_cost=65536, parallelism=2)
+# A valid Argon2id hash used only to make unknown-user login attempts perform
+# the same expensive verification step as a known user's failed password.
+DUMMY_PASSWORD_HASH = '$argon2id$v=19$m=65536,t=3,p=2$3DYLfbe3p8AiRb7j8kf1xQ$FkBEorrGnrv1vzjHmfO7UBC3eOY0DlTcpS41ooiorZE'
 COOKIE = 'ncet_session'
 ROLES = {'admin', 'principal', 'hod', 'staff', 'iqac', 'student'}
 
@@ -76,3 +79,4 @@ def as_role_mutation(*roles):
             raise HTTPException(403, 'Your account cannot perform this action.')
         return user
     return check
+
