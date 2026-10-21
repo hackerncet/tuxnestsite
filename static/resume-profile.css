@@ -256,3 +256,11 @@ html:has(.ncet-profile-page){scroll-behavior:smooth}
 .resume-action.resume-manage:hover{background:#ffb16f;border-color:#ffb16f;color:#102348}
 @media(max-width:570px){.resume-intro{margin:8px 0;color:#e5edf8;font-size:13px;line-height:1.55}}
 @media print{.resume-intro{color:#334155}}
+
+/* Portfolio project cards: visible hierarchy for student-authored case studies. */
+.resume-project-kicker{display:inline-flex;align-items:center;align-self:flex-start;margin:0 0 7px;padding:4px 8px;border-radius:999px;background:#fff1e7;color:#9a4a0a;font-size:9px;font-weight:850;letter-spacing:.12em;line-height:1.2}
+.resume-project-grid .resume-project{border-top:3px solid #0e2455;transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
+.resume-project-grid .resume-project:hover{transform:translateY(-2px);border-top-color:#f6872a;box-shadow:0 12px 28px #0e245515}
+.resume-project-grid .resume-project h3{font-size:18px;line-height:1.3}
+.resume-project-grid .resume-project .resume-project-outcome{margin-top:12px}
+@media(prefers-reduced-motion:reduce){.resume-project-grid .resume-project{transition:none}.resume-project-grid .resume-project:hover{transform:none}}
