@@ -93,8 +93,8 @@ with sync_playwright() as p:
         assert page.locator('#about').is_hidden()
         assert page.locator('#projects').get_attribute('aria-labelledby')=='profile-tab-projects'
         page.locator('a[href="#projects"]').press('ArrowRight')
-        assert page.locator('#certifications').is_visible()
-        assert page.locator('a[href="#certifications"]').get_attribute('aria-selected')=='true'
+        assert page.locator('#about').is_visible()
+        assert page.locator('a[href="#about"]').get_attribute('aria-selected')=='true'
         page.go_back(wait_until='domcontentloaded')
         assert page.locator('#projects').is_visible()
         page.goto('http://ncet.test/students/profile/1NC24CS150#links',wait_until='load')
