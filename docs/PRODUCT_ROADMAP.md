@@ -2,7 +2,7 @@
 
 This roadmap reflects the current repository, with priority on a reliable HOD document pipeline, branch-specific work visibility, and useful student self-service. It keeps the existing NCET theme and makes AI an optional later addition. None of the future AI items assume a provider key is configured.
 
-Features marked implemented are present in deployed `hackerncet/tuxnestsite` `main` at `ed53a2a` (21 October 2026). Render confirmed the matching deploy is live; GitHub CI run 799 and Security Audit run 214 passed. Read-only live checks covered the supplied administrator, HOD and staff roles, public branding, the notification inbox and `/plot`. No production records were created or changed and no AI-provider requests were made. The custom-domain TLS failure and other release gates are tracked in [`PRODUCTION_READINESS_AUDIT_2026-10-21.md`](PRODUCTION_READINESS_AUDIT_2026-10-21.md).
+Features marked implemented are present in deployed `hackerncet/tuxnestsite` `main` at `de4e937` (21 October 2026). Render confirmed the matching deploy is live. GitHub CI run 879 passed the application, Chromium UI, SAST/dependency, Ubuntu installer, and exact-commit Render smoke jobs; the optional VPS deployment job was skipped because its private host configuration is not enabled. Read-only live checks confirmed `/healthz` reports the deployed commit and the public student directory and portfolio load. No production records were created or changed and no AI-provider requests were made.
 
 ## Production verification priorities
 
