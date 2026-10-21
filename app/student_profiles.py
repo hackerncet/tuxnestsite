@@ -198,6 +198,7 @@ def create_students(db, actor, items:list[EnrollmentItem]):
         raise HTTPException(409,'Duplicate student account: the batch was not imported.')
     return {'created':len(creds),'credentials':creds}
 
+
 @router.post('/api/bca/students/enroll')
 def enroll(body:EnrollmentBody,actor:User=Depends(csrf_required),db:DbSession=Depends(get_db)):
     return create_students(db,actor,body.students)
@@ -736,3 +737,4 @@ def published_sitemap_paths(db:DbSession)->list[str]:
           .join(StudentShowcase,StudentShowcase.student_id==User.id)
           .filter(User.active.is_(True),BCAStudent.must_change_password.is_(False),
                   StudentShowcase.published.is_(True)).order_by(BCAStudent.usn).limit(10000).all())]
+
