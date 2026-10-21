@@ -555,4 +555,3 @@ function cleanupHTML() {
   document.addEventListener('visibilitychange',async()=>{if(!document.hidden && role){try{await refreshDocs();}catch(_){/* keep current read-only screen until next action */}}});
   start();
 })();
-
