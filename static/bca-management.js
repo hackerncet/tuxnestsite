@@ -1,5 +1,5 @@
 'use strict';
-const $=id=>document.getElementById(id);const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));let csrf='',role='',selected=null,rosterRows=[],departments=[],removalAllowed=false;
+const $=id=>document.getElementById(id);const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));let csrf='',role='',selected=null,rosterRows=[],departments=[],removalAllowed=false,rosterPage=1,rosterPageSize=50,rosterTotal=0,rosterPages=1;
 const selectedStudentUsns=new Set();let removalPreview=null,removalBusy=false;
 function show(id,yes){$(id).classList.toggle('hidden',!yes)}
 function notify(t,error=false){$('alert').textContent=t;$('alert').className=error?'error':'success'}
@@ -11,23 +11,27 @@ $('template').addEventListener('click',()=>download('NCET_student_import_templat
 async function init(){try{let r=await api('/api/auth/me');csrf=r.csrf;role=r.user.role;if(!['staff','hod','admin'].includes(role))throw Error('Not authorized');if(role==='admin'){setRoleCopy();await loadDepartments();show('admin-departments',true)}else{const catalog=(await api('/api/academic/departments')).items;const assigned=catalog.find(d=>d.code.toLowerCase()===String(r.user.department||'').toLowerCase()||d.name.toLowerCase()===String(r.user.department||'').toLowerCase());if(!assigned)throw Error('Your assigned department is not active in the academic catalog.');departments=[assigned];setRoleCopy(assigned.name);renderBranchPicker()}removalAllowed=role==='admin'||role==='hod'&&departments[0]?.name==='Computer Applications';await loadRoster();$('staff-name').textContent=r.user.name;show('desk',true);show('student-removal-panel',removalAllowed);$('permanent-delete-option').disabled=role!=='admin';if(role==='hod'){show('hod-queue',true);$('management-complaints').hidden=false;await loadCases()}}catch(e){show('denied',true);notify(e.message||'Sign in with an authorized department account.',true)}}
 function downloadCredentials(x){const rows=['usn,full_name,branch,semester,temporary_password',...x.credentials.map(c=>[c.usn,c.name,c.branch,c.semester,c.temporary_password].map(csvCell).join(','))];download('NCET_ONETIME_credentials.csv',rows.join('\r\n')+'\r\n');}
 function renderRoster(){
- const term=$('roster-search').value.trim().toLowerCase();
- const rows=rosterRows.filter(x=>($('show-disabled-students').checked||x.active)&&(x.name.toLowerCase().includes(term)||x.usn.toLowerCase().includes(term)||(x.branch_name||x.branch||'').toLowerCase().includes(term)));
- $('roster-count').textContent=rows.length+' visible of '+rosterRows.length+' enrolled students';
+ const rows=rosterRows;
+ const first=rosterTotal?(rosterPage-1)*rosterPageSize+1:0;
+ const last=Math.min(rosterPage*rosterPageSize,rosterTotal);
+ const term=$('roster-search').value.trim();
+ $('roster-count').textContent=rosterTotal?`Showing ${first}–${last} of ${rosterTotal} students · page ${rosterPage} of ${rosterPages}`:term?'No students match your search.':'No students enrolled yet.';
  $('selected-student-count').textContent=selectedStudentUsns.size+' selected';
  $('review-student-removal').disabled=!selectedStudentUsns.size||removalBusy;
  const opts=student=>role==='admin'
    ? '<select name="branch" required>'+(!student.branch||!departments.some(d=>d.code===student.branch)?'<option value="" selected disabled>Select a department</option>':'')+departments.map(d=>'<option value="'+esc(d.code)+'" '+(student.branch===d.code?'selected':'')+' '+(!d.active&&student.branch!==d.code?'disabled':'')+'>'+esc(d.name)+(d.active?'':' (inactive)')+'</option>').join('')+'</select>'
    : (student.branch?'<input type="hidden" name="branch" value="'+esc(student.branch)+'">':'')+'<span class="small muted">'+esc(student.branch_name||student.branch||'Department not set')+'</span>';
- $('roster').innerHTML=rows.length?rows.map(x=>`<div class="entry"><div class="row">${removalAllowed?'<label class="select-student-label"><input type="checkbox" class="select-student" data-usn="'+esc(x.usn)+'" aria-label="Select '+esc(x.name)+' ('+esc(x.usn)+')" '+(selectedStudentUsns.has(x.usn)?'checked':'')+'> Select</label>':''}<strong>${esc(x.name)}</strong><span class="small muted">${esc(x.usn)} · ${esc(x.branch_name||x.branch||'Department not set')} · Semester ${esc(x.semester)} · ${x.active?'Active':'Disabled'}</span></div><details><summary>Edit student details</summary><form class="edit-student-form" data-usn="${esc(x.usn)}"><label>Full name <input name="full_name" value="${esc(x.name==='Registration pending'?'':x.name)}" minlength="3" maxlength="130" required></label><label>Branch ${opts(x)}</label><label>Semester <input name="semester" type="number" min="1" max="8" value="${esc(x.semester)}" required></label><button class="btn" type="submit">Save details</button></form></details></div>`).join(''):'<p class="muted">'+(term?'No students match your search.':'No students enrolled yet.')+'</p>';
+ $('roster').innerHTML=rows.length?rows.map(x=>`<div class="entry"><div class="row">${removalAllowed?'<label class="select-student-label"><input type="checkbox" class="select-student" data-usn="'+esc(x.usn)+'" aria-label="Select '+esc(x.name)+' ('+esc(x.usn)+')" '+(selectedStudentUsns.has(x.usn)?'checked':'')+'> Select</label>':''}<strong>${esc(x.name)}</strong><span class="small muted">${esc(x.usn)} · ${esc(x.branch_name||x.branch||'Department not set')} · Semester ${esc(x.semester)} · ${x.active?'Active':'Disabled'}</span></div><details><summary>Edit student details</summary><form class="edit-student-form" data-usn="${esc(x.usn)}"><label>Full name <input name="full_name" value="${esc(x.name==='Registration pending'?'':x.name)}" minlength="3" maxlength="130" required></label><label>Branch ${opts(x)}</label><label>Semester <input name="semester" type="number" min="1" max="8" value="${esc(x.semester)}" required></label><button class="btn" type="submit">Save details</button></form></details></div>`).join():'<p class="muted">'+(term?'No students match your search.':'No students enrolled yet.')+'</p>';
+ const nav=$('roster-pagination');
+ nav.innerHTML='<button class="btn roster-page-button" type="button" data-roster-page="'+(rosterPage-1)+'" aria-label="Previous page" '+(rosterPage<=1?'disabled':'')+'>← Previous</button><span aria-live="polite">Page '+rosterPage+' of '+rosterPages+'</span><button class="btn roster-page-button" type="button" data-roster-page="'+(rosterPage+1)+'" aria-label="Next page" '+(rosterPage>=rosterPages?'disabled':'')+'>Next →</button>';
 }
 
-async function loadRoster(){
+async function loadRoster({preserveSelection=false}={}){
  $('roster-count').textContent='Loading students…';
- let response=await api('/api/bca/students');
- rosterRows=response.items;
- selectedStudentUsns.clear();
- discardRemovalPreview();
+ const params=new URLSearchParams({search:$('roster-search').value.trim(),include_disabled:String($('show-disabled-students').checked),page:String(rosterPage),page_size:String(rosterPageSize)});
+ const response=await api('/api/bca/students?'+params.toString());
+ rosterRows=response.items;rosterTotal=response.total;rosterPages=response.total_pages;rosterPage=response.page;
+ if(!preserveSelection){selectedStudentUsns.clear();discardRemovalPreview();}
  renderRoster();
 }
 
@@ -110,9 +114,20 @@ $('roster').addEventListener('submit',async e=>{
  }catch(err){notify(err.message,true)}
 });
 
-$('roster-search').addEventListener('input',renderRoster);
-
-$('show-disabled-students').addEventListener('change',renderRoster);
+let rosterSearchTimer=null;
+$('roster-search').addEventListener('input',()=>{
+ clearTimeout(rosterSearchTimer);
+ rosterSearchTimer=setTimeout(()=>{rosterPage=1;selectedStudentUsns.clear();selectionChanged();loadRoster().catch(err=>notify(err.message,true));},250);
+});
+$('show-disabled-students').addEventListener('change',()=>{
+ rosterPage=1;selectedStudentUsns.clear();selectionChanged();loadRoster().catch(err=>notify(err.message,true));
+});
+$('roster-pagination').addEventListener('click',event=>{
+ const button=event.target.closest('[data-roster-page]');if(!button)return;
+ const next=Number(button.dataset.rosterPage);
+ if(!Number.isInteger(next)||next<1||next>rosterPages)return;
+ rosterPage=next;loadRoster({preserveSelection:true}).catch(err=>notify(err.message,true));
+});
 
 function discardRemovalPreview(){
  removalPreview=null;
@@ -209,10 +224,22 @@ $('student-removal-confirm-form').addEventListener('submit',async event=>{
  finally{removalBusy=false;$('execute-student-removal').disabled=false;form.querySelector('[name=current_password]').value='';}
 });
 
-$('export-roster').addEventListener('click',()=>{
- if(!rosterRows.length)return notify('No enrolled students to export.',true);
- const safe=v=>{const str=String(v??'');return csvCell(['=','+','-','@','\t','\r'].includes(str.charAt(0))?"'"+str:str)};
- const data=['usn,full_name,branch,semester,active',...rosterRows.map(x=>[x.usn,x.name,x.branch_name||x.branch||'Department not set',x.semester,x.active?'yes':'no'].map(safe).join(','))].join('\r\n')+'\r\n';
- download('NCET_student_roster_without_passwords.csv',data);
- notify('Enrollment roster downloaded. No passwords or private contact details were included.');
+$('export-roster').addEventListener('click',async()=>{
+ const button=$('export-roster');button.disabled=true;button.setAttribute('aria-busy','true');
+ try{
+  const all=[];let page=1,totalPages=1;
+  do{
+   const params=new URLSearchParams({page:String(page),page_size:'500',include_disabled:'true'});
+   const response=await api('/api/bca/students?'+params.toString());
+   all.push(...response.items);totalPages=response.total_pages;
+   if(totalPages>1)notify('Preparing complete roster export · page '+page+' of '+totalPages+'.');
+   page++;
+  }while(page<=totalPages);
+  if(!all.length)return notify('No enrolled students to export.',true);
+  const safe=v=>{const str=String(v??'');return csvCell(['=','+','-','@','\t','\r'].includes(str.charAt(0))?"'"+str:str)};
+  const data=['usn,full_name,branch,semester,active',...all.map(x=>[x.usn,x.name,x.branch_name||x.branch||'Department not set',x.semester,x.active?'yes':'no'].map(safe).join(','))].join('\r\n')+'\r\n';
+  download('NCET_student_roster_without_passwords.csv',data);
+  notify('Complete enrollment roster downloaded. No passwords or private contact details were included.');
+ }catch(err){notify(err.message,true)}
+ finally{button.disabled=false;button.removeAttribute('aria-busy')}
 });
