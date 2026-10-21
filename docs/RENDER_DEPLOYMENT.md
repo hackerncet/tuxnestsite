@@ -43,7 +43,7 @@ Preserve this key for all deployments; changing it without migrating stored sett
 
 1. Save environment variables in the **owning** Render workspace and deploy the current `main` branch.
 2. Startup validates secrets, runs Alembic migrations, initializes the admin if needed, and launches FastAPI and the worker.
-3. Wait for Render status **Live**, then verify `/healthz` returns HTTP 200 with `{"ok":true}`.
+3. Wait for Render status **Live**, then verify `/healthz` returns HTTP 200 with `{"ok":true}` and, on Render, the deployed commit SHA. The `main` CI workflow waits for its exact commit and checks read-only public routes before it permits the optional VPS deployment.
 4. Sign in at `/app` as `admin` with the password configured in Render, create Staff/HOD/Principal/IQAC users, and add the OpenRouter key under Super Admin.
 5. Test rules → a non-sensitive document upload → AI verification → HOD approval → Principal/IQAC visibility.
 6. Confirm documents survive a service restart and that logs do not expose secrets.
