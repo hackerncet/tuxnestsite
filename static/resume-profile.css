@@ -174,7 +174,7 @@ body.ncet-profile-page{margin:0;background:#F4F6F9;color:#172033;font-family:Int
 }
 @media print{.resume-action-bar{display:none!important}}
 
-/* Student portfolio refresh: editorial hero, clear ownership and stronger project cards. */
+/* Student portfolio refresh: confident editorial hero, clear ownership and project showcase. */
 .ncet-profile-page{background:radial-gradient(ellipse at 50% -15%,#e5ebf6 0,transparent 48%),#f3f5f8}
 .resume-site-inner{min-height:82px}
 .resume-paper{border-radius:16px;box-shadow:0 24px 70px #10234814;border-color:#e5eaf1}
@@ -206,6 +206,12 @@ body.ncet-profile-page{margin:0;background:#F4F6F9;color:#172033;font-family:Int
 .resume-project:last-child{padding:20px 21px}
 .resume-project h3{font-size:17px;letter-spacing:-.01em}
 .resume-project p{font-size:14px}
+.resume-project-meta{display:flex;gap:9px 26px;flex-wrap:wrap;margin:9px 0 11px}
+.resume-project-meta div{display:flex;gap:7px;align-items:baseline}
+.resume-project-meta dt{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#718096}
+.resume-project-meta dd{margin:0;font-size:12px;font-weight:700;color:#263957}
+.resume-project p.resume-project-outcome{padding:10px 12px;margin:11px 0 12px;border-left:3px solid #f6872a;border-radius:0 8px 8px 0;background:#fff7f0;color:#32435c;font-size:13px}
+.resume-project-outcome strong{color:#0e2455;margin-right:5px}
 .resume-project-tags li{background:#f4f6f9}
 .resume-text-link{display:inline-flex;align-items:center;gap:5px;padding:8px 11px;border-radius:7px;background:#eff3f9;text-decoration:none}
 .resume-text-link:hover{background:#fff1e7}
@@ -227,3 +233,4 @@ body.ncet-profile-page{margin:0;background:#F4F6F9;color:#172033;font-family:Int
  .resume-project,.resume-project:last-child{padding:15px}
 }
 @media(prefers-reduced-motion:reduce){.resume-action{transition:none!important}.resume-action:hover{transform:none}}
+

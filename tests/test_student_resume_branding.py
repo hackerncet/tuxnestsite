@@ -49,6 +49,8 @@ def test_portfolio_sections_projects_and_public_links(client):
         "certificates":[{"title":"Python Skills","issuer":"Cisco",
                          "proof_url":"https://example.org/credential/123"}],
         "projects":[{"title":"NCET Project Repository","description":"Secure document verification project.",
+                     "role":"Backend developer · Team of 4","period":"Jan–May 2026",
+                     "outcome":"Shipped a role-based review workflow for student documents.",
                      "technologies":["FastAPI","PostgreSQL"],
                      "github_url":"https://github.com/example/ncet-verification",
                      "live_url":"https://demo.example.org"}],
@@ -67,9 +69,16 @@ def test_portfolio_sections_projects_and_public_links(client):
     html=page.text
     for label in ("About","Technical skills","Projects","Certifications","Areas of interest",
                   "GitHub, live work & professional links","NCET Project Repository",
+                  "Backend developer · Team of 4","Jan–May 2026",
+                  "Shipped a role-based review workflow for student documents.",
                   "Python Skills","AI Agents","https://github.com/example/ncet-verification",
                   "https://demo.example.org","ncet-brand.svg","ngi-brand.svg","naac-brand.svg"):
         assert label in html,label
+    assert 'id="resume-share"' in html and 'id="resume-print"' in html
+    assert 'href="/students/portal#portfolio"' in html
+    assert '<dt>Skills</dt><dd>3</dd>' in html
+    assert '<dt>Projects</dt><dd>1</dd>' in html
+    assert 'student-profile-actions.js' in html
     assert "application/ld+json" in html
     assert "<lastmod>" in client.get("/sitemap.xml").text
     for confidential in ("private@institution.example","+919988776655"):
@@ -100,3 +109,4 @@ def test_unpublishing_removes_projects_from_public_search(client):
     assert client.put("/api/bca/showcase/me",headers=token,json=data).status_code==200
     assert client.get("/students/profile/"+USN).status_code==404
     assert USN not in client.get("/sitemap.xml").text
+

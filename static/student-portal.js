@@ -96,6 +96,9 @@ $('showcase-form').addEventListener('submit',async e=>{
  const projects=[...document.querySelectorAll('#showcase-projects .resume-edit-project')].map(row=>({
   title:row.querySelector('[name=title]').value.trim(),
   description:row.querySelector('[name=description]').value.trim(),
+  role:row.querySelector('[name=role]').value.trim(),
+  period:row.querySelector('[name=period]').value.trim(),
+  outcome:row.querySelector('[name=outcome]').value.trim(),
   technologies:row.querySelector('[name=technologies]').value.split(',').map(x=>x.trim()).filter(Boolean),
   github_url:row.querySelector('[name=github_url]').value.trim(),
   live_url:row.querySelector('[name=live_url]').value.trim(),
@@ -195,13 +198,18 @@ function addProjectEditor(project={}){
  const n=list.children.length+1;
  wrapper.innerHTML=`<div class="resume-edit-project-heading"><strong>Project ${n}</strong><button type="button" class="btn" data-remove-project>Remove</button></div>
  <div class="field"><label>Project title <input name="title" minlength="3" maxlength="105" placeholder="e.g. Campus Verification Portal"></label></div>
- <div class="field"><label>Description <textarea name="description" maxlength="550" rows="2" placeholder="Problem, approach and outcome"></textarea></label></div>
+ <div class="field"><label>What you built <textarea name="description" maxlength="550" rows="2" placeholder="Problem, approach and what you contributed"></textarea></label></div>
+ <div class="split">
+  <div class="field"><label>Your role <input name="role" maxlength="120" placeholder="e.g. Backend developer · Team of 4"></label></div>
+  <div class="field"><label>Timeframe <input name="period" maxlength="80" placeholder="e.g. Jan–May 2026"></label></div>
+ </div>
+ <div class="field"><label>Result or impact <textarea name="outcome" maxlength="240" rows="2" placeholder="What changed, shipped or was learned? Keep claims specific."></textarea></label></div>
  <div class="field"><label>Technologies (comma separated) <input name="technologies" maxlength="650" placeholder="Python, React, PostgreSQL"></label></div>
  <div class="split">
   <div class="field"><label>GitHub repository <input name="github_url" type="url" maxlength="400" placeholder="https://github.com/username/repo"></label></div>
   <div class="field"><label>Live demo / website <input name="live_url" type="url" maxlength="400" placeholder="https://example.com"></label></div>
  </div>`;
- for(const field of ['title','description','technologies','github_url','live_url']){
+ for(const field of ['title','description','role','period','outcome','technologies','github_url','live_url']){
   const input=wrapper.querySelector('[name='+field+']');
   const value=field==='technologies'?(project.technologies||[]).join(', '):(project[field]||'');
   input.value=value;
@@ -213,3 +221,4 @@ function addProjectEditor(project={}){
  list.appendChild(wrapper);
 }
 $('add-showcase-project').addEventListener('click',()=>addProjectEditor());
+
