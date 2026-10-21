@@ -272,7 +272,7 @@
     const fallback=Boolean(integrations.openrouter_configured);
     const outboundEnabled=integrations.outbound_ai_enabled!==false;
     const saved=Boolean(integrations.provider_saved||integrations.key_stored||fallback);
-    return `${pageHeader('SUPER ADMIN / INTEGRATIONS','AI processing controls','Manage credentials and whether document data may be sent to an external AI provider.')}
+    return `${pageHeader('SUPER ADMIN / INTEGRATIONS','DeepSeek AI settings','Manage credentials; external processing requires a separate server-side opt-in.')}
     <div class="manage-grid"><section class="panel form-panel">
     <div class="model-name">${icon('sparkle','lg')} <div><strong>DeepSeek AI document review</strong><span>Preferred provider · Direct DeepSeek</span></div></div>
     <div class="notice" role="status"><strong>${!outboundEnabled?'External AI disabled by server policy':ready ? (dedicated?'DeepSeek configured':'Fallback provider configured') : 'AI provider not configured'}</strong>
