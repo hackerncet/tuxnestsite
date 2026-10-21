@@ -24,6 +24,15 @@ This recheck supersedes earlier release-state bullets below where they differ. E
 ---
 
 
+## Live role and student-branch check — 21 October 2026, 23:36 IST
+
+- Against Render commit `53f98ac65e203256f6432fd96917f3b988fb8cd9`, fresh sign-ins succeeded for the supplied `testap` staff, `hod`, and `admin` accounts. Each landed on the expected role dashboard: Staff submissions, HOD department review queue, and the administrator control centre. The HOD navigation exposed the review queue, rules, staff, student requests, and tasks; the admin dashboard exposed user management, AI configuration, and security audit. No account, document, task, complaint, or workflow record was edited.
+- After sign-out, the public portfolio for `1NC24CS146` displayed Computer Science & Engineering, semester 5. A read-only query of the same Render database returned the registered department as Computer Science & Engineering and semester 5. The displayed branch and semester match the enrollment row. No other student fields were queried, and no student data was changed.
+- The student profile remains voluntarily published; its personal project descriptions and external links are student-submitted and are not independently verified by NCET.
+- The custom domain was not used for credential entry because a fresh navigation still failed with `ERR_SSL_VERSION_CIPHER_MISMATCH`.
+
+---
+
 ## Latest state check — 21 October 2026, 22:39 IST
 
 This section supersedes the older deployment snapshot below where release state differs. Earlier sections remain historical evidence for the actions performed at their recorded times.
