@@ -138,3 +138,4 @@ print(f'Critical CSS+JS bytes (uncompressed): previous={before}, updated={after}
 print(f'Critical stylesheet/script requests: previous=6, updated=3')
 print(f'Tab switch browser timings, 18 interactions: median={median(switches):.0f} ms, p95={p95:.0f} ms')
 print('NCET résumé audit passed: six widths, six sections, reduced motion, keyboard/history, no-JS fallback, all institutional images loaded.')
+
