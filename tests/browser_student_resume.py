@@ -92,6 +92,7 @@ with sync_playwright() as p:
         assert page.url.endswith('#projects'),page.url
         assert page.locator('#projects').is_visible()
         assert page.locator('#about').is_visible()
+        page.wait_for_function("document.querySelector('a[href=\\\"#projects\\\"]').getAttribute('aria-current')==='location'",timeout=3000)
         assert page.locator('a[href="#projects"]').get_attribute('aria-current')=='location'
         page.locator('a[href="#about"]').click()
         assert page.url.endswith('#about'),page.url
