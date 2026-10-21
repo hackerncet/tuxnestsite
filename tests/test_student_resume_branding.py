@@ -49,7 +49,7 @@ def test_portfolio_sections_projects_and_public_links(client):
         "email":PRIVATE_EMAIL,
         "about":"Software engineering student creating research and academic tools.",
         "skills":["Python","C","Machine Learning"],
-        "interests":["AI Agents","Cloud Computing","Open Source"],
+        "interests":["AI Agents","Machine Learning","Cloud Computing","Open Source","Open Source"],
         "certificates":[{"title":"Python Skills","issuer":"Cisco",
                          "proof_url":"https://example.org/credential/123"}],
         "projects":[{"title":"NCET Project Repository","description":"Secure document verification project.",
@@ -82,6 +82,8 @@ def test_portfolio_sections_projects_and_public_links(client):
     assert 'href="/students/portal#portfolio"' in html
     assert 'Create or update your portfolio' in html
     assert 'class="resume-project-grid"' in html
+    assert html.count(">Machine Learning</li>")==1
+    assert html.count(">Open Source</li>")==1
     assert 'publish updates or make this page private' in html
     assert html.index('id="projects"') < html.index('id="about"')
     assert '<dt>Skills</dt><dd>3</dd>' in html
