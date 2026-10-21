@@ -21,6 +21,14 @@ This section supersedes the older deployment snapshot below where release state 
 5. Rotate the credentials that were shared in the task, without recording the values in this audit.
 6. Keep verifying the deployed commit after each main merge because earlier Render webhook events arrived out of order.
 
+## Custom-domain and local security recheck — 21 October 2026, 23:02 IST
+
+- The custom hostname still fails in a fresh browser navigation with `ERR_SSL_VERSION_OR_CIPHER_MISMATCH`.
+- Google Public DNS currently returns a CNAME chain from `ncet.paladuguganeshnaidu.tech` to `ncet-verifyflow.onrender.com`, then Render's `gcp-us-west1-1.origin.onrender.com` and its Cloudflare CDN host, resolving to `216.24.57.18` and `216.24.57.16`. No AAAA record was returned. This rules out a stale IPv6 record and points toward a Render custom-domain/certificate association or edge TLS issue; it does not prove which side is misconfigured.
+- Render's service details API omits domain and certificate state, and the dashboard session redirects to sign-in. No DNS, certificate, or service-domain settings were changed.
+- A fresh local Bandit scan passed (`bandit -q -r app -ll -ii`), with only B104 `nosec` review warnings. A local `pip-audit` request could not reach PyPI because terminal DNS/network access is restricted; the dependency scan remains covered only by the latest successful GitHub security workflow until an online scan can run.
+- The current local Windows run collected 158 tests but did not complete before the test process was stopped; it is not a pass or fail result. GitHub CI for the portfolio release had already passed. No student or production records were changed and no AI services were called.
+
 **Observed:** 21 October 2026, 21:46 Asia/Kolkata  
 **Live service:** ncet-verifyflow on Render  
 **Source:** hackerncet/tuxnestsite main, deployed commit bad4683e57c87ad1497e10a43c8ce6d7fb231e66  
