@@ -637,11 +637,11 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
 <link rel="icon" href="/static/ncet-brand.svg">
 <script type="application/ld+json">{json_ld}</script>
 <link rel="preload" as="image" href="/static/ncet-official-uhd.png?v=20261021-uhd-brand" fetchpriority="high">
-<link rel="stylesheet" href="/static/resume-profile.css?v=20261021-full-portfolio">
+<link rel="stylesheet" href="/static/resume-profile.css?v=20261021-project-story">
 <link rel="stylesheet" href="/static/institutional-ui.css?v=20261021-clear-lockup-2">
-<!-- Native anchors keep the full public portfolio visible and crawlable. -->
+<script src="/static/student-profile-tabs.js?v=20261021-projects-first" defer></script>
 <script src="/static/student-profile-actions.js?v=20261021-portfolio-actions" defer></script>
-</head><body class="ncet-profile-page">
+</head><body class="ncet-profile-page" data-default-section="{'projects' if info['projects'] else 'about'}">
 <a class="skip-link" href="#student-resume">Skip to portfolio</a>
 <header class="resume-site-header">
 <div class="resume-site-inner">
@@ -662,10 +662,10 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
 <div class="resume-action-bar" aria-label="Portfolio actions">
 <button type="button" class="resume-action resume-share" id="resume-share" data-share-url="{escape(canonical,quote=True)}">Share portfolio</button>
 <button type="button" class="resume-action resume-print" id="resume-print">Save as PDF</button>
-<a class="resume-action resume-manage" href="/students/portal#portfolio">Create or update your portfolio</a>
+<a class="resume-action resume-manage" href="/students/portal#portfolio">Edit and publish portfolio</a>
 <span class="resume-action-status" id="resume-action-status" role="status" aria-live="polite"></span>
 </div>
-<p class="resume-owner-prompt">Student at NCET? Sign in to add projects, update your skills and publish changes to this page.</p>
+<p class="resume-owner-prompt">Owned by the student. Sign in to update projects, add skills or credentials, publish changes, or make this portfolio private.</p>
 <dl class="resume-highlights" aria-label="Portfolio overview">
 <div><dt>Skills</dt><dd>{len(info['skills'])}</dd></div>
 <div><dt>Projects</dt><dd>{len(info['projects'])}</dd></div>
@@ -673,14 +673,14 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
 <div class="resume-highlight-note"><dt>Published by</dt><dd>Student</dd></div>
 </dl>
 <nav class="resume-anchors" aria-label="Portfolio sections">
-<a href="#about" id="profile-tab-about">About</a><a href="#skills" id="profile-tab-skills">Skills</a><a href="#projects" id="profile-tab-projects">Projects</a>
+<a href="#projects" id="profile-tab-projects">Projects</a><a href="#about" id="profile-tab-about">About</a><a href="#skills" id="profile-tab-skills">Skills</a>
 <a href="#certifications" id="profile-tab-certifications">Certifications</a><a href="#interests" id="profile-tab-interests">Interests</a><a href="#links" id="profile-tab-links">Links</a>
 </nav>
 <div class="resume-tab-stage" id="resume-tab-stage" aria-live="off">
+<section id="projects" class="resume-section"><h2>Projects</h2>{project_html}</section>
 <section id="about" class="resume-section"><h2>About</h2>
 <p class="resume-about">{escape(info['about']) or 'This student has not yet added a summary.'}</p></section>
 <section id="skills" class="resume-section"><h2>Technical skills</h2>{skill_section}</section>
-<section id="projects" class="resume-section"><h2>Projects</h2>{project_html}</section>
 <section id="certifications" class="resume-section"><h2>Certifications</h2>{cert_html}</section>
 <section id="interests" class="resume-section"><h2>Areas of interest</h2>{interests}</section>
 <section id="links" class="resume-section"><h2>GitHub, live work & professional links</h2>{social_html}</section>

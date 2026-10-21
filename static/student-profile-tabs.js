@@ -1,7 +1,7 @@
 /* NCET portfolio tabs: server HTML remains fully readable without JS. */
 (()=>{
 'use strict';
-const ids=['about','skills','projects','certifications','interests','links'];
+const ids=['projects','about','skills','certifications','interests','links'];
 const nav=document.querySelector('.resume-anchors');
 const stage=document.getElementById('resume-tab-stage');
 if(!nav||!stage)return;
@@ -9,7 +9,7 @@ const tabs=ids.map(id=>nav.querySelector('a[href="#'+id+'"]'));
 const panels=ids.map(id=>document.getElementById(id));
 if(tabs.some(t=>!t)||panels.some(p=>!p))return;
 const reduce=window.matchMedia('(prefers-reduced-motion: reduce)');
-const valid=()=>{const id=decodeURIComponent(location.hash.slice(1));return ids.includes(id)?id:'about'};
+const valid=()=>{const id=decodeURIComponent(location.hash.slice(1));return ids.includes(id)?id:(ids.includes(document.body.dataset.defaultSection)?document.body.dataset.defaultSection:'about')};
 let active=null;
 let heightReset=null;
 nav.setAttribute('role','tablist');
@@ -60,6 +60,7 @@ for(let i=0;i<tabs.length;i++){
   event.preventDefault();
   const id=ids[i];
   if(active!==id){history.pushState({studentTab:id},'', '#'+id);activate(id);}
+  else if(location.hash!=='#'+id)history.pushState({studentTab:id},'', '#'+id);
  });
  tab.addEventListener('keydown',event=>{
   const key=event.key;
@@ -80,3 +81,4 @@ window.addEventListener('hashchange',()=>activate(valid(),{animate:!reduce.match
 stage.classList.add('tabs-enhanced');
 activate(valid(),{animate:false});
 })();
+
