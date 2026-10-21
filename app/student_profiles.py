@@ -608,7 +608,7 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
         projects.append('<article class="resume-project"><h3>'+escape(project['title'])+'</h3>'+
                         project_meta+'<p>'+escape(project.get('description') or 'Student project')+'</p>'+outcome+tags+
                         ('<div class="resume-links">'+links+'</div>' if links else '')+'</article>')
-    project_html='<div class="resume-project-grid">'+''.join(projects)+'</div>' if projects else empty('Student projects have not been added yet.')
+    project_html=''.join(projects) if projects else empty('Student projects have not been added yet.')
     certificates=[]
     for cert in info['certificates']:
         certificates.append('<li class="resume-certificate"><div><strong>'+escape(cert['title'])+
