@@ -71,6 +71,12 @@ def test_public_pages_use_student_portal_language(client):
     assert '1NC24BCA001' not in directory
     about=client.get('/about').text
     assert '/static/ncet-official-uhd.png?v=20261021-clear-lockup-2' in about
+    assert 'about-revamp.css?v=20261021-local-uhd-logo-3' in about
     assert '/static/naac-brand.svg?v=20261021-clear-lockup-2' in about
+    assert 'https://old.ncet.co.in/images/home_hero/hero_2.webp' not in about
+    assert 'alt="Nagarjuna College of Engineering and Technology official emblem and wordmark"' in about
+    assert 'Upload academic documents for checklist-based departmental review.' in about
+    assert 'assisted review.' not in about
     # Authenticated collaboration remains private, even when public terminology is updated.
     assert client.get("/community").status_code in (200,302,401,403)
+
