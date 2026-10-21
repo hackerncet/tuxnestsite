@@ -7,6 +7,7 @@
  const toggle=container.querySelector('#alert-toggle'),panel=container.querySelector('#alert-list'),list=container.querySelector('#alert-items'),badge=container.querySelector('#alert-count');
  const esc=v=>String(v??'').replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]));
  const POLL_MS=1500;
+ const REQUEST_TIMEOUT_MS=60000;
  let csrf='',running=false;
  function open(show){panel.hidden=!show;toggle.setAttribute('aria-expanded',String(show));}
  toggle.addEventListener('click',()=>{open(panel.hidden);if(!panel.hidden)refresh()});
@@ -15,7 +16,7 @@
  async function refresh(){
   if(running||document.visibilityState==='hidden')return;running=true;
   const controller=new AbortController();
-  const timeout=setTimeout(()=>controller.abort(),POLL_MS-100);
+  const timeout=setTimeout(()=>controller.abort(),REQUEST_TIMEOUT_MS);
   try{
    const response=await fetch('/api/alerts/inbox',{credentials:'same-origin',cache:'no-store',signal:controller.signal});
    if(!response.ok){container.hidden=true;return}
