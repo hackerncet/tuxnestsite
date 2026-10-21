@@ -27,7 +27,11 @@ with sync_playwright() as p:
         page.locator('.identity-crest').wait_for(state='visible')
         assert page.locator('.identity-crest').evaluate('(el)=>el.complete && el.naturalWidth>0'),width
         assert page.locator('.identity-center').evaluate('(el)=>getComputedStyle(el).backgroundColor')=='rgb(255, 255, 255)'
-        assert page.locator('.ncet-campus-photo img').count()==1,width
+        assert page.locator('.ncet-campus-photo').count()==0,width
+        assert page.locator('.ncet-campus-layout--copy').count()==1,width
+        assert page.locator('text=Learning, community and academic excellence at NCET.').count()==0,width
+        assert page.locator('#campus-title').is_visible(),width
+        assert page.locator('.ncet-campus-layout--copy').evaluate('(el)=>getComputedStyle(el).gridTemplateColumns.split(" ").length')==1,width
         assert page.locator('.ncet-impact-metrics .institutional-counter').count()==4,width
         assert page.locator('.footer-credits a').count()==3,width
         if width<=700:
