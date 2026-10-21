@@ -1,8 +1,8 @@
 # NCET VerifyFlow production-readiness audit
 
-**Observed:** 21 October 2026, 21:04 Asia/Kolkata  
+**Observed:** 21 October 2026, 21:46 Asia/Kolkata  
 **Live service:** ncet-verifyflow on Render  
-**Source:** hackerncet/tuxnestsite main, deployed commit e069f73d1879be29239b9a1ea507729e7f8023a1  
+**Source:** hackerncet/tuxnestsite main, deployed commit bad4683e57c87ad1497e10a43c8ce6d7fb231e66  
 **Scope:** public profile and performance pages; supplied admin, HOD, and staff sign-ins; task and complaint panels; notifications; one authorized synthetic task submission; Render service, database, deployment, and metric evidence; GitHub CI/security checks; student portfolio UI follow-up.
 
 This is a focused release audit, not a penetration test or institutional approval. The production AI gate remained disabled. The synthetic task submission described below was the only production data change made during this run.
@@ -69,3 +69,13 @@ The Render hostname is usable for continued controlled pilot checks, but the evi
 - Render still reports automatic deploys enabled for commits on main, a free plan, and one configured instance. The earlier out-of-order webhook finding remains relevant; this refresh confirms the current head is live at this observation time only.
 - In the queried 75-minute metrics window, CPU and memory returned samples. Memory ranged from about 103 MB to a peak of about 258 MiB; the latest sample was about 230 MiB. HTTP latency and request-count series remained empty, so these data do not establish an application-wide latency baseline.
 - The service configuration still reports an empty healthCheckPath despite render.yaml declaring /healthz. The Blueprint/service configuration mismatch remains open.
+
+
+## Staff workflow and cache verification — 21 October 2026, 21:46 IST
+
+- Main is `bad4683e57c87ad1497e10a43c8ce6d7fb231e66`. Render deployment `dep-dbce9ll9fdbs73cojku0` completed successfully, and the live `/healthz` endpoint reported that exact commit.
+- PR #73 clarified the staff upload notice: AI checks run only if the institution configures and enables an approved provider; otherwise the submission requires HOD manual review and no AI result is assumed. No provider was contacted.
+- The first live check after PR #73 still showed the old notice because the HTML retained the old `app.js` URL. PR #74 incremented the script asset version. A fresh live staff session then loaded `/static/app.js?v=20261021-ai-policy-gate-2` and displayed the revised notice.
+- The supplied `testap` credentials authenticated successfully as a STAFF account in Computer Science & Engineering. Read-only checks covered overview, document list, status filter and search, submission form, activity timeline, account information, and help. The submission form was inspected but not submitted; no documents, passwords, or workflow records were changed.
+- The account is staff, not a student. Attempting it on the student portal returned the expected invalid username/password/role response; student-only publish, request, and reply workflows remain unverified without a student account.
+- PR #73 and PR #74 CI and security checks passed. The main-push Render smoke job passed after the current SHA was manually deployed. Repeated delayed auto-deploys continued to promote prior commits before the exact main SHA was restored.
