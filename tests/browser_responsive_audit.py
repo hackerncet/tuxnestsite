@@ -46,6 +46,11 @@ with sync_playwright() as playwright:
                   }));
                 return {scrollWidth:doc.scrollWidth, viewport:innerWidth, offenders};
             }""")
+            if route == "/about":
+                skip = page.locator(".skip-link")
+                assert skip.evaluate('(el) => getComputedStyle(el).clipPath == "inset(50%)"')
+                page.keyboard.press("Tab")
+                assert skip.evaluate('(el) => el === document.activeElement && getComputedStyle(el).clipPath == "none"')
             if measurements["scrollWidth"] > width + 3:
                 issues.append((width, route, "overflow", measurements))
             logo_status = page.evaluate("""() => [...document.querySelectorAll('.brand img')].map(img => ({
