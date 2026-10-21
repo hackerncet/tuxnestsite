@@ -2,6 +2,7 @@
 import pytest
 from cryptography.fernet import Fernet
 from app.serve import validate_configuration
+from deploy.write_compose_env import compose_env_value, compose_environment
 
 
 def production_env():
@@ -49,3 +50,12 @@ def test_production_requires_real_encryption_key():
     env['SETTINGS_ENCRYPTION_KEY'] = 'invalid'
     with pytest.raises(RuntimeError, match='Fernet'):
         validate_configuration(env)
+
+
+def test_compose_env_quotes_complex_admin_passwords_literally():
+    password = "NCET!$ shell # chars 'quoted' \\ safe"
+    written = compose_environment({'NCET_BOOTSTRAP_ADMIN_PASSWORD': password})
+    assert written == "NCET_BOOTSTRAP_ADMIN_PASSWORD='NCET!$ shell # chars \\'quoted\\' \\\\ safe'\n"
+    with pytest.raises(ValueError, match='one line'):
+        compose_env_value("line\nbreak")
+
