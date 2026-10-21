@@ -25,6 +25,7 @@ from .security import (ROLES, COOKIE, hash_secret, hash_password, verify_passwor
                        current, csrf_required, as_role, as_role_mutation)
 from .storage import read_upload, store, retrieve, remove_key, digest
 from .verification import Rule, encrypt_key, read_api_key, MODEL
+from .request_limits import RequestBodyLimitMiddleware
 
 ROOT = Path(__file__).resolve().parent.parent
 STATIC = ROOT / 'static'
@@ -32,6 +33,7 @@ PUBLIC_ORIGIN = os.getenv('PUBLIC_ORIGIN', '').rstrip('/')
 ENV = os.getenv('APP_ENV', 'development')
 app = FastAPI(title='NCET VerifyFlow', docs_url=None if ENV == 'production' else '/api/docs',
               redoc_url=None, openapi_url=None if ENV == 'production' else '/api/openapi.json')
+app.add_middleware(RequestBodyLimitMiddleware)
 app.mount('/static', StaticFiles(directory=STATIC), name='static')
 
 @app.exception_handler(StarletteHTTPException)
@@ -77,8 +79,6 @@ async def security_headers(request: Request, call_next):
     if request.url.path in ('/static/bca-management.html','/static/complaints-dashboard.html','/static/bca-oversight.html'):
         return Response(status_code=404, headers={'Cache-Control':'no-store','X-Robots-Tag':'noindex, nofollow, noarchive'})
     if request.method in ('POST', 'PUT', 'PATCH', 'DELETE'):
-        if request.url.path.startswith('/api/documents') and int(request.headers.get('content-length','0') or 0) > 12*1024*1024:
-            return JSONResponse({'detail':'Upload exceeds the 10 MB attachment limit.'},status_code=413)
         # Defends cookie-based endpoints in addition to CSRF token verification.
         origin = request.headers.get('origin')
         if origin:
