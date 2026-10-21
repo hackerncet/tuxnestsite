@@ -81,7 +81,7 @@ with sync_playwright() as p:
         assert page.locator('.resume-anchors[role="tablist"]').count()==1
         assert page.locator('.resume-section:not([hidden])').count()==1
         assert page.locator('#projects').is_visible()
-        assert page.get_by_role('link',name='Edit and publish portfolio').get_attribute('href')=='/students/portal#portfolio'
+        assert page.get_by_role('link',name='Student sign in to edit or publish this portfolio').get_attribute('href')=='/students/portal#portfolio'
         page.get_by_role('button',name='Share portfolio').click()
         page.wait_for_function("document.querySelector('#resume-action-status').textContent.includes('copied')")
         assert page.evaluate('window.__copiedProfile')=='https://ncet-verifyflow.onrender.com/students/profile/1NC24CS150'
