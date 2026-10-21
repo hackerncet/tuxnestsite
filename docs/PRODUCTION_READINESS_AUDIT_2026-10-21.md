@@ -61,3 +61,11 @@ The Render hostname is usable for continued controlled pilot checks, but the evi
 - PR #70 advanced GitHub main to e069f73d1879be29239b9a1ea507729e7f8023a1 at 15:27:27Z. Render later processed a delayed new_commit event for the previous 2d460e3 commit and made it live at 15:29:54Z.
 - A manual deployment of the actual main head e069f73 started at 15:31:49Z and became live at 15:33:28Z. A fresh browser request to /healthz returned {\"ok\":true,\"commit\":\"e069f73d1879be29239b9a1ea507729e7f8023a1\"}.
 - The pattern confirms automatic deploy delivery is out of order across successive main commits. Keep the post-merge exact-SHA smoke gate and investigate the Render event queue; do not rely on the service's autoDeploy=yes flag as proof that the latest main commit is live.
+
+
+## Render state refresh — 21 October 2026, 21:16 IST
+
+- GitHub main and the latest completed Render deployment both report commit 9b51ad0510cb03270d9b01bdf1355947417a19d8. Render lists that deployment as live, triggered by API, and completed at 15:42:34Z. The exact-SHA live health check was confirmed after the deploy.
+- Render still reports automatic deploys enabled for commits on main, a free plan, and one configured instance. The earlier out-of-order webhook finding remains relevant; this refresh confirms the current head is live at this observation time only.
+- In the queried 75-minute metrics window, CPU and memory returned samples. Memory ranged from about 103 MB to a peak of about 258 MiB; the latest sample was about 230 MiB. HTTP latency and request-count series remained empty, so these data do not establish an application-wide latency baseline.
+- The service configuration still reports an empty healthCheckPath despite render.yaml declaring /healthz. The Blueprint/service configuration mismatch remains open.
