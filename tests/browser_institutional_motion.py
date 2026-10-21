@@ -66,6 +66,12 @@ with sync_playwright() as p:
       };
     })()""")
     page.reload(wait_until='domcontentloaded')
+    # Read-only background requests should not keep the global busy indicator visible.
+    page.evaluate("() => { window.__slowGet=fetch('/api/ui-motion-slow',{method:'GET'}); }")
+    page.wait_for_timeout(600)
+    assert page.locator('.ncet-network-loader').is_hidden()
+    page.evaluate("() => window.__slowGet")
+    # A user-initiated change still gets the delayed logo while it is pending.
     page.evaluate("() => { window.__slowOperation=fetch('/api/ui-motion-slow',{method:'POST'}); }")
     page.locator('.ncet-network-loader:not([hidden])').wait_for(state='visible',timeout=1500)
     assert page.locator('.ncet-network-loader img').get_attribute('src')=='/static/ncet-official-uhd.png?v=20261021-uhd-brand'
