@@ -564,10 +564,15 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
     name=escape(info['name'])
     sid=escape(info['usn'])
     branch=escape(info['department'])
-    summary=escape((info['about'] or f"{info['name']} studies at Nagarjuna College of Engineering and Technology.")[:155],quote=True)
-    portfolio_intro=escape((info['about'] or '').strip()[:220],quote=True)
-    if portfolio_intro and len(info['about'].strip())>220:
-        portfolio_intro+='…'
+    def excerpt(value:str,limit:int)->str:
+        text=value.strip()
+        if len(text)<=limit:return text
+        sentence_end=max((text.rfind(mark,0,limit)+1 for mark in '.!?'),default=0)
+        if sentence_end>=60:
+            return text[:sentence_end]
+        return text[:limit].rsplit(' ',1)[0].rstrip(' ,;:')+'…'
+    summary=escape(excerpt(info['about'] or f"{info['name']} studies at Nagarjuna College of Engineering and Technology.",155),quote=True)
+    portfolio_intro=escape(excerpt(info['about'] or '',220),quote=True)
     canonical=f"{URL_ROOT}/students/profile/{sid}"
     updated_label='Not provided'
     if info.get('updated_at'):
