@@ -272,3 +272,11 @@ html:has(.ncet-profile-page){scroll-behavior:smooth}
 .resume-highlights .resume-highlight-note dd{overflow-wrap:anywhere}
 .resume-project-grid .resume-project:focus-within{border-color:#F6872A;box-shadow:0 0 0 3px #F6872A24}
 @media(max-width:570px){.resume-owner-prompt{line-height:1.65}.resume-action.resume-manage{min-height:46px}}
+
+
+/* Selected-work section: give the project grid a clear, portfolio-style introduction. */
+.resume-section-intro{max-width:760px;margin:-5px 0 20px;color:#66758a;font-size:14px;line-height:1.65}
+.resume-project-grid .resume-project{min-height:220px}
+.resume-project-grid .resume-project .resume-project-tags{margin:10px 0}
+@media(max-width:570px){.resume-section-intro{font-size:13px;margin:-4px 0 16px}.resume-project-grid .resume-project{min-height:0}}
+@media print{.resume-section-intro{color:#334155}}
