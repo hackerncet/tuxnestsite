@@ -80,6 +80,7 @@ with sync_playwright() as p:
         # Native anchors keep the complete portfolio visible while providing quick section jumps.
         assert page.locator('.resume-anchors[role="tablist"]').count()==0
         assert page.locator('.resume-section:visible').count()==6
+        assert page.locator('.resume-anchors').evaluate("el=>getComputedStyle(el).position")=='sticky'
         assert page.locator('#about').is_visible()
         assert page.get_by_role('link',name='Create or update your portfolio').get_attribute('href')=='/students/portal#portfolio'
         page.get_by_role('button',name='Share portfolio').click()
