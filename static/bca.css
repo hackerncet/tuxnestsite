@@ -25,3 +25,4 @@
 .social-grid label{font-size:12px;font-weight:650;color:#344763}
 .social-grid input{display:block;margin-top:5px;width:100%;max-width:100%;min-height:42px}
 @media(max-width:720px){.social-grid{grid-template-columns:minmax(0,1fr)}}
+\n/* Compact, keyboard-friendly controls for large server-paged rosters. */\n.roster-pagination{display:flex;justify-content:center;align-items:center;gap:12px;flex-wrap:wrap;margin:16px 0}\n.roster-pagination span{color:var(--muted,#64748b);font-size:13px;font-weight:700}\n.roster-page-button{min-width:112px}\n.roster-page-button:disabled{opacity:.5;cursor:not-allowed}\n
