@@ -64,7 +64,7 @@ def test_portfolio_sections_projects_and_public_links(client):
     response=client.put("/api/bca/showcase/me",headers=token,json=payload)
     assert response.status_code==200,response.text
     own=client.get("/api/bca/showcase/me").json()
-    assert own["interests"]==payload["interests"]
+    assert own["interests"]==["AI Agents","Machine Learning","Cloud Computing","Open Source"]
     assert own["projects"][0]["title"]=="NCET Project Repository"
     public=client.get("/api/bca/directory/"+USN).json()
     assert public["projects"][0]["github_url"]==payload["projects"][0]["github_url"]
