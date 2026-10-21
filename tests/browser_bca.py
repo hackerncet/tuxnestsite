@@ -69,7 +69,8 @@ def main():
         assert desktop.locator('header small').count() == 1
 
         load_page(desktop, 'student-services.html')
-        assert 'BACHELOR OF COMPUTER APPLICATIONS' in desktop.locator('main').inner_text().upper()
+        assert 'Everything students need.' in desktop.locator('main').inner_text()
+        assert 'Your private academic requests stay with your authorized reviewers.' in desktop.locator('main').inner_text()
         assert desktop.locator('a[href="/students/portal"]').count() > 0
 
         load_page(desktop,'student-directory.html')
