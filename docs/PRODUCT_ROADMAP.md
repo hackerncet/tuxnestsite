@@ -2,7 +2,15 @@
 
 This roadmap reflects the current repository, with priority on a reliable HOD document pipeline, branch-specific work visibility, and useful student self-service. It keeps the existing NCET theme and makes AI an optional later addition. None of the future AI items assume a provider key is configured.
 
-Features marked implemented are present in this worktree. The local non-AI integration suite, migrations, security scans and browser workflows passed on 2026-10-21. GitHub `main` is now writable and contains the reviewed source; Render still points at the former repository, so these changes are not live yet.
+Features marked implemented are present in the deployed `hackerncet/tuxnestsite` `main` branch at `85311d1`. GitHub CI and Security Audit passed for that release, and Render confirmed the matching deploy is live. Read-only browser checks now cover the supplied administrator, HOD and staff accounts. The complete authenticated document/task transaction and temporary test-account cleanup still need a production simulation; AI-provider requests remain out of scope until the owner confirms the existing integration setting is intentional.
+
+## Production verification priorities
+
+- Read-only authenticated walkthroughs cover the supplied administrator, HOD and staff surfaces. Validate complete state-changing workflows with disposable records and cleanup before calling production end-to-end testing complete.
+- Require college-approved checklist criteria before departments use a rulebook for document decisions. Generic placeholder rules should be conspicuous and route work to human review.
+- Confirm owner approval, cost limits and privacy scope for any configured external processor before sensitive documents are submitted. This release’s live checks did not make provider requests.
+- The student portal, sign-in page and voluntary public portfolio directory render. Keep student profile controls explicit and review public identifiers and profile visibility for privacy.
+- Complete custom-domain TLS validation, persistent database/backups and operator monitoring before institutional production use.
 
 ## Current capabilities found in the code
 
@@ -87,11 +95,11 @@ Acceptance: a student can sign in, understand the latest status, reply, receive 
 
 ## Next release plan
 
-Ship in this order after the repository and production service are connected to the reviewed branch:
+Ship in this order on the now-connected repository and production service:
 
-1. **Production safety:** resolve the database expiry and exposure, configure malware scanning and `/healthz`, repair the custom-domain certificate, and prove backup restore. These controls come before widening document uploads.
-2. **HOD document automation:** workload-aware staff suggestions that HODs confirm, visible retry/failure states for background jobs, and configurable deadline escalation. Keep final decisions human and every change auditable.
-3. **Student request desk:** add response target/aging indicators and accessible mobile form progress; keep requests, document tasks, and project activity as separate records and views.
+1. **Production safety:** resolve database network exposure and expiry, configure malware scanning and an explicit `/healthz` check, repair the custom-domain certificate, and prove backup restore. These controls come before widening document uploads.
+2. **HOD document automation:** replace placeholder criteria with college-approved checklist templates, add workload-aware staff suggestions for HOD confirmation, show retry/failure states for background jobs, and configure deadline escalation. Keep final decisions human and every change auditable.
+3. **Student request desk:** add response targets/aging indicators and accessible mobile form progress; keep requests, document tasks, and project activity as separate records and views.
 4. **Operations and scale:** server-page student rosters, add queue/storage/database health and real request latency, define retention/export controls, and exercise restore and migration rollback.
 5. **Access hardening:** add privileged-user MFA, review institution-wide project access, and agree aggregate-only leadership reporting before changing what those roles can see.
 6. **Optional AI:** only after the owner configures a paid provider, add bounded checklist suggestions with explicit HOD approval, cost limits, and a manual fallback. No feature in the first five releases depends on an AI key.
@@ -104,11 +112,11 @@ Ship in this order after the repository and production service are connected to 
 
 ## Deployment readiness follow-up
 
-- Confirm the Render service is building the current `hackerncet/tuxnestsite` main branch, then verify `/healthz` and the role-based pages after deployment.
+- Confirm the Render service is building the current `hackerncet/tuxnestsite` main branch, then verify `/healthz` and role-based pages after each deployment.
 - Move institutional use to durable, always-on compute with tested backups and recovery. Enable malware scanning only where its scanner is provisioned and reachable.
 - Verify the institution's custom domain and certificate in a browser before entering credentials.
 - Add server-side latency, queue-age, and failure monitoring; `/plot` reports a single browser sample and cannot replace production telemetry.
-- Continue role-based API and browser checks. Production workflow checks should use temporary staff-only records, avoid AI providers, and clean up the tasks afterward.
+- Continue role-based API and browser checks. Production workflow checks should use temporary staff-only records only after confirming AI usage is disabled or capped at zero; clean up test tasks and staff accounts afterward, never student accounts.
 - Treat production readiness as a set of explicit checks; a passing local test suite alone cannot establish availability or correctness for every institution workflow.
 
 ## Delivery order
@@ -118,7 +126,8 @@ Ship in this order after the repository and production service are connected to 
 3. **Implemented and locally verified:** Catalog-driven enrollment, department-scoped HOD/staff student roster and department-scoped project collaboration for active branches; finish department-neutral route/model names and add aggregate-only institutional community oversight.
 4. **Completed locally, without AI-provider calls:** 127 non-AI integration tests passed; all migrations applied with no Alembic drift; 12 Chromium workflows passed; Bandit passed; pip-audit found and helped fix the Pillow 12 vulnerability set; Pillow 13 then returned no known local advisories.
 5. Confirm Render database attachment, backup, malware scanning, paid capacity, source repository, and `/healthz`; repair custom-domain TLS.
-6. Run the previously authorized live smoke tests using a temporary staff account, public sample PDF, zero AI usage, and explicit task/account cleanup after the updated source is live.
+6. Run the previously authorized live smoke tests using a temporary staff account and public sample PDF only after confirming AI usage is disabled or capped at zero; explicitly clean up test tasks and temporary accounts.
 7. Configure VPS deployment secrets and verify the one-command Ubuntu install and GitHub-to-VPS deployment.
 8. Add worker failure visibility, retention, backup/restore drills, and production p95/queue-age monitoring.
 9. Optional AI provider setup only when the owner supplies a key and budget.
+
