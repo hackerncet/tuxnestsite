@@ -565,6 +565,9 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
     sid=escape(info['usn'])
     branch=escape(info['department'])
     summary=escape((info['about'] or f"{info['name']} studies at Nagarjuna College of Engineering and Technology.")[:155],quote=True)
+    portfolio_intro=escape((info['about'] or '').strip()[:220],quote=True)
+    if portfolio_intro and len(info['about'].strip())>220:
+        portfolio_intro+='…'
     canonical=f"{URL_ROOT}/students/profile/{sid}"
     photo=info.get('photo_url')
     absolute_photo=URL_ROOT+photo if photo else ''
@@ -646,7 +649,7 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
 <link rel="icon" href="/static/ncet-brand.svg">
 <script type="application/ld+json">{json_ld}</script>
 <link rel="preload" as="image" href="/static/ncet-official-uhd.png?v=20261021-uhd-brand" fetchpriority="high">
-<link rel="stylesheet" href="/static/resume-profile.css?v=20261022-student-portfolio-gallery">
+<link rel="stylesheet" href="/static/resume-profile.css?v=20261022-student-portfolio">
 <link rel="stylesheet" href="/static/institutional-ui.css?v=20261021-clear-lockup-2">
 <script src="/static/student-profile-tabs.js?v=20261021-portfolio-onepage" defer></script>
 <script src="/static/student-profile-actions.js?v=20261021-portfolio-actions" defer></script>
@@ -667,14 +670,15 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
 <div class="resume-heading">{avatar}<div class="resume-heading-copy">
 <p class="resume-overline">Student profile · Voluntarily published</p>
 <h1>{name}</h1><p class="resume-subtitle">{branch} <span aria-hidden="true">·</span> Semester {info['semester']}</p>
+{f'<p class="resume-intro">{portfolio_intro}</p>' if portfolio_intro else ''}
 <p class="resume-usn"><strong>USN</strong> {sid}</p></div></div>
 <div class="resume-action-bar" aria-label="Portfolio actions">
 <button type="button" class="resume-action resume-share" id="resume-share" data-share-url="{escape(canonical,quote=True)}">Share portfolio</button>
 <button type="button" class="resume-action resume-print" id="resume-print">Save as PDF</button>
-<a class="resume-action resume-manage" href="/students/portal#portfolio">Create or update your portfolio</a>
+<a class="resume-action resume-manage" href="/students/portal#portfolio">Edit &amp; publish portfolio</a>
 <span class="resume-action-status" id="resume-action-status" role="status" aria-live="polite"></span>
 </div>
-<p class="resume-owner-prompt">Student-owned portfolio · Sign in to add projects, skills, certificates and public links, then publish updates or make this page private. Personal contact details and academic requests stay private.</p>
+<p class="resume-owner-prompt">Created and published by the student. Sign in to update projects, skills, credentials and public links, or make this page private. Personal contact details and academic requests stay private.</p>
 <dl class="resume-highlights" aria-label="Portfolio overview">
 <div><dt>Skills</dt><dd>{len(info['skills'])}</dd></div>
 <div><dt>Projects</dt><dd>{len(info['projects'])}</dd></div>

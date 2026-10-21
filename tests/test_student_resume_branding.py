@@ -80,11 +80,12 @@ def test_portfolio_sections_projects_and_public_links(client):
         assert label in html,label
     assert 'id="resume-share"' in html and 'id="resume-print"' in html
     assert 'href="/students/portal#portfolio"' in html
-    assert 'Create or update your portfolio' in html
+    assert 'Edit &amp; publish portfolio' in html
+    assert '<p class="resume-intro">Software engineering student creating research and academic tools.</p>' in html
     assert 'class="resume-project-grid"' in html
     assert html.count(">Machine Learning</li>")==1
     assert html.count(">Open Source</li>")==1
-    assert 'publish updates or make this page private' in html
+    assert 'Created and published by the student.' in html
     assert html.index('id="projects"') < html.index('id="about"')
     assert '<dt>Skills</dt><dd>3</dd>' in html
     assert '<dt>Projects</dt><dd>1</dd>' in html
