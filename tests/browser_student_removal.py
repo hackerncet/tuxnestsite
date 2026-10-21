@@ -5,17 +5,28 @@ from browser_runtime import launch_chromium
 
 STATIC=Path(__file__).resolve().parents[1]/'static'
 MOCK=r"""() => {
-  window.__students=[
-   {usn:'1NC24BCA001',name:'Student One',branch:'Computer Applications',semester:3,active:true},
-   {usn:'1NC24BCA002',name:'Student Two',branch:'Computer Applications',semester:4,active:true},
-   {usn:'1NC24BCA003',name:'Student Three',branch:'Computer Applications',semester:2,active:true}
-  ];
+  window.__students=Array.from({length:53},(_,i)=>({
+   usn:'1NC24BCA'+String(i+1).padStart(3,'0'),
+   name:'Student '+String(i+1).padStart(2,'0'),
+   branch:'Computer Applications',semester:(i%8)+1,active:true
+  }));
   window.__removals=[];
   window.fetch=async(url,options={})=>{
    const u=String(url),payload=options.body&&options.headers?.['Content-Type']==='application/json'?JSON.parse(options.body):{};
    let data={},status=200;
    if(u==='/api/auth/me')data={user:{role:'admin',name:'Administrator',department:'Institution'},csrf:'csrf-example'};
-   else if(u==='/api/bca/students')data={items:window.__students.map(x=>({...x}))};
+   else if(u.startsWith('/api/bca/students?')||u==='/api/bca/students'){
+     const params=new URL(u,'http://example.test').searchParams;
+     const term=(params.get('search')||'').toLowerCase();
+     const includeDisabled=params.get('include_disabled')==='true';
+     const pageSize=Number(params.get('page_size')||50);
+     const filtered=window.__students.filter(x=>(includeDisabled||x.active)&&
+       (!term||x.name.toLowerCase().includes(term)||x.usn.toLowerCase().includes(term)||x.branch.toLowerCase().includes(term)));
+     const total=filtered.length,total_pages=Math.max(1,Math.ceil(total/pageSize));
+     const page=Math.min(Number(params.get('page')||1),total_pages);
+     data={items:filtered.slice((page-1)*pageSize,page*pageSize).map(x=>({...x})),
+       total,page,page_size:pageSize,total_pages,has_previous:page>1,has_next:page<total_pages};
+   }
    else if(u==='/api/academic/departments')data={items:[{code:'Computer Applications',name:'Computer Applications',active:true}]};
    else if(u==='/api/bca/students/removal/preview'){
      data={mode:payload.mode,count:payload.usns.length,items:payload.usns.map(usn=>({
@@ -55,9 +66,15 @@ def audit():
    page.evaluate(MOCK)
    page.add_script_tag(content=(STATIC/'bca-management.js').read_text(encoding='utf-8'))
    page.locator('#roster .select-student').first.wait_for()
-   assert page.locator('#roster .select-student').count()==3
+   assert page.locator('#roster .select-student').count()==50
+   page.locator('#roster-pagination button[data-roster-page="2"]').click()
+   page.wait_for_function("document.querySelector('#roster-pagination span').textContent==='Page 2 of 2'")
+   assert page.locator('#roster .select-student').count()==50
+   page.locator('#roster-pagination button[data-roster-page="1"]').click()
+   page.wait_for_function("document.querySelector('#roster-pagination span').textContent==='Page 1 of 2'")
+   assert page.locator('#roster .select-student').count()==50
    page.locator('#select-visible-students').click()
-   assert page.locator('#selected-student-count').inner_text()=='3 selected'
+   assert page.locator('#selected-student-count').inner_text()=='50 selected'
    page.locator('#clear-student-selection').click()
    assert page.locator('#selected-student-count').inner_text()=='0 selected'
    page.locator('#roster .select-student').first.check()
@@ -72,7 +89,7 @@ def audit():
    page.wait_for_function('window.__removals.length===1')
    page.get_by_text('1 student account disabled',exact=False).wait_for()
    assert page.locator('#selected-student-count').inner_text()=='0 selected'
-   assert page.locator('#roster .select-student').count()==2
+   assert page.locator('#roster .select-student').count()==50
    page.locator('#show-disabled-students').check()
    assert page.locator('#roster .select-student').count()==3
    assert not errors,errors
