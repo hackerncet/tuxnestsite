@@ -656,7 +656,7 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
 <link rel="icon" href="/static/ncet-brand.svg">
 <script type="application/ld+json">{json_ld}</script>
 <link rel="preload" as="image" href="/static/ncet-official-uhd.png?v=20261021-uhd-brand" fetchpriority="high">
-<link rel="stylesheet" href="/static/resume-profile.css?v=20261022-student-portfolio">
+<link rel="stylesheet" href="/static/resume-profile.css?v=20261022-student-portfolio-publish">
 <link rel="stylesheet" href="/static/institutional-ui.css?v=20261021-clear-lockup-2">
 <script src="/static/student-profile-tabs.js?v=20261021-portfolio-onepage" defer></script>
 <script src="/static/student-profile-actions.js?v=20261021-portfolio-actions" defer></script>
@@ -675,7 +675,7 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
 <div class="resume-accreditation"><span>NCET · STUDENT PORTFOLIO</span>
 <img src="/static/naac-brand.svg?v=20261021-clear-brand" alt="Institutional accreditation: NAAC A+" width="61" height="61" decoding="async"></div>
 <div class="resume-heading">{avatar}<div class="resume-heading-copy">
-<p class="resume-overline">Student profile · Voluntarily published</p>
+<p class="resume-overline">Student portfolio · Voluntarily published</p>
 <h1>{name}</h1><p class="resume-subtitle">{branch} <span aria-hidden="true">·</span> Semester {info['semester']}</p>
 {f'<p class="resume-intro">{portfolio_intro}</p>' if portfolio_intro else ''}
 <p class="resume-usn"><strong>USN</strong> {sid}</p></div></div>
