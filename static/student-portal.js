@@ -71,10 +71,15 @@ async function loadShowcase(){
   updateSkillCount();
   $('showcase-certs').value=p.certificates.map(c=>[c.title,c.issuer,c.proof_url].join(' | ')).join('\n');
   $('showcase-public').checked=p.published;
+  updatePublishAction();
   setProfilePhoto(Boolean(p.photo_available));
   show('my-public-profile',p.published);
   $('my-public-profile').href='/students/profile/'+encodeURIComponent(p.usn);
  }catch(err){notify(err.message,true)}
+}
+$('showcase-public').addEventListener('change',updatePublishAction);
+function updatePublishAction(){
+ $('save-showcase').textContent=$('showcase-public').checked?'Save and publish changes':'Save as private';
 }
 $('showcase-form').addEventListener('submit',async e=>{
  e.preventDefault();
