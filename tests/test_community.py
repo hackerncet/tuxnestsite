@@ -67,8 +67,8 @@ def test_public_discussion_no_dm_csrf_rate_limits_and_moderation(client,login):
         comment_id=msg.json()['id']
         with TestClient(app) as hod_other:
             login(hod_other,'hod2')
-            assert hod_other.get(f'/api/community/posts/{id}').status_code==200
-            assert hod_other.post(f'/api/community/posts/{id}/hide',headers={'X-CSRF-Token':hod_other.get('/api/auth/me').json()['csrf']}).status_code==403
+            assert hod_other.get(f'/api/community/posts/{id}').status_code==404
+            assert hod_other.post(f'/api/community/posts/{id}/hide',headers={'X-CSRF-Token':hod_other.get('/api/auth/me').json()['csrf']}).status_code==404
         with TestClient(app) as principal:
             pc=login(principal,'principal')
             assert principal.post(f'/api/community/posts/{id}/comments',headers={'X-CSRF-Token':pc},json={'message':'The department supports this initiative.'}).status_code==201

@@ -69,7 +69,8 @@ def main():
         assert desktop.locator('header small').count() == 1
 
         load_page(desktop, 'student-services.html')
-        assert 'BACHELOR OF COMPUTER APPLICATIONS' in desktop.locator('main').inner_text().upper()
+        assert 'Everything students need.' in desktop.locator('main').inner_text()
+        assert 'Your private academic requests stay with your authorized reviewers.' in desktop.locator('main').inner_text()
         assert desktop.locator('a[href="/students/portal"]').count() > 0
 
         load_page(desktop,'student-directory.html')
@@ -81,14 +82,15 @@ def main():
           window.fetch=async(url) => {
             const q=new URL(url,'https://example.test').searchParams.get('q');
             const matches=!q || q.toUpperCase()==='1NC24BCA388';
-            const items=matches ? [{name:'Published BCA Student',usn:'1NC24BCA388',
-              department:'Bachelor of Computer Applications',skills:['Python','HTML']}] : [];
+            const items=matches ? [{name:'Published CSE Student',usn:'1NC24BCA388',
+              department:'Computer Science & Engineering',skills:['Python','HTML']}] : [];
             return new Response(JSON.stringify({items,total:items.length}),
               {status:200,headers:{'Content-Type':'application/json'}});
           };
         }""")
         desktop.add_script_tag(content=(STATIC/'student-directory.js').read_text(encoding='utf-8'))
-        desktop.get_by_text('Published BCA Student').wait_for()
+        desktop.get_by_text('Published CSE Student').wait_for()
+        assert 'Computer Science & Engineering' in desktop.locator('#directory-results').inner_text()
         desktop.locator('.server-profile-links').wait_for(state='hidden')
         assert desktop.locator('a[href="/students/profile/1NC24BCA388"]').count()==2
         assert 'private@example.org' not in desktop.locator('main').inner_text()

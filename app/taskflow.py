@@ -6,6 +6,8 @@ HOD-controlled. Existing VerifyFlow Document tables are unaffected.
 from __future__ import annotations
 
 import json
+import csv
+import io
 import secrets
 from datetime import datetime, timedelta, timezone, date, time
 from pathlib import Path
@@ -13,8 +15,9 @@ from typing import Literal
 
 import httpx
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, LargeBinary, String, Text, UniqueConstraint, func, or_
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, LargeBinary, String, Text, UniqueConstraint, case, func, or_
 from sqlalchemy.orm import Mapped, mapped_column, relationship, Session as DbSession, load_only
 
 from .database import Base, User, AuditLog, get_db, utcnow, DBSession
@@ -48,7 +51,7 @@ class TaskItem(Base):
     notes:Mapped[str]=mapped_column(Text,default='')
     rules_json:Mapped[str]=mapped_column(Text,default='[]')
     state:Mapped[str]=mapped_column(String(26),default='unassigned',index=True)
-    deadline:Mapped[datetime|None]=mapped_column(DateTime(timezone=True),nullable=True)
+    deadline:Mapped[datetime|None]=mapped_column(DateTime(timezone=True),nullable=True,index=True)
     score:Mapped[int|None]=mapped_column(Integer,nullable=True)
     report_json:Mapped[str]=mapped_column(Text,default='{}')
     updated_at:Mapped[datetime]=mapped_column(DateTime(timezone=True),default=utcnow)
@@ -104,11 +107,39 @@ class TaskNotification(Base):
     created_at:Mapped[datetime]=mapped_column(DateTime(timezone=True),default=utcnow)
 
 
+class TaskReminderDelivery(Base):
+    """Durable idempotency key for worker generated task reminders."""
+    __tablename__='task_reminder_deliveries'
+    id:Mapped[int]=mapped_column(primary_key=True)
+    task_id:Mapped[int]=mapped_column(ForeignKey('task_items.id',ondelete='CASCADE'),index=True)
+    recipient_id:Mapped[int]=mapped_column(ForeignKey('users.id',ondelete='CASCADE'),index=True)
+    kind:Mapped[str]=mapped_column(String(20))
+    delivery_key:Mapped[str]=mapped_column(String(220))
+    sent_at:Mapped[datetime]=mapped_column(DateTime(timezone=True),default=utcnow,index=True)
+    __table_args__=(UniqueConstraint('delivery_key',name='uq_task_reminder_delivery_key'),)
+
+
+class TaskChecklistTemplate(Base):
+    """Department-owned, versioned HOD checklists. Older revisions are immutable."""
+    __tablename__='task_checklist_templates'
+    id:Mapped[int]=mapped_column(primary_key=True)
+    template_id:Mapped[str]=mapped_column(String(32),index=True)
+    department:Mapped[str]=mapped_column(String(160),index=True)
+    name:Mapped[str]=mapped_column(String(100))
+    version:Mapped[int]=mapped_column(Integer)
+    rules_json:Mapped[str]=mapped_column(Text)
+    active:Mapped[bool]=mapped_column(Boolean,default=True,index=True)
+    created_by:Mapped[int]=mapped_column(ForeignKey('users.id'))
+    created_at:Mapped[datetime]=mapped_column(DateTime(timezone=True),default=utcnow)
+    __table_args__=(UniqueConstraint('template_id','version',name='uq_task_checklist_template_version'),)
+
+
 class AssignBody(BaseModel):
     task_ids:list[int]=Field(min_length=1,max_length=50)
     staff_id:int
     notes:str=Field(min_length=10,max_length=3000)
     rules:list[dict]=Field(default_factory=list,max_length=30)
+    rules_by_task:dict[int,list[dict]]=Field(default_factory=dict)
     use_generated_rules:bool=False
     confirmed_task_ids:list[int]=Field(default_factory=list,max_length=50)
     deadline:datetime|None=None
@@ -117,6 +148,33 @@ class AssignBody(BaseModel):
 class DeadlineUpdate(BaseModel):
     # Explicit offset required so deadline is consistent on mobile and desktop.
     deadline:datetime|None
+
+
+class ChecklistTemplateBody(BaseModel):
+    name:str=Field(min_length=3,max_length=100)
+    rules:list[dict]=Field(min_length=1,max_length=30)
+
+
+def validated_manual_rules(raw_rules):
+    from .verification import Rule, ALLOWED_TYPES
+    try:rules=[Rule.model_validate(x) for x in raw_rules]
+    except Exception:raise HTTPException(422,'Correct the rule format.')
+    if not rules:raise HTTPException(422,'Review or supply at least one validation rule.')
+    if any(r.type not in ALLOWED_TYPES for r in rules):raise HTTPException(422,'Unsupported validation type.')
+    if len({r.id for r in rules})!=len(rules):raise HTTPException(422,'Rule identifiers must be unique.')
+    for rule in rules:
+        if rule.type in {'required_heading','required_phrase'} and not rule.value.strip():
+            raise HTTPException(422,f'{rule.title}: provide the heading or phrase to check.')
+        if rule.type in {'max_pages','min_pages'}:
+            try:page_limit=int(rule.value)
+            except (TypeError,ValueError):raise HTTPException(422,f'{rule.title}: enter a whole-number page limit.')
+            if page_limit<1:raise HTTPException(422,f'{rule.title}: page limit must be at least 1.')
+    return rules
+
+
+def template_json(template):
+    return {'id':template.template_id,'name':template.name,'version':template.version,
+            'rules':json.loads(template.rules_json),'created_at':template.created_at.isoformat()}
 
 
 def future_deadline(value:datetime|None)->datetime|None:
@@ -144,13 +202,22 @@ class DecisionBody(BaseModel):
     note:str=Field(min_length=10,max_length=1400)
 
 
-def task_json(t, db):
-    staff=db.get(User,t.assigned_to) if t.assigned_to else None
+def task_json(t,staff,decisions):
+    next_action={'unassigned':'HOD: add review requirements and assign a staff member.',
+                 'assigned':'Staff: review the reference and submit the completed document.',
+                 'on_hold':'HOD: release this assignment when work can resume.',
+                 'verifying':'System: deterministic checks are running; no AI decision is assumed.',
+                 'awaiting_hod':'HOD: review the submission and record a decision.',
+                 'manual_review':'HOD: review the findings manually; automated review is unavailable or uncertain.',
+                 'correction_required':'Staff: address the HOD feedback and submit a new revision.',
+                 'approved':'Complete: the HOD approved this submission.'}.get(t.state,'Open the task to review its current status.')
     return {'id':t.id,'batch_id':t.batch_id,'file':t.filename,'state':t.state,'department':t.department,
             'assigned_to':staff.display_name if staff else None,'assigned_staff_id':t.assigned_to,
+            'next_action':next_action,
             'notes':t.notes,'rules':json.loads(t.rules_json),'score':t.score,
             'report':json.loads(t.report_json or '{}'),
-            'decisions':[{'decision':a.decision,'note':a.note,'at':a.created_at.isoformat()} for a in db.query(TaskDecision).filter(TaskDecision.task_id==t.id).order_by(TaskDecision.id).limit(50).all()],
+            'decisions':[{'decision':decision,'note':note,'at':created_at.isoformat()}
+                         for decision,note,created_at in decisions],
             'deadline':deadline_iso(t.deadline),
             'overdue':bool(t.deadline and t.state not in ('approved','unassigned') and
                            t.deadline.replace(tzinfo=t.deadline.tzinfo or timezone.utc)<utcnow()),
@@ -188,6 +255,74 @@ def record_event(db,task,actor,event,detail=''):
 
 def notify(db,user_id,text,task_id):
     db.add(TaskNotification(user_id=user_id,text=text[:300],task_id=task_id))
+
+
+@router.get('/checklist-templates')
+def list_checklist_templates(user:User=Depends(current),db:DbSession=Depends(get_db)):
+    if not is_manager(user) or user.role=='admin':raise HTTPException(403,'Department HOD access required.')
+    rows=(db.query(TaskChecklistTemplate)
+          .filter(TaskChecklistTemplate.department==user.department,TaskChecklistTemplate.active.is_(True))
+          .order_by(TaskChecklistTemplate.name,TaskChecklistTemplate.template_id,
+                    TaskChecklistTemplate.version.desc()).limit(500).all())
+    latest={}
+    for row in rows:latest.setdefault(row.template_id,row)
+    return {'items':[template_json(x) for x in latest.values()]}
+
+
+@router.get('/checklist-templates/{template_id}/versions')
+def checklist_template_versions(template_id:str,user:User=Depends(current),db:DbSession=Depends(get_db)):
+    if not is_manager(user) or user.role=='admin':raise HTTPException(403,'Department HOD access required.')
+    rows=(db.query(TaskChecklistTemplate).filter(
+        TaskChecklistTemplate.template_id==template_id,
+        TaskChecklistTemplate.department==user.department)
+        .order_by(TaskChecklistTemplate.version.desc()).limit(100).all())
+    if not rows:raise HTTPException(404,'Checklist template not found.')
+    return {'items':[template_json(row) for row in rows]}
+
+
+@router.post('/checklist-templates',status_code=201)
+def create_checklist_template(body:ChecklistTemplateBody,user:User=Depends(csrf_required),
+                              db:DbSession=Depends(get_db)):
+    if user.role!='hod':raise HTTPException(403,'Department HOD access required.')
+    name=body.name.strip()
+    if len(name)<3:raise HTTPException(422,'Template name must contain at least 3 characters.')
+    rules=validated_manual_rules(body.rules)
+    template=TaskChecklistTemplate(template_id=secrets.token_hex(12),department=user.department,
+        name=name,version=1,rules_json=json.dumps([r.model_dump() for r in rules]),created_by=user.id)
+    db.add(template);task_audit(db,user,'task.checklist_template_created',f'{name} v1')
+    db.commit();return template_json(template)
+
+
+@router.put('/checklist-templates/{template_id}')
+def revise_checklist_template(template_id:str,body:ChecklistTemplateBody,
+                              user:User=Depends(csrf_required),db:DbSession=Depends(get_db)):
+    if user.role!='hod':raise HTTPException(403,'Department HOD access required.')
+    previous=(db.query(TaskChecklistTemplate).filter(
+        TaskChecklistTemplate.template_id==template_id,
+        TaskChecklistTemplate.department==user.department,
+        TaskChecklistTemplate.active.is_(True)).order_by(TaskChecklistTemplate.version.desc()).first())
+    if not previous:raise HTTPException(404,'Checklist template not found.')
+    name=body.name.strip()
+    if len(name)<3:raise HTTPException(422,'Template name must contain at least 3 characters.')
+    rules=validated_manual_rules(body.rules)
+    template=TaskChecklistTemplate(template_id=previous.template_id,department=user.department,
+        name=name,version=previous.version+1,
+        rules_json=json.dumps([r.model_dump() for r in rules]),created_by=user.id)
+    db.add(template);task_audit(db,user,'task.checklist_template_revised',f'{name} v{template.version}')
+    db.commit();return template_json(template)
+
+
+@router.delete('/checklist-templates/{template_id}')
+def archive_checklist_template(template_id:str,user:User=Depends(csrf_required),db:DbSession=Depends(get_db)):
+    if user.role!='hod':raise HTTPException(403,'Department HOD access required.')
+    versions=(db.query(TaskChecklistTemplate).filter(
+        TaskChecklistTemplate.template_id==template_id,
+        TaskChecklistTemplate.department==user.department,
+        TaskChecklistTemplate.active.is_(True)).all())
+    if not versions:raise HTTPException(404,'Checklist template not found.')
+    for version in versions:version.active=False
+    task_audit(db,user,'task.checklist_template_archived',template_id)
+    db.commit();return {'archived':True}
 
 
 @router.post('/batches',status_code=201)
@@ -234,7 +369,28 @@ def staff_options(user:User=Depends(current),db:DbSession=Depends(get_db)):
 @router.get('')
 def list_tasks(user:User=Depends(current),db:DbSession=Depends(get_db)):
     q=scope(db,user)
-    return {'items':[task_json(t,db) for t in q.order_by(TaskItem.updated_at.desc(),TaskItem.id.desc()).limit(300).all()]}
+    rows=(q.options(load_only(TaskItem.id,TaskItem.batch_id,TaskItem.filename,TaskItem.state,
+             TaskItem.department,TaskItem.assigned_to,TaskItem.notes,TaskItem.rules_json,
+             TaskItem.score,TaskItem.report_json,TaskItem.deadline,TaskItem.updated_at))
+          .order_by(TaskItem.updated_at.desc(),TaskItem.id.desc()).limit(300).all())
+    if not rows:return {'items':[]}
+    task_ids=[task.id for task in rows]
+    member_ids={task.assigned_to for task in rows if task.assigned_to is not None}
+    staff_by_id={member.id:member for member in db.query(User).filter(User.id.in_(member_ids)).all()} if member_ids else {}
+
+    # Fetch the same earliest 50 decisions per task as before, without one query per task.
+    ranked=(db.query(TaskDecision.task_id.label('task_id'),TaskDecision.decision.label('decision'),
+             TaskDecision.note.label('note'),TaskDecision.created_at.label('created_at'),
+             func.row_number().over(partition_by=TaskDecision.task_id,
+                                    order_by=TaskDecision.id.asc()).label('position'))
+            .filter(TaskDecision.task_id.in_(task_ids)).subquery())
+    decisions_by_task={}
+    for task_id,decision,note,created_at in (
+            db.query(ranked.c.task_id,ranked.c.decision,ranked.c.note,ranked.c.created_at)
+            .filter(ranked.c.position<=50).order_by(ranked.c.task_id,ranked.c.position).all()):
+        decisions_by_task.setdefault(task_id,[]).append((decision,note,created_at))
+    return {'items':[task_json(task,staff_by_id.get(task.assigned_to),decisions_by_task.get(task.id,[]))
+                     for task in rows]}
 
 
 @router.post('/assign')
@@ -245,16 +401,23 @@ def assign(body:AssignBody,user:User=Depends(csrf_required),db:DbSession=Depends
     if not staff or not staff.active or staff.role!='staff' or staff.department!=user.department:
         raise HTTPException(403,'Choose active staff from your own department.')
     from .verification import Rule, ALLOWED_TYPES
+    if len(body.rules_by_task)>MAX_TASK_FILES or any(len(rules)>30 for rules in body.rules_by_task.values()):
+        raise HTTPException(422,'Provide requirements for at most 50 PDFs, with at most 30 checklist items per PDF.')
+    manual_by_task={}
     if body.use_generated_rules:
         if set(body.confirmed_task_ids)!=set(body.task_ids) or len(body.confirmed_task_ids)!=len(body.task_ids):
             raise HTTPException(422,'Review and confirm each PDF’s AI rule suggestions before assigning.')
-        if body.rules:raise HTTPException(422,'Do not combine manual and generated rule sets.')
+        if body.rules or body.rules_by_task:raise HTTPException(422,'Do not combine manual and generated rule sets.')
     else:
-        try:rules=[Rule.model_validate(x) for x in body.rules]
-        except Exception:raise HTTPException(422,'Correct the rule format.')
-        if not rules:raise HTTPException(422,'Review or supply at least one validation rule.')
-        if any(r.type not in ALLOWED_TYPES for r in rules):raise HTTPException(422,'Unsupported validation type.')
-        if len({r.id for r in rules})!=len(rules):raise HTTPException(422,'Rule identifiers must be unique.')
+        if body.rules_by_task:
+            if body.rules:raise HTTPException(422,'Use either one shared checklist or per-PDF checklists, not both.')
+            if set(body.rules_by_task)!=set(body.task_ids):
+                raise HTTPException(422,'Provide exactly one checklist for every selected PDF.')
+            manual_by_task={task_id:validated_manual_rules(raw_rules)
+                            for task_id,raw_rules in body.rules_by_task.items()}
+            rules=[]
+        else:
+            rules=validated_manual_rules(body.rules)
     deadline=future_deadline(body.deadline)
     items=db.query(TaskItem).filter(TaskItem.id.in_(body.task_ids),TaskItem.department==user.department).with_for_update().all()
     if len(items)!=len(body.task_ids):raise HTTPException(404,'One or more tasks are unavailable.')
@@ -273,7 +436,7 @@ def assign(body:AssignBody,user:User=Depends(csrf_required),db:DbSession=Depends
                 raise HTTPException(409,'AI draft requires HOD review and regeneration.')
             selected_rules[draft.task_id]=proposal
     for task in items:
-        task_rules=selected_rules[task.id] if body.use_generated_rules else rules
+        task_rules=selected_rules[task.id] if body.use_generated_rules else manual_by_task.get(task.id,rules)
         task.assigned_to=staff.id;task.assigned_by=user.id;task.notes=body.notes.strip()
         task.rules_json=json.dumps([r.model_dump() for r in task_rules]);task.deadline=deadline
         task.state='assigned';task.updated_at=utcnow()
@@ -374,6 +537,51 @@ def mark_read(notification_id:int,user:User=Depends(csrf_required),db:DbSession=
     n.seen=True;db.commit();return {'ok':True}
 
 
+def dashboard_listing(db,user,*,status,staff_id,search,deadline_filter,sort,from_date,to_date,now):
+    """Build the same department-scoped filtered task query for UI and export."""
+    listing=db.query(TaskItem).filter(TaskItem.department==user.department)
+    is_overdue=(TaskItem.assigned_to.isnot(None),TaskItem.deadline<now,
+                TaskItem.state.notin_(('approved','unassigned')))
+    if status=='working':
+        listing=listing.filter(TaskItem.state.in_(('assigned','on_hold','correction_required')))
+    elif status=='reviewing':
+        listing=listing.filter(TaskItem.state.in_(('verifying','awaiting_hod','manual_review')))
+    elif status in ('approved','unassigned'):
+        listing=listing.filter(TaskItem.state==status)
+    elif status=='overdue':
+        listing=listing.filter(*is_overdue)
+    if staff_id is not None:
+        listing=listing.filter(TaskItem.assigned_to==staff_id)
+    if search.strip():
+        term='%'+search.strip()+'%'
+        user_ids=db.query(User.id).filter(User.display_name.ilike(term))
+        listing=listing.filter(or_(TaskItem.filename.ilike(term),TaskItem.assigned_to.in_(user_ids)))
+    if from_date and to_date and from_date>to_date:
+        raise HTTPException(422,'Start date must not be after end date.')
+    if from_date:
+        listing=listing.filter(TaskItem.updated_at>=datetime.combine(from_date,time.min,tzinfo=timezone.utc))
+    if to_date:
+        if to_date==date.max:
+            listing=listing.filter(TaskItem.updated_at<=datetime.combine(to_date,time.max,tzinfo=timezone.utc))
+        else:
+            listing=listing.filter(TaskItem.updated_at<datetime.combine(
+                to_date+timedelta(days=1),time.min,tzinfo=timezone.utc))
+    if deadline_filter=='due_soon':
+        listing=listing.filter(TaskItem.deadline>=now,TaskItem.deadline<=now+timedelta(days=7),
+                               TaskItem.state!='approved')
+    elif deadline_filter=='no_deadline':
+        listing=listing.filter(TaskItem.deadline.is_(None))
+    elif deadline_filter=='due_set':
+        listing=listing.filter(TaskItem.deadline.isnot(None))
+    order={
+        'updated':(TaskItem.updated_at.desc(),TaskItem.id.desc()),
+        'oldest':(TaskItem.updated_at.asc(),TaskItem.id.asc()),
+        'due_soon':(TaskItem.deadline.is_(None).asc(),TaskItem.deadline.asc(),TaskItem.id.desc()),
+        'score_high':(TaskItem.score.is_(None).asc(),TaskItem.score.desc(),TaskItem.id.desc())
+    }[sort]
+    return listing,order,is_overdue
+
+
 @router.get('/dashboard')
 def hod_dashboard(offset:int=Query(0,ge=0),
                   limit:int=Query(500,ge=1,le=500),
@@ -396,46 +604,10 @@ def hod_dashboard(offset:int=Query(0,ge=0),
     working=sum(groups.get(s,0) for s in ('assigned','on_hold','correction_required'))
     reviewing=sum(groups.get(s,0) for s in ('verifying','awaiting_hod','manual_review'))
     approved=groups.get('approved',0)
-    is_overdue=(TaskItem.assigned_to.isnot(None),TaskItem.deadline<now,
-                TaskItem.state.notin_(('approved','unassigned')))
+    listing,order,is_overdue=dashboard_listing(db,user,status=status,staff_id=staff_id,
+        search=search,deadline_filter=deadline_filter,sort=sort,
+        from_date=from_date,to_date=to_date,now=now)
     overdue=(base.filter(*is_overdue).with_entities(func.count(TaskItem.id)).scalar() or 0)
-
-    listing=base
-    if status=='working':
-        listing=listing.filter(TaskItem.state.in_(('assigned','on_hold','correction_required')))
-    elif status=='reviewing':
-        listing=listing.filter(TaskItem.state.in_(('verifying','awaiting_hod','manual_review')))
-    elif status in ('approved','unassigned'):
-        listing=listing.filter(TaskItem.state==status)
-    elif status=='overdue':
-        listing=listing.filter(*is_overdue)
-    if staff_id is not None:
-        listing=listing.filter(TaskItem.assigned_to==staff_id)
-    if search.strip():
-        term='%'+search.strip()+'%'
-        user_ids=db.query(User.id).filter(User.display_name.ilike(term))
-        listing=listing.filter(or_(TaskItem.filename.ilike(term),
-                                  TaskItem.assigned_to.in_(user_ids)))
-    if from_date and to_date and from_date>to_date:
-        raise HTTPException(422,'Start date must not be after end date.')
-    # Date filters apply to the last task update, not original upload.
-    if from_date:
-        listing=listing.filter(TaskItem.updated_at>=datetime.combine(from_date,time.min,tzinfo=timezone.utc))
-    if to_date:
-        listing=listing.filter(TaskItem.updated_at<datetime.combine(to_date,time.max,tzinfo=timezone.utc))
-    if deadline_filter=='due_soon':
-        listing=listing.filter(TaskItem.deadline>=now,TaskItem.deadline<=now+timedelta(days=7),
-                               TaskItem.state!='approved')
-    elif deadline_filter=='no_deadline':
-        listing=listing.filter(TaskItem.deadline.is_(None))
-    elif deadline_filter=='due_set':
-        listing=listing.filter(TaskItem.deadline.isnot(None))
-    order={
-        'updated':(TaskItem.updated_at.desc(),TaskItem.id.desc()),
-        'oldest':(TaskItem.updated_at.asc(),TaskItem.id.asc()),
-        'due_soon':(TaskItem.deadline.is_(None).asc(),TaskItem.deadline.asc(),TaskItem.id.desc()),
-        'score_high':(TaskItem.score.is_(None).asc(),TaskItem.score.desc(),TaskItem.id.desc())
-    }[sort]
     matching=(listing.with_entities(func.count(TaskItem.id)).scalar() or 0)
     rows=(listing.options(load_only(TaskItem.id,TaskItem.batch_id,TaskItem.filename,
         TaskItem.department,TaskItem.state,TaskItem.assigned_to,TaskItem.deadline,
@@ -457,16 +629,44 @@ def hod_dashboard(offset:int=Query(0,ge=0),
             .join(TaskItem,TaskItem.id==TaskEvent.task_id)
             .filter(TaskItem.department==user.department)
             .order_by(TaskEvent.at.desc(),TaskEvent.id.desc()).limit(100).all())
-    events=(db.query(TaskEvent).filter(TaskEvent.task_id.in_(ids))
-            .order_by(TaskEvent.at.desc(),TaskEvent.id.desc()).all()) if ids else []
-    submissions=(db.query(TaskSubmission.task_id,TaskSubmission.uploaded_by,
-                 TaskSubmission.revision,TaskSubmission.created_at)
-                 .filter(TaskSubmission.task_id.in_(ids))
-                 .order_by(TaskSubmission.created_at.desc()).all()) if ids else []
-    decisions=(db.query(TaskDecision.task_id,TaskDecision.actor_id,TaskDecision.decision,
-                TaskDecision.note,TaskDecision.created_at)
-               .filter(TaskDecision.task_id.in_(ids))
-               .order_by(TaskDecision.created_at.desc()).all()) if ids else []
+    if ids:
+        # The response shows at most 60 entries per task. Rank in SQL so an
+        # old task with many revisions does not load its full history first.
+        ranked_events=(db.query(TaskEvent.id.label('event_id'),
+                func.row_number().over(partition_by=TaskEvent.task_id,
+                    order_by=(TaskEvent.at.desc(),TaskEvent.id.desc())).label('position'))
+            .filter(TaskEvent.task_id.in_(ids)).subquery())
+        events=(db.query(TaskEvent).join(ranked_events,ranked_events.c.event_id==TaskEvent.id)
+                .filter(ranked_events.c.position<=60)
+                .order_by(TaskEvent.task_id,TaskEvent.at.desc(),TaskEvent.id.desc()).all())
+        historical_kinds={}
+        for task_id,event_name in (db.query(TaskEvent.task_id,TaskEvent.event)
+                .filter(TaskEvent.task_id.in_(ids),
+                        TaskEvent.event.in_(('submitted','approved','correction_requested')))
+                .distinct().all()):
+            historical_kinds.setdefault(task_id,set()).add(event_name)
+
+        ranked_submissions=(db.query(TaskSubmission.id.label('submission_id'),
+                func.row_number().over(partition_by=TaskSubmission.task_id,
+                    order_by=(TaskSubmission.created_at.desc(),TaskSubmission.id.desc())).label('position'))
+            .filter(TaskSubmission.task_id.in_(ids)).subquery())
+        submissions=(db.query(TaskSubmission.task_id,TaskSubmission.uploaded_by,
+                    TaskSubmission.revision,TaskSubmission.created_at)
+            .join(ranked_submissions,ranked_submissions.c.submission_id==TaskSubmission.id)
+            .filter(ranked_submissions.c.position<=60)
+            .order_by(TaskSubmission.task_id,TaskSubmission.created_at.desc(),TaskSubmission.id.desc()).all())
+
+        ranked_decisions=(db.query(TaskDecision.id.label('decision_id'),
+                func.row_number().over(partition_by=TaskDecision.task_id,
+                    order_by=(TaskDecision.created_at.desc(),TaskDecision.id.desc())).label('position'))
+            .filter(TaskDecision.task_id.in_(ids)).subquery())
+        decisions=(db.query(TaskDecision.task_id,TaskDecision.actor_id,TaskDecision.decision,
+                    TaskDecision.note,TaskDecision.created_at)
+            .join(ranked_decisions,ranked_decisions.c.decision_id==TaskDecision.id)
+            .filter(ranked_decisions.c.position<=60)
+            .order_by(TaskDecision.task_id,TaskDecision.created_at.desc(),TaskDecision.id.desc()).all())
+    else:
+        events=[];submissions=[];decisions=[];historical_kinds={}
 
     member_ids=({t.assigned_to for t in rows if t.assigned_to} |
                 {s.assigned_to for s in staff_states} |
@@ -479,12 +679,11 @@ def hod_dashboard(offset:int=Query(0,ge=0),
     names={u.id:u.display_name for u in db.query(User).filter(User.id.in_(known_ids)).all()} if known_ids else {}
 
     history_by_task={}
-    historical_kinds={}
     for event in events:
-        historical_kinds.setdefault(event.task_id,set()).add(event.event)
         history_by_task.setdefault(event.task_id,[]).append({
             'at':deadline_iso(event.at),'event':event.event,'state':event.state,
-            'actor':names.get(event.actor_id,'Automated verification' if not event.actor_id else 'Former member'),
+            'actor':('Reminder automation' if event.event=='reminder_sent' else
+                     names.get(event.actor_id,'Automated verification' if not event.actor_id else 'Former member')),
             'detail':event.detail})
     for sub in submissions:
         if 'submitted' in historical_kinds.get(sub.task_id,set()):continue
@@ -532,8 +731,9 @@ def hod_dashboard(offset:int=Query(0,ge=0),
            'staff':names.get(e.assigned_to,'Former member') if e.assigned_to else None,
            'at':deadline_iso(e.TaskEvent.at),'event':e.TaskEvent.event,
            'state':e.TaskEvent.state,'detail':e.TaskEvent.detail,
-           'actor':names.get(e.TaskEvent.actor_id,
-                   'Automated verification' if not e.TaskEvent.actor_id else 'Former member')}
+            'actor':('Reminder automation' if e.TaskEvent.event=='reminder_sent' else
+                     names.get(e.TaskEvent.actor_id,
+                     'Automated verification' if not e.TaskEvent.actor_id else 'Former member'))}
           for e in recent]
     recent_decisions=(db.query(TaskDecision.created_at)
         .join(TaskItem,TaskItem.id==TaskDecision.task_id)
@@ -553,27 +753,87 @@ def hod_dashboard(offset:int=Query(0,ge=0),
             'note':'Completion means HOD approval. Submission and approval timestamps are separate. Older missing event times are never invented.'}
 
 
+@router.get('/dashboard/export.csv')
+def export_hod_dashboard(status:str=Query('all',pattern='^(all|working|reviewing|approved|overdue|unassigned)$'),
+                         staff_id:int|None=Query(None,ge=1),search:str=Query('',max_length=120),
+                         deadline_filter:str=Query('all',pattern='^(all|due_soon|no_deadline|due_set)$'),
+                         sort:str=Query('updated',pattern='^(updated|oldest|due_soon|score_high)$'),
+                         from_date:date|None=None,to_date:date|None=None,
+                         user:User=Depends(current),db:DbSession=Depends(get_db)):
+    """Stream a branch-scoped task export using the same filters as the HOD dashboard."""
+    if user.role!='hod':
+        raise HTTPException(403,'Department HOD dashboard only.')
+    now=utcnow()
+    listing,order,_=dashboard_listing(db,user,status=status,staff_id=staff_id,
+        search=search,deadline_filter=deadline_filter,sort=sort,
+        from_date=from_date,to_date=to_date,now=now)
+    matching=listing.with_entities(func.count(TaskItem.id)).scalar() or 0
+    task_audit(db,user,'task.dashboard_export',f'{matching} rows; status={status}; staff={staff_id or "all"}')
+    db.commit()
+    rows=(listing.with_entities(TaskBatch.title,TaskItem.filename,TaskItem.department,
+            TaskItem.state,User.display_name,TaskItem.deadline,TaskItem.score,
+            TaskItem.updated_at,TaskItem.assigned_to)
+          .outerjoin(TaskBatch,TaskBatch.id==TaskItem.batch_id)
+          .outerjoin(User,User.id==TaskItem.assigned_to)
+          .order_by(*order).yield_per(500))
+
+    def safe_cell(value):
+        text='' if value is None else str(value)
+        if text[:1] in ('=','+','-','@','\t','\r'):
+            return "'"+text
+        return text
+
+    def stream():
+        output=io.StringIO(newline='')
+        writer=csv.writer(output,lineterminator='\r\n')
+        writer.writerow(('Batch','Reference PDF','Department','Status','Assigned staff',
+                         'Deadline','Overdue','Score (advisory)','Last updated'))
+        labels={'unassigned':'Unassigned','assigned':'Working','on_hold':'On hold',
+                'correction_required':'Corrections needed','verifying':'Automated review',
+                'awaiting_hod':'Awaiting HOD','manual_review':'Manual review','approved':'Approved'}
+        yield output.getvalue();output.seek(0);output.truncate(0)
+        for row in rows:
+            deadline=row.deadline
+            normalized=(deadline.replace(tzinfo=deadline.tzinfo or timezone.utc) if deadline else None)
+            overdue=bool(row.assigned_to and normalized and normalized<now and
+                         row.state not in ('approved','unassigned'))
+            writer.writerow(tuple(safe_cell(value) for value in (
+                row.title,row.filename,row.department,labels.get(row.state,row.state),row.display_name,
+                deadline_iso(deadline) if deadline else '', 'Yes' if overdue else 'No',
+                row.score,deadline_iso(row.updated_at))))
+            yield output.getvalue();output.seek(0);output.truncate(0)
+
+    filename='ncet-hod-task-tracking-'+now.strftime('%Y%m%d')+'.csv'
+    return StreamingResponse(stream(),media_type='text/csv; charset=utf-8',headers={
+        'Content-Disposition':f'attachment; filename="{filename}"',
+        'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'})
+
+
 @router.get('/insights/summary')
 def insights(user:User=Depends(current),db:DbSession=Depends(get_db)):
     if user.role not in ('hod','principal','iqac','admin'):raise HTTPException(403,'Oversight only.')
-    items=scope(db,user).all()
-    by_state={state:sum(t.state==state for t in items) for state in ('unassigned','assigned','on_hold','verifying','awaiting_hod','manual_review','correction_required','approved')}
-    by_staff={}
-    for t in items:
-        if not t.assigned_to:continue
-        v=by_staff.setdefault(t.assigned_to,{'approved':0,'assigned':0,'in_review':0,'scores':[]})
-        if t.state=='approved':v['approved']+=1
-        if t.state in ('assigned','on_hold','verifying'):v['assigned']+=1
-        if t.state in ('awaiting_hod','manual_review'):v['in_review']+=1
-        if t.state=='approved' and t.score is not None:v['scores'].append(t.score)
+    base=scope(db,user)
+    by_state={state:count for state,count in
+              base.with_entities(TaskItem.state,func.count(TaskItem.id)).group_by(TaskItem.state).all()}
+    state_counts=(base.filter(TaskItem.assigned_to.isnot(None))
+        .with_entities(TaskItem.assigned_to.label('staff_id'),
+            func.sum(case((TaskItem.state=='approved',1),else_=0)).label('approved'),
+            func.sum(case((TaskItem.state.in_(('assigned','on_hold','verifying','correction_required')),1),else_=0)).label('assigned'),
+            func.sum(case((TaskItem.state.in_(('awaiting_hod','manual_review')),1),else_=0)).label('in_review'),
+            func.avg(case((TaskItem.state=='approved',TaskItem.score),else_=None)).label('average_quality'))
+        .group_by(TaskItem.assigned_to).all())
     leaders=[]
-    for user_id,row in by_staff.items():
-        staff=db.get(User,user_id)
-        leaders.append({'staff':staff.display_name if staff else 'Former member',
-                        'approved':row['approved'],'active':row['assigned'],'in_review':row['in_review'],
-                        'average_quality':round(sum(row['scores'])/len(row['scores']),1) if row['scores'] else None})
+    staff_ids=[row.staff_id for row in state_counts]
+    people={person.id:person.display_name for person in db.query(User.id,User.display_name)
+            .filter(User.id.in_(staff_ids)).all()} if staff_ids else {}
+    for row in state_counts:
+        user_id=row.staff_id
+        leaders.append({'staff':people.get(user_id,'Former member'),
+                        'approved':int(row.approved or 0),'active':int(row.assigned or 0),
+                        'in_review':int(row.in_review or 0),
+                        'average_quality':round(float(row.average_quality),1) if row.average_quality is not None else None})
     leaders.sort(key=lambda a:(-a['approved'],-(a['average_quality'] or 0),a['staff']))
-    return {'total':len(items),'states':by_state,'staff':leaders,
+    return {'total':sum(by_state.values()),'states':by_state,'staff':leaders,
             'note':'Counts and machine-assisted scores are contextual operational indicators, not employee performance decisions.'}
 
 
@@ -658,6 +918,82 @@ def run_task_once():
         sub.state='processing';sub.started_at=utcnow();sid=sub.id;db.commit()
     evaluate_submission(sid)
     return True
+
+
+def run_task_reminder_once(now=None):
+    """Send one bounded batch of idempotent in-app deadline reminders.
+
+    Due-soon reminders are sent once per task, recipient, and deadline when
+    the deadline enters the next 24 hours. Overdue reminders are sent once per
+    task, recipient, and UTC day. No email, SMS, or AI provider is contacted.
+    """
+    now=now or utcnow()
+    now=now.astimezone(timezone.utc)
+    due_limit=now+timedelta(hours=24)
+    with DBSession() as db:
+        offset=0
+        while True:
+            tasks=(db.query(TaskItem)
+                .options(load_only(TaskItem.id,TaskItem.department,TaskItem.filename,
+                                   TaskItem.assigned_to,TaskItem.state,TaskItem.deadline))
+                .filter(TaskItem.assigned_to.isnot(None),
+                        TaskItem.deadline.isnot(None),
+                        TaskItem.state.notin_(('approved','unassigned')),
+                        TaskItem.deadline<=due_limit)
+                .order_by(TaskItem.deadline.asc(),TaskItem.id.asc())
+                .offset(offset).limit(100).with_for_update(skip_locked=True).all())
+            if not tasks:
+                return False
+            offset+=len(tasks)
+            departments={task.department for task in tasks}
+            staff_ids={task.assigned_to for task in tasks if task.assigned_to}
+            users=(db.query(User).filter(User.active.is_(True),
+                    or_(User.id.in_(staff_ids),
+                        (User.role=='hod') & User.department.in_(departments))).all())
+            staff_by_id={user.id:user for user in users if user.role=='staff'}
+            hod_by_department={}
+            for user in users:
+                if user.role=='hod':hod_by_department.setdefault(user.department,[]).append(user)
+            candidates=[]
+            for task in tasks:
+                deadline=task.deadline
+                if deadline.tzinfo is None or deadline.utcoffset() is None:
+                    deadline=deadline.replace(tzinfo=timezone.utc)
+                deadline=deadline.astimezone(timezone.utc)
+                if deadline>now:
+                    kind='due_soon'
+                    key_suffix=deadline.isoformat()
+                    message=f'{task.filename} is due within 24 hours.'
+                else:
+                    kind='overdue'
+                    key_suffix=now.date().isoformat()
+                    message=f'{task.filename} is overdue; review the task status and next action.'
+                recipients=[]
+                assigned=staff_by_id.get(task.assigned_to)
+                if assigned and assigned.department==task.department:
+                    recipients.append(assigned)
+                recipients.extend(hod_by_department.get(task.department,[]))
+                for recipient in recipients:
+                    key=f'{kind}:{task.id}:{recipient.id}:{key_suffix}'
+                    candidates.append((task,recipient,kind,key,message))
+            candidate_keys=[candidate[3] for candidate in candidates]
+            existing_keys=set()
+            if candidate_keys:
+                existing_keys={row[0] for row in db.query(TaskReminderDelivery.delivery_key)
+                               .filter(TaskReminderDelivery.delivery_key.in_(candidate_keys)).all()}
+            pending=[candidate for candidate in candidates if candidate[3] not in existing_keys]
+            if pending:
+                break
+        # The delivery ledger, notification, and history event commit together;
+        # a worker restart cannot emit a second notice for the same key.
+        for task,recipient,kind,key,message in pending:
+            db.add(TaskReminderDelivery(task_id=task.id,recipient_id=recipient.id,
+                                        kind=kind,delivery_key=key,sent_at=now))
+            notify(db,recipient.id,message,task.id)
+            record_event(db,task,None,'reminder_sent',
+                         f'{kind.replace("_"," ").title()} reminder sent to {recipient.display_name[:90]}')
+        db.commit()
+        return True
 
 
 class AIKeyBody(BaseModel):

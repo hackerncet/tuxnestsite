@@ -8,6 +8,7 @@ No student or administrative account credentials are used.
 import os
 from pathlib import Path
 from playwright.sync_api import sync_playwright
+from browser_runtime import launch_chromium
 
 BASE = os.getenv("NCET_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
 PAGES = ["/", "/students", "/about", "/students/directory", "/students/portal", "/app", "/plot"]
@@ -17,7 +18,7 @@ DEST = Path(__file__).parent / "responsive-screenshots"
 issues = []
 
 with sync_playwright() as playwright:
-    browser = playwright.chromium.launch(headless=True)
+    browser = launch_chromium(playwright,headless=True)
     for width in WIDTHS:
         page = browser.new_page(viewport={"width": width, "height": 900},
                                 device_scale_factor=1)

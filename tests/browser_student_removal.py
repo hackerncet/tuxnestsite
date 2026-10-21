@@ -1,6 +1,7 @@
 """Browser-only removal workflow; tests native UI against mocked backend transport."""
 from pathlib import Path
 from playwright.sync_api import sync_playwright
+from browser_runtime import launch_chromium
 
 STATIC=Path(__file__).resolve().parents[1]/'static'
 MOCK=r"""() => {
@@ -38,21 +39,21 @@ MOCK=r"""() => {
 
 def audit():
  with sync_playwright() as pw:
-  browser=pw.chromium.launch(headless=True,args=['--no-sandbox'])
+  browser=launch_chromium(pw,headless=True)
   for width in (320,390,768,1366):
    page=browser.new_page(viewport={'width':width,'height':900})
    errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
-   html=(STATIC/'bca-management.html').read_text()
+   html=(STATIC/'bca-management.html').read_text(encoding='utf-8')
    for css in ('bca.css','department-management.css','responsive-upgrade.css','institutional-ui.css','student-removal.css'):
     if (STATIC/css).exists():
      import re
      html=re.sub(r'<link rel="stylesheet" href="/static/'+css.replace('.','\\.')+r'(?:\?v=[^"]+)?"\s*/?>',
-        lambda m:'<style>'+(STATIC/css).read_text()+'</style>',html)
+        lambda m:'<style>'+(STATIC/css).read_text(encoding='utf-8')+'</style>',html)
    import re
    html=re.sub(r'<script src="/static/bca-management.js(?:\?v=[^"]+)?" defer></script>','',html)
    page.set_content(html)
    page.evaluate(MOCK)
-   page.add_script_tag(content=(STATIC/'bca-management.js').read_text())
+   page.add_script_tag(content=(STATIC/'bca-management.js').read_text(encoding='utf-8'))
    page.locator('#roster .select-student').first.wait_for()
    assert page.locator('#roster .select-student').count()==3
    page.locator('#select-visible-students').click()

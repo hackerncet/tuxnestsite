@@ -89,9 +89,9 @@ def test_private_complaints_do_not_leak_to_other_students_or_departments(client,
         assert student.get('/api/bca/cases/NCET-BCA-OTHER').status_code==404
     with TestClient(app) as unrelated:
         login(unrelated,'hod2')
-        assert unrelated.get('/bca/complaints').status_code==403
-        assert 'Open HOD task dashboard' in unrelated.get('/bca/complaints').text
-        assert unrelated.get('/api/bca/cases').status_code==403
+        assert unrelated.get('/bca/complaints').status_code==200
+        assert unrelated.get('/api/bca/cases').json()['all_total']==0
+        assert unrelated.get('/api/bca/cases/NCET-BCA-OTHER').status_code==404
     with TestClient(app) as principal:
         login(principal,'principal')
         access=principal.get('/bca/complaints',follow_redirects=False)

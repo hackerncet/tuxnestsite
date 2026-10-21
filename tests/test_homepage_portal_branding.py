@@ -19,6 +19,9 @@ def test_homepage_branding_terminology_and_footer_order(client):
     assert "Student services" not in html
     assert "student services" not in html
     assert "Student Portal" in html
+    assert "BCA HOD" not in html
+    assert "BCA directory" not in html
+    assert "your department HOD" in html
     assert "home-revamp.css?v=20261017e" in html
     assert "homepage-polish.css" not in html
     assert "/static/ncet-brand.svg?v=20261017c" in html
@@ -56,5 +59,7 @@ def test_public_pages_use_student_portal_language(client):
         assert result.status_code==200,(route,result.status_code)
         html=result.text.lower()
         assert "student services" not in html,route
+    directory=client.get('/students/directory').text
+    assert '1NC24BCA001' not in directory
     # Authenticated collaboration remains private, even when public terminology is updated.
     assert client.get("/community").status_code in (200,302,401,403)

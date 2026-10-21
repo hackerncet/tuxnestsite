@@ -22,7 +22,7 @@ def test_bca_faculty_page_cannot_be_fetched_publicly(client,login):
     token=client.get('/api/auth/me').json()['csrf']
     assert client.post('/api/auth/logout',headers={'X-CSRF-Token':token}).status_code==200
     login(client,'staff')
-    assert client.get('/bca/manage').status_code==403
+    assert client.get('/bca/manage').status_code==200
     with DBSession() as db:
         staff=db.query(User).filter(User.username=='staff').one()
         staff.department='Computer Applications';db.commit()

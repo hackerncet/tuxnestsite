@@ -1,7 +1,9 @@
 """Frontend-only browser smoke with deterministic mock responses (real API is separately tested)."""
 import base64
+import re
 from pathlib import Path
 from playwright.sync_api import sync_playwright
+from browser_runtime import launch_chromium
 ROOT=Path(__file__).parents[1]
 MOCK=r'''() => {
   const users=['admin','hod','staff','principal','iqac'];
@@ -21,7 +23,8 @@ MOCK=r'''() => {
     else if(path.endsWith('/review')&&method==='POST'){const b=JSON.parse(opts.body);docs[0].status=b.decision;docs[0].history.push({kind:b.decision,by:'NCET hod',note:b.note,at:now()});}
     else if(path.endsWith('/resubmit')&&method==='POST'){docs[0].version++;docs[0].status='manual_review';}
     else if(path==='/api/users'){response={items:users.map((u,i)=>({id:i+1,username:u,name:'NCET '+u,role:u,department:'Computer Science & Engineering',active:true}))};}
-    else if(path==='/api/admin/integrations'){response={openrouter_configured:false,model:'google/gemma-4-31b-it:free'};}
+    else if(path==='/api/academic/departments'){response={items:['Computer Applications','Commerce','Management','Science'].map((name,i)=>({code:'dept-'+i,name,active:true}))};}
+    else if(path==='/api/admin/integrations'){response={configured:false,provider:null,model:null,deepseek_configured:false,openrouter_configured:false,key_stored:false};}
     else if(path==='/api/audit'){response={items:[]};}
     else if(path==='/api/auth/change-password'){response={ok:true};}
     else{status=404;response={detail:'Unknown request: '+path};}
@@ -29,18 +32,18 @@ MOCK=r'''() => {
   };
 }'''
 with sync_playwright() as p:
-    chromium_path=Path('/usr/bin/chromium')
-    browser=p.chromium.launch(headless=True,args=['--no-sandbox'],**({'executable_path':str(chromium_path)} if chromium_path.exists() else {}))
+    browser=launch_chromium(p,headless=True)
     context=browser.new_context(viewport={'width':1440,'height':900})
     page=context.new_page();page.set_default_timeout(11000)
     errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
-    page.set_content('<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1" /></head><body><div id="app"></div></body></html>')
+    page.set_content('<!doctype html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1" /></head><body><div id="app"></div></body></html>')
     css=(ROOT/'static/styles.css').read_text()+'\n'+(ROOT/'static/enterprise.css').read_text()
     js=(ROOT/'static/app.js').read_text()
-    for suffix in ('ncms-logo.webp','ncms-emblem.webp','ngi-logo.webp','ncet-crest.webp'):
+    for suffix in ('ncet-brand.svg','ngi-brand.svg','naac-brand.svg','ncms-logo.webp','ncms-emblem.webp','ngi-logo.webp','ncet-crest.webp'):
         asset=ROOT/'static'/suffix
         if asset.exists():
-            data='data:image/webp;base64,'+base64.b64encode(asset.read_bytes()).decode()
+            mime='image/svg+xml' if asset.suffix=='.svg' else 'image/webp'
+            data=f'data:{mime};base64,'+base64.b64encode(asset.read_bytes()).decode()
             js=js.replace('/static/'+suffix,data)
     page.evaluate('(css)=>{const s=document.createElement("style");s.textContent=css;document.head.appendChild(s)}',css)
     page.evaluate(MOCK)
@@ -67,8 +70,10 @@ with sync_playwright() as p:
     page.locator('[data-page=integrations]').first.click();page.get_by_text('DeepSeek AI settings').wait_for();assert page.locator('#deepseek-key').count()==1;assert page.get_by_text('New OpenRouter API key').count()==0
     page.screenshot(path=str(ROOT/'tests/ui-admin.png'),full_page=True)
     signout();signin('hod')
-    # The default test HOD belongs to CSE and cannot open private BCA cases.
+    # The CSE HOD can open the department-scoped complaints dashboard but not BCA oversight.
     assert page.locator('a[href="/bca/oversight"]').count()==0
+    assert page.locator('a[href="/complaints"]').count()==1
+    assert page.locator('a[href="/complaints"]').inner_text()=='Complaint management'
     assert page.locator('a[href="/tasks"]').count()==1
     page.locator('[data-page=rules]').first.click();page.locator('[data-action=add-rule]').click()
     page.locator('.rule-entry [name=title]').fill('Executive summary heading')
@@ -79,6 +84,7 @@ with sync_playwright() as p:
     page.locator('[data-page=upload]').first.click()
     page.locator('#doc-title').fill('NCET Annual Faculty Report')
     page.locator('#doc-category').select_option('Academic Audit')
+    assert re.fullmatch(r'20\d{2}-\d{2}',page.locator('#doc-year').input_value())
     page.locator('#doc-desc').fill('Academic year department faculty annual documentation submission.')
     page.locator('#file-input').set_input_files({'name':'document.pdf','mimeType':'application/pdf','buffer':b'%PDF-1.7\nTEST ONLY\n%%EOF'})
     page.locator('#submit-document button[type=submit]').click()
@@ -93,7 +99,7 @@ with sync_playwright() as p:
     signout();signin('iqac')
     assert page.locator('[data-page=users]').count()==0
     mobile=browser.new_context(viewport={'width':390,'height':844},is_mobile=True,has_touch=True)
-    mp=mobile.new_page();mp.set_content('<html><meta name="viewport" content="width=device-width, initial-scale=1"/><body><div id="app"></div></body></html>')
+    mp=mobile.new_page();mp.set_content('<html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/></head><body><div id="app"></div></body></html>')
     mp.evaluate('(css)=>{const s=document.createElement("style");s.textContent=css;document.head.appendChild(s)}',css)
     mp.evaluate(MOCK);mp.add_script_tag(content=js)
     mp.get_by_text('Welcome to NCET VerifyFlow').wait_for()

@@ -41,6 +41,24 @@ def test_hod_bulk_assignment_notifications_and_holds(client,login):
     assert client.post(f'/api/tasks/{ids[1]}/hold',params={'hold':'false'},headers={'X-CSRF-Token':h}).json()['state']=='assigned'
 
 
+def test_hod_can_assign_pdf_specific_checklists(client,login):
+    hod_csrf=login(client,'hod');ids=_batch(client,hod_csrf,2)
+    first=[{'id':'cover','title':'Department cover page','type':'required_phrase','required':True,'value':'Department Cover','instructions':''}]
+    second=[{'id':'outcomes','title':'Course outcomes section','type':'required_heading','required':True,'value':'Course Outcomes','instructions':''}]
+    payload={'task_ids':ids,'staff_id':_staff_id(),
+             'notes':'Complete both PDFs using their individual checklist requirements.',
+             'rules_by_task':{str(ids[0]):first,str(ids[1]):second}}
+    incomplete={**payload,'rules_by_task':{str(ids[0]):first}}
+    assert client.post('/api/tasks/assign',headers={'X-CSRF-Token':hod_csrf},json=incomplete).status_code==422
+    response=client.post('/api/tasks/assign',headers={'X-CSRF-Token':hod_csrf},json=payload)
+    assert response.status_code==200,response.text
+    with TestClient(app) as staff:
+        login(staff,'staff')
+        assigned={task['id']:task for task in staff.get('/api/tasks').json()['items'] if task['id'] in ids}
+    assert assigned[ids[0]]['rules'][0]['value']=='Department Cover'
+    assert assigned[ids[1]]['rules'][0]['value']=='Course Outcomes'
+
+
 def test_permission_department_and_invalid_batch(client,login):
     h=login(client,'hod'); ids=_batch(client,h,1)
     for bad in (0,_staff_id()+10_000):
@@ -75,6 +93,68 @@ def test_ai_missing_is_manual_review_not_rejection(client,login):
     assert row['state']=='manual_review' and row['score'] is None
     assert client.post(f'/api/tasks/{id}/decide',headers={'X-CSRF-Token':h},json={'decision':'approved','note':'I manually inspected the PDF and confirm acceptance.'}).status_code==200
     assert client.get('/api/tasks').json()['items'][0]['state']=='approved'
+
+
+def test_manual_checklist_requires_specific_heading_and_valid_page_limit():
+    from fastapi import HTTPException
+    from app.database import DBSession,User
+    from app.taskflow import AssignBody,TaskBatch,TaskItem,assign
+    with DBSession() as db:
+        hod=db.query(User).filter(User.username=='hod').one()
+        staff=db.query(User).filter(User.username=='staff').one()
+        batch=TaskBatch(title='Manual checklist regression',department=hod.department,created_by=hod.id)
+        db.add(batch);db.flush()
+        task=TaskItem(batch_id=batch.id,department=hod.department,filename='manual.pdf',reference_pdf=PDF)
+        db.add(task);db.flush()
+        base={'task_ids':[task.id],'staff_id':staff.id,
+              'notes':'Prepare the academic document with the department checklist.'}
+        for rules in ([{'id':'heading','title':'Required heading','type':'required_heading','value':''}],
+                      [{'id':'max_pages','title':'Maximum pages','type':'max_pages','value':'many'}]):
+            try:
+                assign(AssignBody(**{**base,'rules':rules}),hod,db)
+            except HTTPException as exc:
+                assert exc.status_code==422
+            else:
+                raise AssertionError('Invalid checklist was accepted.')
+        accepted=assign(AssignBody(**{**base,'rules':[{'id':'heading','title':'Required heading','type':'required_heading','value':'Approval'}]}),hod,db)
+        assert accepted['assigned']==1
+
+
+def test_task_list_batches_metadata_and_decisions_without_loading_reference_pdfs():
+    from sqlalchemy import event
+    from app.database import DBSession,engine,User
+    from app.taskflow import TaskBatch,TaskDecision,TaskItem,list_tasks
+    task_ids=[]
+    with DBSession() as db:
+        hod=db.query(User).filter(User.username=='hod').one()
+        batch=TaskBatch(title='Performance regression batch',department=hod.department,created_by=hod.id)
+        db.add(batch);db.flush()
+        items=[TaskItem(batch_id=batch.id,department=hod.department,filename=f'perf_{i}.pdf',reference_pdf=PDF)
+               for i in range(4)]
+        db.add_all(items);db.flush();task_ids=[task.id for task in items]
+        for task_id in task_ids:
+            db.add_all([
+                TaskDecision(task_id=task_id,actor_id=hod.id,decision='needs_correction',note='Please add the missing signature.'),
+                TaskDecision(task_id=task_id,actor_id=hod.id,decision='approved',note='Reviewed the final academic document.')])
+        db.commit()
+    statements=[]
+    def capture(_conn,_cursor,statement,_parameters,_context,_executemany):
+        if statement.lstrip().upper().startswith('SELECT'):
+            statements.append(statement.upper())
+    event.listen(engine,'before_cursor_execute',capture)
+    try:
+        with DBSession() as db:
+            hod=db.query(User).filter(User.username=='hod').one()
+            response=list_tasks(hod,db)
+    finally:
+        event.remove(engine,'before_cursor_execute',capture)
+    task_selects=[sql for sql in statements if 'FROM TASK_ITEMS' in sql]
+    decision_selects=[sql for sql in statements if 'FROM TASK_DECISIONS' in sql]
+    assert len(task_selects)==1
+    assert 'REFERENCE_PDF' not in task_selects[0]
+    assert len(decision_selects)==1
+    assert len(response['items'])==4
+    assert all(len(task['decisions'])==2 for task in response['items'])
 
 
 def test_scoring_threshold_requires_actual_provider_and_no_uncertainty(client,login,monkeypatch):

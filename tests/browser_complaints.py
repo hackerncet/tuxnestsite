@@ -1,6 +1,7 @@
 """Lightweight complaints dashboard smoke: private cases, server filters and mobile usability."""
 from pathlib import Path
 from playwright.sync_api import sync_playwright
+from browser_runtime import launch_chromium
 
 BASE=Path(__file__).resolve().parents[1]/'static'
 
@@ -14,7 +15,7 @@ MOCK=r"""() => {
  window.fetch=async(input,opts={})=>{
   const url=String(input),method=opts.method||'GET';
   let body={},status=200;
-  if(url==='/api/auth/me')body={user:{role:'hod',department:'Computer Applications'},csrf:'test-csrf'};
+  if(url==='/api/auth/me')body={user:{role:'hod',department:window.__department||'Computer Applications'},csrf:'test-csrf'};
   else if(url.startsWith('/api/bca/cases?')){
    const params=new URL(url,'https://ncet.test').searchParams;
    let selected=items.filter(x=>(params.get('status')==='all'||!params.get('status')||x.status===params.get('status')) &&
@@ -43,21 +44,21 @@ MOCK=r"""() => {
 
 def main():
  with sync_playwright() as playwright:
-  chrome=Path('/usr/bin/chromium')
-  opts={'headless':True,'args':['--no-sandbox']}
-  if chrome.exists():opts['executable_path']=str(chrome)
-  browser=playwright.chromium.launch(**opts)
-  for width in (320,390,768,1366):
-   page=browser.new_page(viewport={'width':width,'height':850})
-   errors=[];page.on('pageerror',lambda error:errors.append(str(error)))
-   html=(BASE/'complaints-dashboard.html').read_text()
-   html=html.replace('<link rel="stylesheet" href="/static/bca.css">','<style>'+ (BASE/'bca.css').read_text()+'</style>')
-   html=html.replace('<link rel="stylesheet" href="/static/complaints-dashboard.css?v=20261018a">','<style>'+ (BASE/'complaints-dashboard.css').read_text()+'</style>')
-   html=html.replace('<script defer src="/static/complaints-dashboard.js?v=20261018a"></script>','')
+  browser=launch_chromium(playwright,headless=True)
+  for department in ('Computer Applications','Computer Science & Engineering'):
+   for width in (320,390,768,1366):
+    page=browser.new_page(viewport={'width':width,'height':850})
+    errors=[];page.on('pageerror',lambda error:errors.append(str(error)))
+    html=(BASE/'complaints-dashboard.html').read_text(encoding='utf-8')
+    html=html.replace('<link rel="stylesheet" href="/static/bca.css">','<style>'+ (BASE/'bca.css').read_text(encoding='utf-8')+'</style>')
+    html=html.replace('<link rel="stylesheet" href="/static/complaints-dashboard.css?v=20261018a">','<style>'+ (BASE/'complaints-dashboard.css').read_text(encoding='utf-8')+'</style>')
+    html=html.replace('<script defer src="/static/complaints-dashboard.js?v=20261021-department"></script>','')
    page.set_content(html)
+   page.evaluate('(department)=>window.__department=department',department)
    page.evaluate(MOCK)
-   page.add_script_tag(content=(BASE/'complaints-dashboard.js').read_text())
+   page.add_script_tag(content=(BASE/'complaints-dashboard.js').read_text(encoding='utf-8'))
    page.locator('#kpi-all').get_by_text('3',exact=True).wait_for()
+   assert page.locator('#department-enrollment').is_visible()==(department=='Computer Applications')
    assert page.locator('#case-results .complaint-row').count()==3
    assert page.locator('#kpi-submitted').inner_text()=='1'
    assert page.locator('#priority-count-waiting').inner_text()=='2'
@@ -89,10 +90,10 @@ def main():
    page.wait_for_function('window.__messages.length===1')
    page.get_by_text('Saved successfully. The student has been notified.',exact=True).wait_for()
    assert page.locator('#case-dialog').is_visible()
-   assert page.evaluate('document.documentElement.scrollWidth <= innerWidth + 2'),width
+   assert page.evaluate('document.documentElement.scrollWidth <= innerWidth + 2'),(department,width)
    assert not errors,errors
    page.close()
   browser.close()
- print('BCA COMPLAINT DASHBOARD UI PASS: desktop/mobile, search, status, details, reply')
+ print('DEPARTMENT COMPLAINT DASHBOARD UI PASS: BCA/CSE roles, desktop/mobile, search, status, details, reply')
 
 if __name__=='__main__':main()

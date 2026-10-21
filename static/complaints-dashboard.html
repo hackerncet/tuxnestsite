@@ -4,7 +4,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="theme-color" content="#0E2455">
-<title>BCA Complaint Management | NCET VerifyFlow</title>
+<title>Department Requests | NCET VerifyFlow</title>
 <link rel="icon" href="/static/ncet-brand.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/static/bca.css">
 <link rel="stylesheet" href="/static/complaints-dashboard.css?v=20261018a">
@@ -12,16 +12,16 @@
 <body>
 <header class="topnav">
   <div class="container nav-inner">
-    <a class="brand" href="/app"><img src="/static/ncet-brand.svg" alt="NCET emblem" width="52" height="43"><span>NCET VerifyFlow<small>BCA · Confidential student services</small></span></a>
+    <a class="brand" href="/app"><img src="/static/ncet-brand.svg" alt="NCET emblem" width="52" height="43"><span>NCET VerifyFlow<small>Department · Confidential student services</small></span></a>
     <nav class="navlinks" aria-label="Workspace navigation">
-      <a href="/app">Workspace</a><a href="/tasks">HOD tasks</a><a href="/bca/manage">Student enrollment</a>
+      <a href="/app">Workspace</a><a href="/tasks">HOD tasks</a><a id="department-enrollment" href="/bca/manage">Student enrollment</a>
       <a class="nav-current" href="/complaints" aria-current="page">Complaints</a>
     </nav>
   </div>
 </header>
 <main class="complaints-shell" id="main">
   <section class="complaints-intro">
-    <div><span class="eyebrow">COMPUTER APPLICATIONS · PRIVATE DEPARTMENT DESK</span>
+    <div><span class="eyebrow">PRIVATE DEPARTMENT DESK</span>
       <h1>Complaint management</h1>
       <p>Track student requests, prioritize new submissions and keep every response accountable.</p>
     </div>
@@ -64,11 +64,11 @@
       </section>
       <aside class="case-panel case-insights" aria-label="Complaint insights">
         <h2>Department snapshot</h2>
-        <p class="muted">Based on all authorized BCA complaints, not only this page.</p>
+        <p class="muted">Based on all requests in your department, not only this page.</p>
         <div id="case-status-bars" class="case-status-bars"></div>
         <h3>Requests by category</h3>
         <div id="case-category-bars" class="case-category-bars"></div>
-        <p class="case-privacy">Complaint details are visible only to the authorized BCA HOD. This dashboard is not public and does not use external analytics or AI processing.</p>
+        <p class="case-privacy">Request details are visible only to your department HOD. This dashboard is not public and does not use external analytics or AI processing.</p>
       </aside>
     </div>
   </div>
@@ -91,6 +91,6 @@
   </section>
   <p id="case-dialog-message" role="status" aria-live="polite"></p>
 </dialog>
-<script defer src="/static/complaints-dashboard.js?v=20261018a"></script>
+<script defer src="/static/complaints-dashboard.js?v=20261021-department"></script>
 </body>
 </html>

@@ -182,3 +182,11 @@ background:#fff;border-radius:12px;border:1px solid #e5e8ee;padding:3px}
 .footer-ngi{object-fit:contain}
 @media(max-width:420px){.brandline .ncms-crest{width:56px;height:56px;flex-basis:56px}
 .sidebar-brand .brand-name{font-size:15px}}
+
+/* Keep long account metadata readable beside management controls. */
+.user-item{display:grid;grid-template-columns:40px minmax(0,1fr);align-items:start}
+.user-item .avatar,.user-item .info-mark{grid-column:1;grid-row:1}
+.user-item .user-details{grid-column:2;grid-row:1;overflow-wrap:anywhere}
+.user-item .user-actions{grid-column:2;display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.user-item .user-actions .btn{max-width:100%}
+@media(max-width:740px){.user-item{grid-template-columns:34px minmax(0,1fr);padding:14px 12px}.user-item .user-actions{gap:7px}}

@@ -13,7 +13,8 @@
  const eventNames={created:'Reference uploaded',assigned:'Assigned to staff',
    submitted:'Staff submission received',on_hold:'On hold',resumed:'Work resumed',
    approved:'Approved by HOD',correction_requested:'Corrections requested',
-   deadline_changed:'Deadline changed',verification_finished:'Verification completed'};
+   deadline_changed:'Deadline changed',verification_finished:'Verification completed',
+   reminder_sent:'Deadline reminder sent'};
  let data=null,request=null,queued=false,filter='all',page=0,lastExpanded=new Set(),searchTimer=null;
  const pageSize=50;
  const dateTime=value=>{
@@ -186,6 +187,19 @@
    if(staff && data){$('#dash-staff-filter').value=staff.dataset.staff;page=0;void reload();
      $('#dash-task-title').scrollIntoView({block:'start',behavior:'auto'});
    }
+ });
+ $('#dash-export').addEventListener('click',()=>{
+   const params=new URLSearchParams({status:filter,sort:$('#dash-sort').value});
+   const search=$('#dash-search').value.trim(),staff=$('#dash-staff-filter').value;
+   const due=$('#dash-deadline').value;
+   if(search)params.set('search',search);
+   if(staff!=='all')params.set('staff_id',staff);
+   if(due!=='all')params.set('deadline_filter',due);
+   if($('#dash-from').value)params.set('from_date',$('#dash-from').value);
+   if($('#dash-to').value)params.set('to_date',$('#dash-to').value);
+   const link=document.createElement('a');
+   link.href='/api/tasks/dashboard/export.csv?'+params.toString();
+   link.hidden=true;document.body.append(link);link.click();link.remove();
  });
  $('#dash-refresh').addEventListener('click',reload);
  $('#dash-filter').addEventListener('change',e=>{filter=e.target.value;page=0;void reload()});

@@ -1,11 +1,12 @@
 """Real Chromium 404 UX checks against local NCET test server."""
 import os
 from playwright.sync_api import sync_playwright
+from browser_runtime import launch_chromium
 
 base=os.getenv("NCET_BASE_URL","http://127.0.0.1:8878").rstrip("/")
 widths=(320,375,390,768,1024,1440)
 with sync_playwright() as tool:
-    browser=tool.chromium.launch(headless=True)
+    browser=launch_chromium(tool,headless=True)
     for width in widths:
         page=browser.new_page(viewport={"width":width,"height":850},device_scale_factor=1)
         errors=[]

@@ -2,13 +2,14 @@
 import os
 import time
 from playwright.sync_api import sync_playwright
+from browser_runtime import launch_chromium
 
 BASE=os.getenv('NCET_BASE_URL','http://127.0.0.1:8000').rstrip('/')
 PAGES=['/','/students','/students/directory','/students/portal','/about','/app']
 WIDTHS=(320,375,390,768,1024,1440)
 
 with sync_playwright() as p:
-    browser=p.chromium.launch(headless=True)
+    browser=launch_chromium(p,headless=True)
     for width in WIDTHS:
         page=browser.new_page(viewport={'width':width,'height':880},device_scale_factor=1)
         errors=[]

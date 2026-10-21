@@ -1,12 +1,14 @@
 """Administrator-managed academic branches with immutable internal codes.
 
-Names can change without altering HOD permissions, historical case departments,
-or User.department codes. Disabling a branch blocks future enrollment, not logins.
+Renames retain student/case codes and move non-student accounts, documents,
+rulebooks, and task queues to the new display name in one transaction. The
+Computer Applications label remains protected while BCA-only routes use it.
+Disabling a branch blocks future enrollment, not logins.
 """
 import re
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import String, Boolean
+from sqlalchemy import String, Boolean, func
 from sqlalchemy.orm import Session as DbSession, Mapped, mapped_column
 from .database import Base, User, AuditLog, get_db
 from .security import current, as_role_mutation
@@ -78,6 +80,27 @@ def edit_department(code:str,body:DepartmentEdit,actor:User=Depends(as_role_muta
         name=clean_department_name(body.name)
         duplicate=db.query(AcademicDepartment).filter(AcademicDepartment.name.ilike(name),AcademicDepartment.id!=dept.id).first()
         if duplicate:raise HTTPException(409,'A department already has that name.')
+        if name!=old and dept.code.strip().lower() in {'computer applications','bca','bachelor of computer applications'}:
+            raise HTTPException(409,'Computer Applications is tied to the current BCA student workflows and cannot be renamed yet.')
+        if name!=old:
+            # Keep existing branch-scoped records with the HOD when the label
+            # changes. Student accounts and cases use the stable department code.
+            from .database import Document, RulePolicy
+            from .taskflow import TaskBatch, TaskChecklistTemplate, TaskItem
+            legacy_values={old.lower(),dept.code.strip().lower()}
+            old_policy_versions={row[0] for row in db.query(RulePolicy.version).filter(
+                func.lower(RulePolicy.department).in_(legacy_values)).all()}
+            target_policy_versions={row[0] for row in db.query(RulePolicy.version).filter(
+                func.lower(RulePolicy.department)==name.lower(),
+                ~func.lower(RulePolicy.department).in_(legacy_values)).all()}
+            if old_policy_versions & target_policy_versions:
+                raise HTTPException(409,'This department has conflicting rulebook versions under the new name. Resolve the duplicate rulebooks before renaming.')
+            old_values=list(legacy_values)
+            db.query(User).filter(User.role!='student',func.lower(User.department).in_(legacy_values)).update(
+                {User.department:name},synchronize_session=False)
+            for model in (Document,RulePolicy,TaskBatch,TaskItem,TaskChecklistTemplate):
+                db.query(model).filter(func.lower(model.department).in_(old_values)).update(
+                    {model.department:name},synchronize_session=False)
         dept.name=name
     if body.active is not None:dept.active=body.active
     db.add(AuditLog(actor_id=actor.id,event='admin.department_updated',

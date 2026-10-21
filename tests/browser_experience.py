@@ -5,6 +5,7 @@ covered separately by integration tests. No production student data is used.
 """
 from pathlib import Path
 from playwright.sync_api import sync_playwright
+from browser_runtime import launch_chromium
 from browser_bca import load_page
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -13,11 +14,7 @@ STATIC = ROOT / "static"
 
 def main():
     with sync_playwright() as playwright:
-        executable = Path("/usr/bin/chromium")
-        opts = {"headless":True,"args":["--no-sandbox"]}
-        if executable.exists():
-            opts["executable_path"]=str(executable)
-        browser = playwright.chromium.launch(**opts)
+        browser = launch_chromium(playwright,headless=True)
         errors=[]
         page=browser.new_page(viewport={"width":1440,"height":900},accept_downloads=True)
         page.on("pageerror",lambda error: errors.append(str(error)))
@@ -65,7 +62,9 @@ def main():
           };
           window.fetch=async(url)=>{
             const data=String(url).endsWith('/api/auth/me')?
-              {csrf:'mock-csrf',user:{role:'staff',name:'Demo BCA Faculty'}}:
+              {csrf:'mock-csrf',user:{role:'staff',name:'Demo BCA Faculty',department:'Computer Applications'}}:
+              String(url).endsWith('/api/academic/departments')?
+              {items:[{code:'Computer Applications',name:'Computer Applications',active:true}]}:
               String(url).endsWith('/api/bca/students')?
               {items:[
                 {usn:'1NC24BCA901',name:'Student Alpha',semester:3,active:true},
@@ -75,8 +74,10 @@ def main():
               status:200,headers:{'Content-Type':'application/json'}});
           };
         }""")
-        page.add_script_tag(content=(STATIC/"bca-management.js").read_text())
+        page.add_script_tag(content=(STATIC/"bca-management.js").read_text(encoding='utf-8'))
         page.locator("#desk").wait_for(state="visible")
+        assert page.title()=="Department Student Desk | NCET VerifyFlow"
+        assert page.locator(".brand small").inner_text()=="Computer Applications"
         assert page.locator("#roster .entry").count()==2
         page.locator("#roster-search").fill("bca901")
         assert page.locator("#roster .entry").count()==1
@@ -87,12 +88,41 @@ def main():
         with page.expect_download() as download_info:
             page.locator("#export-roster").click()
         download=download_info.value
-        assert download.suggested_filename=="NCET_BCA_roster_without_passwords.csv"
+        assert download.suggested_filename=="NCET_student_roster_without_passwords.csv"
         page.wait_for_function("window.__exportedCSV !== null")
         exported=page.evaluate("window.__exportedCSV")
         assert "1NC24BCA901" in exported and "1NC24BCA902" in exported
         assert "temporary_password" not in exported
         assert "email" not in exported and "mobile" not in exported
+
+        # Super Admin manages all branches; keep its student desk labels and
+        # export names department-neutral while retaining BCA labels for staff.
+        load_page(page,"bca-management.html")
+        page.evaluate("""() => {
+          window.fetch=async(url)=>{
+            const path=String(url);
+            const data=path.endsWith('/api/auth/me')?
+              {csrf:'mock-csrf',user:{role:'admin',name:'Demo Admin',department:'Computer Science & Engineering'}}:
+              path.endsWith('/api/academic/departments')?
+              {items:[{code:'Computer Science & Engineering',name:'Computer Science & Engineering',active:true}]}:
+              path.endsWith('/api/bca/students')?
+              {items:[{usn:'1NC24CS901',name:'Admin Student',branch:'Computer Science & Engineering',
+                branch_name:'Computer Science & Engineering',semester:3,active:true}]}:
+              {items:[]};
+            return new Response(JSON.stringify(data),{
+              status:200,headers:{'Content-Type':'application/json'}});
+          };
+        }""")
+        page.add_script_tag(content=(STATIC/"bca-management.js").read_text(encoding="utf-8"))
+        page.locator("#desk").wait_for(state="visible")
+        assert page.title()=="Student Administration | NCET VerifyFlow"
+        assert page.locator(".brand small").inner_text()=="All departments"
+        assert "ALL DEPARTMENTS" in page.locator(".shell-head").inner_text()
+        assert "Student administration" in page.locator("footer").inner_text()
+        assert "BCA student portal" not in page.locator("footer").inner_text()
+        with page.expect_download() as admin_download_info:
+            page.locator("#export-roster").click()
+        assert admin_download_info.value.suggested_filename=="NCET_student_roster_without_passwords.csv"
 
         # Responsive checks across public and protected pages; no persistent
         # motion when reduced-motion is requested.
