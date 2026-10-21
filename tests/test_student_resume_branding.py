@@ -126,7 +126,7 @@ def test_unpublishing_removes_projects_from_public_search(client):
 def test_portfolio_hero_uses_a_complete_bio_excerpt(client):
     token=make_student(client)
     first_sentence="I build accessible software for students and local communities."
-    full_bio=first_sentence+" I am currently exploring "+("distributed systems and cloud platforms through long-running projects and coursework. "*3)
+    full_bio=(first_sentence+" I am currently exploring "+("distributed systems and cloud platforms through long-running projects and coursework. "*3)).strip()
     saved=client.put("/api/bca/showcase/me",headers=token,json={
         "full_name":"College Demo Student","about":full_bio,"publish":True,
     })
