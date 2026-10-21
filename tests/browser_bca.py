@@ -16,7 +16,7 @@ def load_page(page, html_file, script=None, mock_denied=False):
     page.goto('about:blank')  # reset the previous page's global JavaScript scope
     html = (STATIC / html_file).read_text(encoding='utf-8')
     for asset in ('ncet-brand.svg','ngi-brand.svg','naac-brand.svg',
-                  'ncet-official.webp','ncms-emblem.webp','ngi-logo.webp'):
+                  'ncet-official.webp','ncet-official-hd.png','ncms-emblem.webp','ngi-logo.webp'):
         image = STATIC / asset
         if image.is_file():
             mime = 'image/svg+xml' if asset.endswith('.svg') else ('image/png' if asset.endswith('.png') else 'image/webp')
@@ -70,6 +70,7 @@ def main():
 
         load_page(desktop, 'student-services.html')
         assert 'Everything students need.' in desktop.locator('main').inner_text()
+        assert desktop.locator('.intro h1').evaluate('(h) => getComputedStyle(h).color') == 'rgb(255, 255, 255)'
         assert 'Your private academic requests stay with your authorized reviewers.' in desktop.locator('main').inner_text()
         assert desktop.locator('a[href="/students/portal"]').count() > 0
 

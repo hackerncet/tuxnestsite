@@ -3,7 +3,7 @@
 .topnav{background:#fff;min-height:84px;box-shadow:0 2px 16px rgba(14,36,85,.04)}
 .topnav .nav-inner{min-height:84px;gap:14px;flex-wrap:nowrap}
 .topnav .brand{flex:0 1 auto;max-width:300px;gap:11px}
-.topnav .brand img{width:125px;max-width:125px;height:auto;aspect-ratio:455 / 225}
+.topnav .brand img{width:125px;max-width:125px;height:auto;aspect-ratio:500 / 241}
 .topnav .brand span{font-size:12px;line-height:1.12;white-space:nowrap}
 .topnav .brand span strong{font-size:18px}
 .topnav .brand small{font-size:10px;max-width:175px;white-space:normal}
@@ -38,7 +38,7 @@
 .identity-center{padding:clamp(23px,3.5vw,42px) clamp(16px,3vw,32px)!important;
  background:#fff!important}
 .identity-crest{width:100%!important;max-width:450px!important;height:auto!important;max-height:none!important;
- aspect-ratio:1056/512;object-fit:contain;display:block;filter:none;margin:auto}
+ aspect-ratio:500/241;object-fit:contain;display:block;filter:none;margin:auto}
 .identity-panel-top,.identity-panel-bottom{background:#F8FAFD}
 .identity-panel .identity-heading{color:var(--ncet-blue)!important;font-size:clamp(16px,1.8vw,21px)!important}
 .identity-panel .identity-sub{color:#586B81!important}
