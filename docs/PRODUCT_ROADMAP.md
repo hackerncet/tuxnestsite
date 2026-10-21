@@ -4,13 +4,13 @@ This roadmap reflects the current repository, with priority on a reliable HOD do
 
 Features marked implemented are present in the deployed `hackerncet/tuxnestsite` `main` branch at `85311d1`. GitHub CI and Security Audit passed for that release, and Render confirmed the matching deploy is live. Read-only browser checks now cover the supplied administrator, HOD and staff accounts. The complete authenticated document/task transaction and temporary test-account cleanup still need a production simulation; AI-provider requests remain out of scope until the owner confirms the existing integration setting is intentional.
 
-## Findings from the latest live walkthrough
+## Production verification priorities
 
-- The HOD dashboard, review queue, rules, staff page, activity log, task dashboard and complaint dashboard render for the signed-in HOD. The live department has unassigned reference documents and no current staff assignments, so staff has no task to work yet.
-- The active HOD checklist currently contains placeholder text. Replace it with college-approved criteria before staff submit documents against it. Do not infer accreditation or departmental requirements from sample data.
-- The admin settings screen reports an AI integration as configured. No provider call was made. The owner should confirm whether it is intended to remain enabled before sensitive documents are submitted.
-- The student portal, sign-in page and voluntary public portfolio directory render. Continue reviewing public identifiers and profile visibility with student privacy in mind.
-- The Render hostname serves the deployed release. The institution custom domain still fails TLS and needs DNS/certificate repair before credentials are entered there.
+- Read-only authenticated walkthroughs cover the supplied administrator, HOD and staff surfaces. Validate complete state-changing workflows with disposable records and cleanup before calling production end-to-end testing complete.
+- Require college-approved checklist criteria before departments use a rulebook for document decisions. Generic placeholder rules should be conspicuous and route work to human review.
+- Confirm owner approval, cost limits and privacy scope for any configured external processor before sensitive documents are submitted. This release’s live checks did not make provider requests.
+- The student portal, sign-in page and voluntary public portfolio directory render. Keep student profile controls explicit and review public identifiers and profile visibility for privacy.
+- Complete custom-domain TLS validation, persistent database/backups and operator monitoring before institutional production use.
 
 ## Current capabilities found in the code
 
