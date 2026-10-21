@@ -1,5 +1,7 @@
 import secrets
+import app.main as main_module
 from app.database import DBSession, Verification, Document
+from app.security import DUMMY_PASSWORD_HASH
 from app.verification import run_job
 
 def finish_verification(docid):
@@ -33,6 +35,17 @@ def test_login_and_invalid_credentials(client,login):
     assert client.post('/api/auth/logout').status_code==403
     assert client.post('/api/auth/logout',headers={'X-CSRF-Token':token}).status_code==200
     assert client.get('/api/documents').status_code==401
+
+def test_unknown_login_performs_password_verification(client,monkeypatch):
+    verified=[]
+    def capture_hash(password,stored_hash):
+        verified.append(stored_hash)
+        return False
+    monkeypatch.setattr(main_module,'verify_password',capture_hash)
+    response=client.post('/api/auth/login',json={
+        'username':'not-a-real-account','password':'incorrect-password','role':'student'})
+    assert response.status_code==401
+    assert verified==[DUMMY_PASSWORD_HASH]
 
 def test_submit_approve_cross_role_and_file(client,login,create_doc):
     stafftoken=login(client,'staff')
@@ -171,3 +184,4 @@ def test_clamav_fail_closed(client,login,monkeypatch):
         files={'file':('normal.pdf',b'%PDF-1.7\n', 'application/pdf')})
     assert r.status_code==503
     assert client.get('/api/documents').json()['total']==0
+

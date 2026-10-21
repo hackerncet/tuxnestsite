@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session as DbSession, selectinload
 from pydantic import BaseModel, Field
 from .database import (User, Session, Document, DocumentEvent, Attachment, AuditLog, LoginFailure, RulePolicy, Verification, IntegrationSetting,
                        get_db, utcnow, DBSession, engine, Base)
-from .security import (ROLES, COOKIE, hash_secret, hash_password, verify_password, set_session,
+from .security import (ROLES, COOKIE, DUMMY_PASSWORD_HASH, hash_secret, hash_password, verify_password, set_session,
                        current, csrf_required, as_role, as_role_mutation)
 from .storage import read_upload, store, retrieve, remove_key, digest
 from .verification import Rule, encrypt_key, read_api_key, MODEL
@@ -353,7 +353,9 @@ def login(body:LoginBody, request:Request, response:Response, db:DbSession=Depen
     if attempt_count >= 12:
         raise HTTPException(429,'Too many attempts. Try again after 15 minutes.')
     user=db.query(User).filter(User.username==name, User.active.is_(True)).first()
-    valid = bool(user and verify_password(body.password,user.password_hash))
+    stored_hash=user.password_hash if user else DUMMY_PASSWORD_HASH
+    password_valid=verify_password(body.password,stored_hash)
+    valid = bool(user and password_valid)
     if not valid or (body.role and body.role!=user.role):
         db.add(LoginFailure(ip_hash=iphash,username=name[:80]));db.commit()
         raise HTTPException(401,'Invalid username, password or role.')
