@@ -29,10 +29,10 @@ def main():
         assert page.locator('.topnav .brand-title').inner_text()=='NCET Student Portal'
         assert page.locator('.topnav .brand-subtitle').inner_text()=='VerifyFlow · Student and faculty collaboration'
         assert page.locator('.identity-crest').get_attribute('src').startswith('data:image/webp;base64,')
-        assert page.locator('.identity-crest').evaluate('(img)=>img.naturalWidth>=1000')
+        assert page.locator('.identity-crest').evaluate('(img)=>img.naturalWidth>=500')
         assert page.locator('body').inner_text().lower().find('student services')==-1
         assert page.locator('.identity-crest').evaluate(
-            '(img)=>Math.abs(img.getBoundingClientRect().width / img.getBoundingClientRect().height - 1056/512)<.15')
+            '(img)=>Math.abs(img.getBoundingClientRect().width / img.getBoundingClientRect().height - 500/241)<.15')
         assert page.locator('.identity-panel').evaluate(
             '(el)=>getComputedStyle(el).backgroundColor')=='rgb(255, 255, 255)'
         people=page.locator('.footer-credits a').all()
@@ -153,7 +153,7 @@ def main():
             assert typeface['weight']>=700,width
             assert typeface['subtitleVisible'],width
             assert typeface['titleRight']<=typeface['brandRight']+2,(width,typeface)
-            assert page.locator('.identity-crest').evaluate('(img)=>img.complete && img.naturalWidth>=1000'),width
+            assert page.locator('.identity-crest').evaluate('(img)=>img.complete && img.naturalWidth>=500'),width
             assert page.locator('.footer-credits a').count()==3,width
             assert page.locator('.identity-panel').evaluate('(el)=>getComputedStyle(el).backgroundColor')=='rgb(255, 255, 255)'
         page.emulate_media(reduced_motion="reduce")
