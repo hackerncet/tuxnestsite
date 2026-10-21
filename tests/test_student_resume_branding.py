@@ -80,7 +80,8 @@ def test_portfolio_sections_projects_and_public_links(client):
         assert label in html,label
     assert 'id="resume-share"' in html and 'id="resume-print"' in html
     assert 'href="/students/portal#portfolio"' in html
-    assert 'Student? Edit &amp; publish' in html
+    assert 'Create or update your portfolio' in html
+    assert 'class="resume-project-grid"' in html
     assert 'publish updates or make this page private' in html
     assert html.index('id="projects"') < html.index('id="about"')
     assert '<dt>Skills</dt><dd>3</dd>' in html
@@ -116,4 +117,3 @@ def test_unpublishing_removes_projects_from_public_search(client):
     assert client.put("/api/bca/showcase/me",headers=token,json=data).status_code==200
     assert client.get("/students/profile/"+USN).status_code==404
     assert USN not in client.get("/sitemap.xml").text
-

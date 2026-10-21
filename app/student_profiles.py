@@ -637,7 +637,7 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
 <link rel="icon" href="/static/ncet-brand.svg">
 <script type="application/ld+json">{json_ld}</script>
 <link rel="preload" as="image" href="/static/ncet-official-uhd.png?v=20261021-uhd-brand" fetchpriority="high">
-<link rel="stylesheet" href="/static/resume-profile.css?v=20261021-portfolio-onepage">
+<link rel="stylesheet" href="/static/resume-profile.css?v=20261022-student-portfolio-gallery">
 <link rel="stylesheet" href="/static/institutional-ui.css?v=20261021-clear-lockup-2">
 <script src="/static/student-profile-tabs.js?v=20261021-portfolio-onepage" defer></script>
 <script src="/static/student-profile-actions.js?v=20261021-portfolio-actions" defer></script>
@@ -662,7 +662,7 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
 <div class="resume-action-bar" aria-label="Portfolio actions">
 <button type="button" class="resume-action resume-share" id="resume-share" data-share-url="{escape(canonical,quote=True)}">Share portfolio</button>
 <button type="button" class="resume-action resume-print" id="resume-print">Save as PDF</button>
-<a class="resume-action resume-manage" href="/students/portal#portfolio">Student? Edit &amp; publish</a>
+<a class="resume-action resume-manage" href="/students/portal#portfolio">Create or update your portfolio</a>
 <span class="resume-action-status" id="resume-action-status" role="status" aria-live="polite"></span>
 </div>
 <p class="resume-owner-prompt">Student-owned portfolio · Sign in to add projects, skills, certificates and public links, then publish updates or make this page private. Personal contact details and academic requests stay private.</p>
@@ -677,7 +677,7 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
 <a href="#certifications" id="profile-tab-certifications">Certifications</a><a href="#interests" id="profile-tab-interests">Interests</a><a href="#links" id="profile-tab-links">Links</a>
 </nav>
 <div class="resume-tab-stage" id="resume-tab-stage" aria-live="off">
-<section id="projects" class="resume-section"><h2>Projects</h2>{project_html}</section>
+<section id="projects" class="resume-section"><h2>Projects</h2><div class="resume-project-grid">{project_html}</div></section>
 <section id="about" class="resume-section"><h2>About</h2>
 <p class="resume-about">{escape(info['about']) or 'This student has not yet added a summary.'}</p></section>
 <section id="skills" class="resume-section"><h2>Technical skills</h2>{skill_section}</section>
