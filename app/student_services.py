@@ -169,22 +169,45 @@ async def import_students(file:UploadFile=File(...),actor:User=Depends(as_role_m
     return create_students(db,actor,parsed)
 
 
-@router.get('/students')
-def list_students(actor:User=Depends(as_role('staff','hod','admin')),db:DbSession=Depends(get_db)):
+def roster_query(db,actor:User,search:str='',include_disabled:bool=False):
     can_manage_student_roster(actor)
     query=db.query(User,BCAStudent).join(BCAStudent,BCAStudent.user_id==User.id)
     if actor.role!='admin':
         student_roster_department(db,actor)
         query=query.filter(User.department.in_(department_scope_values(db,actor.department)))
-    items=query.order_by(BCAStudent.usn).limit(1000).all()
+    if not include_disabled:
+        query=query.filter(User.active.is_(True))
+    term=(search or '').strip()
+    if term:
+        from .departments import AcademicDepartment
+        pattern=f'%{term}%'
+        department_codes=[code for (code,) in db.query(AcademicDepartment.code).filter(or_(
+            AcademicDepartment.code.ilike(pattern),AcademicDepartment.name.ilike(pattern))).all()]
+        filters=[User.display_name.ilike(pattern),BCAStudent.usn.ilike(pattern),User.department.ilike(pattern)]
+        if department_codes:
+            filters.append(User.department.in_(department_codes))
+        query=query.filter(or_(*filters))
+    return query
+
+
+@router.get('/students')
+def list_students(actor:User=Depends(as_role('staff','hod','admin')),db:DbSession=Depends(get_db),
+                  search:str=Query(default='',max_length=80),include_disabled:bool=Query(default=False),
+                  page:int=Query(default=1,ge=1),page_size:int=Query(default=50,ge=1,le=500)):
+    query=roster_query(db,actor,search,include_disabled)
+    total=query.order_by(None).count()
+    total_pages=max(1,(total+page_size-1)//page_size)
+    page=min(page,total_pages)
+    items=query.order_by(BCAStudent.usn).offset((page-1)*page_size).limit(page_size).all()
     from .departments import AcademicDepartment
     branch_codes={u.department for u,_ in items if u.department}
     branch_names={d.code:d.name for d in db.query(AcademicDepartment.code,AcademicDepartment.name)
                   .filter(AcademicDepartment.code.in_(branch_codes)).all()} if branch_codes else {}
     return {'items':[{'usn':p.usn,'name':u.display_name,
                       'branch':u.department,'branch_name':branch_names.get(u.department,u.department),
-                      'semester':p.semester,'active':u.active} for u,p in items]}
-
+                      'semester':p.semester,'active':u.active} for u,p in items],
+            'page':page,'page_size':page_size,'total':total,'total_pages':total_pages,
+            'has_previous':page>1,'has_next':page<total_pages}
 @router.get('/cases')
 def list_cases(status:str=Query('all',pattern='^(all|submitted|in_review|resolved|closed)$'),
                category:str=Query('all',pattern='^(all|academics|faculty|examinations|facilities|fees|documentation|request|other)$'),
