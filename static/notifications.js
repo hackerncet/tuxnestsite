@@ -15,7 +15,7 @@
  async function refresh(){
   if(running||document.visibilityState==='hidden')return;running=true;
   const controller=new AbortController();
-  const timeout=setTimeout(()=>controller.abort(),POLL_MS-100);
+  const timeout=setTimeout(()=>controller.abort(),REQUEST_TIMEOUT_MS);
   try{
    const response=await fetch('/api/alerts/inbox',{credentials:'same-origin',cache:'no-store',signal:controller.signal});
    if(!response.ok){container.hidden=true;return}
