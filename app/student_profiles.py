@@ -596,7 +596,7 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
         projects.append('<article class="resume-project"><h3>'+escape(project['title'])+'</h3>'+
                         project_meta+'<p>'+escape(project.get('description') or 'Student project')+'</p>'+outcome+tags+
                         ('<div class="resume-links">'+links+'</div>' if links else '')+'</article>')
-    project_html=('<div class="resume-project-grid">'+''.join(projects)+'</div>' if projects else empty('Student projects have not been added yet.'))
+    project_html=''.join(projects) if projects else empty('Student projects have not been added yet.')
     certificates=[]
     for cert in info['certificates']:
         certificates.append('<li class="resume-certificate"><div><strong>'+escape(cert['title'])+
@@ -637,9 +637,9 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
 <link rel="icon" href="/static/ncet-brand.svg">
 <script type="application/ld+json">{json_ld}</script>
 <link rel="preload" as="image" href="/static/ncet-official-uhd.png?v=20261021-uhd-brand" fetchpriority="high">
-<link rel="stylesheet" href="/static/resume-profile.css?v=20261021-project-story">
+<link rel="stylesheet" href="/static/resume-profile.css?v=20261021-portfolio-onepage">
 <link rel="stylesheet" href="/static/institutional-ui.css?v=20261021-clear-lockup-2">
-<script src="/static/student-profile-tabs.js?v=20261021-projects-first" defer></script>
+<script src="/static/student-profile-tabs.js?v=20261021-portfolio-onepage" defer></script>
 <script src="/static/student-profile-actions.js?v=20261021-portfolio-actions" defer></script>
 </head><body class="ncet-profile-page" data-default-section="{'projects' if info['projects'] else 'about'}">
 <a class="skip-link" href="#student-resume">Skip to portfolio</a>
@@ -662,10 +662,10 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
 <div class="resume-action-bar" aria-label="Portfolio actions">
 <button type="button" class="resume-action resume-share" id="resume-share" data-share-url="{escape(canonical,quote=True)}">Share portfolio</button>
 <button type="button" class="resume-action resume-print" id="resume-print">Save as PDF</button>
-<a class="resume-action resume-manage" href="/students/portal#portfolio" aria-label="Student sign in to edit or publish this portfolio">Student: edit &amp; publish</a>
+<a class="resume-action resume-manage" href="/students/portal#portfolio">Student? Edit &amp; publish</a>
 <span class="resume-action-status" id="resume-action-status" role="status" aria-live="polite"></span>
 </div>
-<p class="resume-owner-prompt">This portfolio belongs to the student. Sign in to add projects, skills, certificates and public links, then publish updates or make the page private. Personal contact details and academic requests stay private.</p>
+<p class="resume-owner-prompt">Student-owned portfolio · Sign in to add projects, skills, certificates and public links, then publish updates or make this page private. Personal contact details and academic requests stay private.</p>
 <dl class="resume-highlights" aria-label="Portfolio overview">
 <div><dt>Skills</dt><dd>{len(info['skills'])}</dd></div>
 <div><dt>Projects</dt><dd>{len(info['projects'])}</dd></div>
