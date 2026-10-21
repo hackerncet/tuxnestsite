@@ -124,13 +124,13 @@ p95=switches[min(len(switches)-1,int(len(switches)*.95))]
 original_css=10432+8120+6555+4636+7184
 original_js=1752
 updated_css=(static/'resume-profile.css').stat().st_size
-updated_js=(static/'student-profile-tabs.js').stat().st_size+(static/'student-profile-actions.js').stat().st_size
+updated_js=(static/'student-profile-actions.js').stat().st_size
 before=original_css+original_js
 after=updated_css+updated_js
 assert after<before*.75,(before,after)
 print('NCET RESUME PERFORMANCE BENCHMARK')
 print(f'Critical CSS+JS bytes (uncompressed): previous={before}, updated={after}, reduction={(before-after)/before*100:.1f}%')
 print(f'Critical stylesheet/script requests: previous=6, updated=3')
-print(f'Tab switch browser timings, 18 interactions: median={median(switches):.0f} ms, p95={p95:.0f} ms')
-print('NCET résumé audit passed: six widths, six sections, reduced motion, keyboard/history, no-JS fallback, all institutional images loaded.')
+print(f'Portfolio anchor interaction timings, 18 interactions: median={median(switches):.0f} ms, p95={p95:.0f} ms')
+print('NCET portfolio audit passed: six widths, full-page sections, reduced motion, history navigation, no-JS fallback, all institutional images loaded.')
 
