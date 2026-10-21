@@ -27,7 +27,7 @@ def test_homepage_branding_terminology_and_footer_order(client):
     assert "homepage-polish.css?v=20261021-accreditation-row" in html
     assert '<link rel="preload" href="/static/ncet-official-uhd.png?v=20261021-uhd-brand" as="image" fetchpriority="high">' in html
     assert "/static/ncet-official-uhd.png" in html
-    assert 'width="1056" height="512"' in html
+    assert 'width="500" height="241"' in html
     assert "NCET Student Portal</p>" in html
     assert "Nagarjuna College of Engineering and Technology" in html
     assert "© 2026 NCET VerifyFlow" in html
