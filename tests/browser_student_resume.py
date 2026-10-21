@@ -105,7 +105,7 @@ with sync_playwright() as p:
         page.emulate_media(reduced_motion='reduce')
         page.locator('a[href="#projects"]').click()
         assert page.locator('#projects').is_visible()
-        assert page.locator('#resume-tab-stage').evaluate('(el)=>el.style.height')==''
+        assert page.locator('.resume-section:visible').count()==6
         assert not errors,(width,errors)
         page.close()
     # Without JavaScript, all sections remain indexable and readable.
