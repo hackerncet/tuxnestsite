@@ -194,7 +194,11 @@ def favicon_compat():
 def health():
     with engine.connect() as connection:
         connection.execute(select(1))
-    return {'ok':True}
+    result={'ok':True}
+    deployed_commit=os.getenv('RENDER_GIT_COMMIT','').lower()
+    if re.fullmatch(r'[a-f0-9]{7,40}',deployed_commit):
+        result['commit']=deployed_commit
+    return result
 
 @app.get('/', response_class=HTMLResponse)
 def landing():
