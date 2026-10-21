@@ -2,7 +2,7 @@
 
 This roadmap reflects the current repository, with priority on a reliable HOD document pipeline, branch-specific work visibility, and useful student self-service. It keeps the existing NCET theme and makes AI an optional later addition. None of the future AI items assume a provider key is configured.
 
-Features marked implemented are present in `hackerncet/tuxnestsite` `main` at `2d460e3af53f5df1957fbac9e3525da4a6d1fdb7` (21 October 2026). Render `/healthz` confirmed that commit live after a manual redeploy. PR #69 polished the student portfolio gallery and publish handoff. Render later processed an older `a65eb62` commit event and replaced the newer deploy; see the production-readiness audit. The PR #69 combined-status connector returned no CI statuses, so no new automated CI result is claimed for that change. Read-only live checks confirmed `/healthz` reports the deployed commit, the public student portfolio displays all sections, and the student portal exposes the authenticated profile editor and publish controls. This pass made no production data changes and no AI-provider requests.
+Features marked implemented are present in `hackerncet/tuxnestsite` `main` at `8da75c69e494532fcc56542dc5e871faa92a6b0a` (21 October 2026). Render `/healthz` confirmed that exact commit live after deployment. PR #78 keeps every student portfolio section visible in one scrollable page and provides a direct student edit/publish handoff; its CI, Chromium UI audit, security/dependency workflow, and focused local portfolio tests passed. Read-only production checks confirmed the live profile and health endpoint. The custom-domain TLS, database durability/access, scanner, and Render health-check configuration findings remain open in the production-readiness audit. No production student records were changed and no AI-provider requests were made.
 
 ## Production verification priorities
 
@@ -21,7 +21,7 @@ Features marked implemented are present in `hackerncet/tuxnestsite` `main` at `2
 - Deterministic document inspection plus an asynchronous verification worker. When no AI provider is available, submitted work goes to human review.
 - Separate student request/complaint desk with private case messages, status transitions, branch scope, filters, pagination, and student notifications.
 - Student portal with profile, requests, replies, and student-owned public portfolios. Students can add project role, timeframe, outcome, links, skills, certificates, and interests, then publish or unpublish their profile. Public portfolios keep all sections visible with sticky section links, sharing, and PDF print controls. Request status cards filter the private queue; request cards summarize the next step and latest HOD response.
-- **Implemented and live:** Public portfolios show projects as responsive cards and provide a clear “Student: edit & publish” route to the authenticated portal. The live route handoff was checked; the authenticated student save flow was not exercised in production.
+- **Implemented and live:** Public portfolios show projects as responsive cards and keep all six sections visible with anchor navigation. “Student? Edit & publish” links to the authenticated portal; the local publish API flow is covered, but an authenticated student save has not been exercised in production.
 - Students can print/save a private request receipt and reopen a resolved request by replying within 14 days of its latest update. Closed cases remain immutable.
 - All-departments roster no longer labels a missing branch as Computer Applications; missing branch data is called out and must be selected during admin edits.
 - The administrator can import students for active academic departments from CSV/XLSX; each student's department code is stored on the user account and displayed through the current department catalog.
@@ -131,4 +131,5 @@ Ship in this order on the now-connected repository and production service:
 7. Configure VPS deployment secrets and verify the one-command Ubuntu install and GitHub-to-VPS deployment.
 8. Add worker failure visibility, retention, backup/restore drills, and production p95/queue-age monitoring.
 9. Optional AI provider setup only when the owner supplies a key and budget.
+
 
