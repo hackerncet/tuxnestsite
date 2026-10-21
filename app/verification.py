@@ -253,7 +253,7 @@ def build_report(extracted: Extracted,rules: list[Rule],api_key: str|None) -> di
     if extracted.needs_ocr_review:reason.extend(extracted.notes)
     if not rules:reason.append('No active HOD rules exist. A reviewer must verify this document.')
     ai=None
-    if not api_key:reason.append('AI integration is not configured; verification requires human review.')
+    if not api_key:reason.append('Automated AI review is unavailable; verification requires human review.')
     elif not rules:pass
     else:
         try:
