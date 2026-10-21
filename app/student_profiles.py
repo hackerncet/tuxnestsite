@@ -576,7 +576,16 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
     def empty(text):
         return '<p class="resume-empty">'+escape(text)+'</p>'
     skill_section='<ul class="resume-chips">'+chips(info['skills'])+'</ul>' if info['skills'] else empty('Skills will appear when the student adds them.')
-    interests='<ul class="resume-chips resume-interests">'+chips(info['interests'])+'</ul>' if info['interests'] else empty('Academic interests have not been shared yet.')
+    skill_names={value.casefold() for value in info['skills']}
+    interest_values=[]
+    seen_interests=set()
+    for value in info['interests']:
+        key=value.casefold()
+        if key not in skill_names and key not in seen_interests:
+            interest_values.append(value)
+            seen_interests.add(key)
+    interests='<ul class="resume-chips resume-interests">'+chips(interest_values)+'</ul>' if interest_values else ''
+    interests_tab='<a href="#interests" id="profile-tab-interests">Interests</a>' if interest_values else ''
     def link(url,title,klass='resume-text-link'):
         return (f'<a class="{klass}" href="{escape(url,quote=True)}" target="_blank" rel="noopener noreferrer nofollow">'
                 f'{escape(title)} <span aria-hidden="true">↗</span></a>')
@@ -616,7 +625,7 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
                  'description':info['about'] or f"{info['name']} studies at NCET.",
                  'affiliation':{'@type':'CollegeOrUniversity',
                                 'name':'Nagarjuna College of Engineering and Technology'},
-                 'knowsAbout':info['skills']+info['interests'],
+                 'knowsAbout':info['skills']+interest_values,
                  'sameAs':list(info['social_links'].values())},
         'mainEntity':{'@type':'Person','name':info['name'],'identifier':info['usn']},
         'hasPart':projects_schema,
@@ -674,7 +683,7 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
 </dl>
 <nav class="resume-anchors" aria-label="Portfolio sections">
 <a href="#projects" id="profile-tab-projects">Projects</a><a href="#about" id="profile-tab-about">About</a><a href="#skills" id="profile-tab-skills">Skills</a>
-<a href="#certifications" id="profile-tab-certifications">Certifications</a><a href="#interests" id="profile-tab-interests">Interests</a><a href="#links" id="profile-tab-links">Links</a>
+<a href="#certifications" id="profile-tab-certifications">Certifications</a>{interests_tab}<a href="#links" id="profile-tab-links">Links</a>
 </nav>
 <div class="resume-tab-stage" id="resume-tab-stage" aria-live="off">
 <section id="projects" class="resume-section"><h2>Projects</h2><div class="resume-project-grid">{project_html}</div></section>
@@ -682,7 +691,7 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
 <p class="resume-about">{escape(info['about']) or 'This student has not yet added a summary.'}</p></section>
 <section id="skills" class="resume-section"><h2>Technical skills</h2>{skill_section}</section>
 <section id="certifications" class="resume-section"><h2>Certifications</h2>{cert_html}</section>
-<section id="interests" class="resume-section"><h2>Areas of interest</h2>{interests}</section>
+{'<section id="interests" class="resume-section"><h2>Areas of interest</h2>'+interests+'</section>' if interest_values else ''}
 <section id="links" class="resume-section"><h2>GitHub, live work & professional links</h2>{social_html}</section>
 </div>
 <div class="resume-disclaimer"><p>Published by the student. NCET has not independently verified personal projects, skills or linked credentials.</p>
