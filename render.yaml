@@ -11,6 +11,8 @@ services:
     dockerfilePath: ./Dockerfile
     autoDeployTrigger: commit
     healthCheckPath: /healthz
+    domains:
+      - ncet.paladuguganeshnaidu.tech
     envVars:
       - key: APP_ENV
         value: production
@@ -30,4 +32,3 @@ services:
         sync: false
       - key: SCAN_MODE
         value: "off"
-
