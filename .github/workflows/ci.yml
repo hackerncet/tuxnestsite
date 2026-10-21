@@ -133,10 +133,51 @@ jobs:
     name: Required Python SAST and dependency audit
     uses: ./.github/workflows/security.yml
 
+  render-live-smoke:
+    name: Verify live Render deployment and public routes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    needs: [test, browser, security]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    concurrency:
+      group: ncet-render-live-smoke-main
+      cancel-in-progress: true
+    steps:
+      - name: Wait until Render serves this exact commit
+        env:
+          EXPECTED_COMMIT: ${{ github.sha }}
+          RENDER_ORIGIN: https://ncet-verifyflow.onrender.com
+        run: |
+          set -euo pipefail
+          deployed_commit=''
+          for attempt in $(seq 1 90); do
+            body="$(curl --connect-timeout 5 --max-time 10 --silent --show-error "\${RENDER_ORIGIN}/healthz" || true)"
+            deployed_commit="$(printf '%s' "$body" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("commit", ""))' 2>/dev/null || true)"
+            if [[ "$deployed_commit" == "$EXPECTED_COMMIT" ]]; then
+              printf 'Render is serving %s.\\n' "$deployed_commit"
+              break
+            fi
+            if (( attempt % 6 == 0 )); then
+              printf 'Waiting for Render commit %s (currently %s; attempt %s/90).\\n' "$EXPECTED_COMMIT" "\${deployed_commit:-not ready}" "$attempt"
+            fi
+            sleep 10
+          done
+          [[ "$deployed_commit" == "$EXPECTED_COMMIT" ]] || { echo "Render did not serve expected commit $EXPECTED_COMMIT within 15 minutes." >&2; exit 1; }
+      - name: Check read-only public routes and portfolio assets
+        env:
+          RENDER_ORIGIN: https://ncet-verifyflow.onrender.com
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 3 "\${RENDER_ORIGIN}/healthz" | python3 -c 'import json,sys; assert json.load(sys.stdin).get("ok") is True'
+          curl --fail --silent --show-error "\${RENDER_ORIGIN}/students/portal" | grep -Fq 'Sign in using your USN'
+          curl --fail --silent --show-error "\${RENDER_ORIGIN}/students/directory" | grep -Fq 'Student portfolios'
+          curl --fail --silent --show-error "\${RENDER_ORIGIN}/plot" | grep -Fq 'Performance, made visible.'
+          curl --fail --silent --show-error "\${RENDER_ORIGIN}/static/resume-profile.css" | grep -Fq '.resume-project-meta'
+
   deploy-vps:
     name: Deploy verified main to Ubuntu VPS
     runs-on: ubuntu-24.04
-    needs: [test, browser, security]
+    needs: [test, browser, security, render-live-smoke]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.VPS_DEPLOY_ENABLED == 'true'
     environment: production
     concurrency:
