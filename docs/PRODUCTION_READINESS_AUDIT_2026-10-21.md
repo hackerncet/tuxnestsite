@@ -181,3 +181,13 @@ The Render hostname is usable for continued controlled pilot checks, but the evi
 4. Obtain write access to `paladuguganeshnaidu/ncet`, synchronize it from the Render source, then configure and verify the Ubuntu VPS deployment gate.
 5. Add server-side request latency and queue monitoring; browser-local `/plot` data cannot substitute for production percentiles.
 6. Use a disposable, explicitly cleaned-up test workflow for write-path verification. Keep AI calls disabled and do not use student records for synthetic tests.
+
+
+## External security-header and live UI recheck — 22 October 2026
+
+- A one-time passive scan of the Render public origin returned **6/6** for the six headers it checks. Observed values: `Strict-Transport-Security: max-age=31536000; includeSubDomains`; `Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'`; `X-Frame-Options: DENY`; `X-Content-Type-Options: nosniff`; `Referrer-Policy: strict-origin-when-cross-origin`; `Permissions-Policy: camera=(), microphone=(), geolocation=()`.
+- This passive header check does not crawl authenticated workflows, evaluate business logic, or prove the application is secure; the independent penetration/load test remains outstanding.
+- The release `d7789fc69004808999958d45492a9501f3d2b7dd` is live. The student profile route still displays the CSE branch, semester 5, four student-published projects, and the edit/publish link. The UHD NCET lockup asset loads as a 2000 × 964 image.
+- A single `/plot` browser sample after release reported LCP 1.36 s, CLS 0.000, TTFB 679 ms, 5.3 KB transferred, and a successful `/healthz` check in 293 ms. INP was not measured because no qualifying interaction occurred; this is not a field percentile or load test.
+- Rechecking the custom hostname still fails TLS negotiation with `ERR_SSL_VERSION_OR_CIPHER_MISMATCH`. Render service settings still report an empty health-check path although the checked-in Blueprint declares `/healthz`.
+- No production records, credentials, or AI services were used in this recheck.
