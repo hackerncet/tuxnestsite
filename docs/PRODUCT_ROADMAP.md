@@ -2,7 +2,7 @@
 
 This roadmap reflects the current repository, with priority on a reliable HOD document pipeline, branch-specific work visibility, and useful student self-service. It keeps the existing NCET theme and makes AI an optional later addition. None of the future AI items assume a provider key is configured.
 
-Features marked implemented are present in deployed `hackerncet/tuxnestsite` `main` at `de4e937` (21 October 2026). Render confirmed the matching deploy is live. GitHub CI run 879 passed the application, Chromium UI, SAST/dependency, Ubuntu installer, and exact-commit Render smoke jobs; the optional VPS deployment job was skipped because its private host configuration is not enabled. Read-only live checks confirmed `/healthz` reports the deployed commit and the public student directory and portfolio load. No production records were created or changed and no AI-provider requests were made.
+Features marked implemented are present in deployed `hackerncet/tuxnestsite` `main` at `6a50a9b` (21 October 2026). Render confirmed the matching deploy is live. GitHub PR CI run 934 and Security Audit run 349 passed before merge; the PR smoke and VPS deployment jobs were skipped for the pull-request event and unset VPS configuration. Read-only live checks confirmed `/healthz` reports the deployed commit, the public student portfolio displays all sections, and the student portal exposes the authenticated profile editor and publish controls. This pass made no production data changes and no AI-provider requests.
 
 ## Production verification priorities
 
@@ -20,20 +20,20 @@ Features marked implemented are present in deployed `hackerncet/tuxnestsite` `ma
 - Reusable HOD checklists stored per department, with immutable versions, version selection, archive controls, and task-level rule snapshots. This works without an AI key.
 - Deterministic document inspection plus an asynchronous verification worker. When no AI provider is available, submitted work goes to human review.
 - Separate student request/complaint desk with private case messages, status transitions, branch scope, filters, pagination, and student notifications.
-- Student portal with profile, requests, replies, and portfolio areas. Request status cards filter the private queue; request cards summarize the next step and latest HOD response.
+- Student portal with profile, requests, replies, and student-owned public portfolios. Students can add project role, timeframe, outcome, links, skills, certificates, and interests, then publish or unpublish their profile. Public portfolios keep all sections visible with sticky section links, sharing, and PDF print controls. Request status cards filter the private queue; request cards summarize the next step and latest HOD response.
 - Students can print/save a private request receipt and reopen a resolved request by replying within 14 days of its latest update. Closed cases remain immutable.
 - All-departments roster no longer labels a missing branch as Computer Applications; missing branch data is called out and must be selected during admin edits.
 - The administrator can import students for active academic departments from CSV/XLSX; each student's department code is stored on the user account and displayed through the current department catalog.
 - XLSX imports cap the compressed upload and expanded archive, reject macros/encryption, require core workbook entries, and require openpyxl's `defusedxml` parser protection.
 - Department-bound HOD/staff can enroll, import, list, and edit students only within their own active branch; administrators retain cross-branch management. The existing BCA-named URL and profile table are compatibility names, not a BCA-only data boundary.
-- **Implemented:** The current 1,000-row roster batches branch-label resolution into one catalog lookup rather than issuing a query for every displayed student. Server-side pagination and complete roster export remain planned for larger institutions.
+- **Implemented:** Department rosters batch branch-label resolution, support server-side search and pagination, and export all matching authorized records to CSV without limiting the export to the current page.
 - **Implemented and locally tested:** Principal oversight reports institution-wide aggregate student-request and project counts by department. Regression coverage confirms that the response omits request bodies, references and student identities. Principals still have detailed access to the project board; an aggregate-only access policy remains open for review.
 - Account creation now reads the active academic department catalog, requires an explicit selection, and the server rejects unknown or inactive branches. HOD-created staff stay bound to the HOD's own department.
 - Student case access and HOD notifications resolve a branch's stable code and current name together, so newly configured branches route to the right HOD. Missing student branches display as unset instead of defaulting to Computer Applications.
 - Renaming a non-BCA department now carries its HOD/staff accounts, documents, rulebooks, and task queues to the new display name in one transaction; stable student/case codes are retained. Conflicting rulebook versions stop the rename with a clear error. The Computer Applications label is protected until its BCA-only routes use catalog codes.
 - Department filtering for HOD access in task and complaint APIs.
 - Separate HOD task tracking and private student complaint workspaces, each with its own API and branch access checks.
-- `/plot` browser-local performance page reports this visit's Web Vitals, actual browser-reported network transfer sizes, and a timed read-only health check; it clearly labels the sample as local rather than a production percentile.
+- `/plot` browser-local performance page reports this visit's Web Vitals, actual browser-reported network transfer sizes, and a timed read-only health check; it clearly labels the sample as local rather than a production percentile. The notification inbox refreshes every 1.5 seconds and keeps task, submission, case, and project alerts in-app.
 - **Implemented and locally verified:** The student project directory batches contribution-profile reads, and project feeds/details batch student USN lookups while eager-loading post/comment authors. This removes per-row author/profile queries from the interactive board.
 - **Implemented and locally verified, awaiting production migration:** Project posts retain the author's department at creation. Student, staff and HOD feeds, directories, profile lookups, discussion routes, moderation actions and post alerts are restricted to the assigned branch; each HOD moderates only that branch. Existing posts are assigned their author's current branch by migration `l12ncet016`. Institutional administrator, Principal and IQAC accounts keep institution-wide read access.
 
@@ -79,7 +79,7 @@ Acceptance: task metrics never include complaint records and complaint metrics n
 - Improve accessibility and mobile forms: keyboard flow, field-level errors, accessible status announcements, and resilient upload progress.
 - Replace the legacy BCA-named enrollment routes/model with department-neutral names while preserving existing student IDs and credentials. The current legacy routes now enforce each HOD/staff member's active branch scope; finish the route/model rename after compatibility clients are mapped. Verify CSE and other branch labels across enrollment, login, profile, requests, HOD routing and the public directory.
 - Review principal and IQAC access to project posts and student directory details. The principal oversight page now provides institution-wide aggregate counts, but the existing project board still provides detailed reads.
-- Paginate and search large department rosters on the server; keep complete, permission-scoped roster exports separate from the current browser-visible page.
+- **Implemented:** HOD, staff, and administrator department rosters use server-side search and pagination with complete, permission-scoped CSV exports.
 
 Acceptance: a student can sign in, understand the latest status, reply, receive a notification, and retrieve their own receipt; authorization tests prove cross-student access is denied.
 
@@ -100,7 +100,7 @@ Ship in this order on the now-connected repository and production service:
 1. **Production safety:** resolve database network exposure and expiry, configure malware scanning and an explicit `/healthz` check, repair the custom-domain certificate, and prove backup restore. These controls come before widening document uploads.
 2. **HOD document automation:** replace placeholder criteria with college-approved checklist templates, add workload-aware staff suggestions for HOD confirmation, show retry/failure states for background jobs, and configure deadline escalation. Keep final decisions human and every change auditable.
 3. **Student request desk:** add response targets/aging indicators and accessible mobile form progress; keep requests, document tasks, and project activity as separate records and views.
-4. **Operations and scale:** server-page student rosters, add queue/storage/database health and real request latency, define retention/export controls, and exercise restore and migration rollback.
+4. **Operations and scale:** add queue/storage/database health and production request latency, define retention/export controls, and exercise restore and migration rollback.
 5. **Access hardening:** add privileged-user MFA, review institution-wide project access, and agree aggregate-only leadership reporting before changing what those roles can see.
 6. **Optional AI:** only after the owner configures a paid provider, add bounded checklist suggestions with explicit HOD approval, cost limits, and a manual fallback. No feature in the first five releases depends on an AI key.
 
