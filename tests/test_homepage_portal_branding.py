@@ -54,7 +54,7 @@ def test_logo_assets_and_homepage_css_exist(client):
     assert "#F6872A" in css and "#0E2455" in css
     assert "aspect-ratio:1056/512" in css
     with Image.open(STATIC/"ncet-official-hd.png") as logo:
-        assert logo.width==500 and logo.height==241
+        assert logo.width==2000 and logo.height==964
 
 
 def test_public_pages_use_student_portal_language(client):
