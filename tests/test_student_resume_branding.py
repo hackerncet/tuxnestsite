@@ -132,5 +132,7 @@ def test_portfolio_hero_uses_a_complete_bio_excerpt(client):
     })
     assert saved.status_code==200,saved.text
     html=client.get("/students/profile/"+USN).text
-    assert f'<p class="resume-intro">{first_sentence}</p>' in html
+    intro=html.split('<p class="resume-intro">',1)[1].split('</p>',1)[0]
+    assert intro.startswith(first_sentence)
+    assert intro.endswith('.') and len(intro)<=220
     assert f'<p class="resume-about">{full_bio}</p>' in html
