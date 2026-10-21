@@ -140,3 +140,9 @@ body.student-modern,body.student-public{background:var(--bca-bg);color:var(--bca
  .student-directory-shell #search-profiles button{flex:1 1 auto}
 }
 @media(prefers-reduced-motion:reduce){.student-modern *,.student-public *{animation-duration:.01ms!important;transition-duration:0!important}}
+
+
+/* Keep student landing copy legible on its navy hero. */
+.student-public .intro h1{color:#fff}
+.student-public .intro p{color:#e6edf8}
+.student-public .intro .eyebrow{color:#ffc18e}

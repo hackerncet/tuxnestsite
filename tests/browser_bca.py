@@ -70,6 +70,7 @@ def main():
 
         load_page(desktop, 'student-services.html')
         assert 'Everything students need.' in desktop.locator('main').inner_text()
+        assert desktop.locator('.intro h1').evaluate('(h) => getComputedStyle(h).color') == 'rgb(255, 255, 255)'
         assert 'Your private academic requests stay with your authorized reviewers.' in desktop.locator('main').inner_text()
         assert desktop.locator('a[href="/students/portal"]').count() > 0
 
