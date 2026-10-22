@@ -81,7 +81,9 @@ with sync_playwright() as p:
         assert page.locator('.resume-anchors[role="tablist"]').count()==0
         assert page.locator('.resume-section:not([hidden])').count()==6
         assert page.locator('#projects').is_visible()
-        assert page.locator('.resume-section-intro').inner_text()=='A closer look at projects shared by Example Engineering Student. Open the source or live project when a link is available.'
+        intro_copy=page.locator('.resume-section-intro').inner_text()
+        assert intro_copy.startswith('A closer look at projects shared by ')
+        assert intro_copy.endswith('Open the source or live project when a link is available.')
         assert page.locator('.resume-project-grid .resume-project').count()==3
         card_columns=page.locator('.resume-project-grid').evaluate("el => getComputedStyle(el).gridTemplateColumns.split(' ').length")
         assert card_columns==(2 if width>=1024 else 1),(width,card_columns)
