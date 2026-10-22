@@ -702,7 +702,7 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
 <a href="#certifications" id="profile-tab-certifications">Certifications</a>{interests_tab}<a href="#links" id="profile-tab-links">Links</a>
 </nav>
 <div class="resume-tab-stage" id="resume-tab-stage" aria-live="off">
-<section id="projects" class="resume-section"><h2>Selected projects</h2><p class="resume-section-intro">A closer look at projects shared by "{name}". Open the source or live project when a link is available.</p><div class="resume-project-grid">{project_html}</div></section>
+<section id="projects" class="resume-section"><h2>Selected projects</h2><p class="resume-section-intro">A closer look at projects shared by {name}. Open the source or live project when a link is available.</p><div class="resume-project-grid">{project_html}</div></section>
 <section id="about" class="resume-section"><h2>About</h2>
 <p class="resume-about">{escape(info['about']) or 'This student has not yet added a summary.'}</p></section>
 <section id="skills" class="resume-section"><h2>Technical skills</h2>{skill_section}</section>
