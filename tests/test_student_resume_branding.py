@@ -71,7 +71,7 @@ def test_portfolio_sections_projects_and_public_links(client):
     page=client.get("/students/profile/"+USN)
     assert page.status_code==200,page.text
     html=page.text
-    for label in ("About","Technical skills","Projects","Certifications","Areas of interest",
+    for label in ("About","Technical skills","Selected projects","Certifications","Areas of interest",
                   "GitHub, live work & professional links","NCET Project Repository",
                   "Backend developer · Team of 4","Jan–May 2026",
                   "Shipped a role-based review workflow for student documents.",
@@ -80,14 +80,16 @@ def test_portfolio_sections_projects_and_public_links(client):
         assert label in html,label
     assert 'id="resume-share"' in html and 'id="resume-print"' in html
     assert 'href="/students/portal#portfolio"' in html
-    assert 'Student sign in · Add work &amp; publish' in html
+    assert 'Student sign in · Edit &amp; publish' in html
     assert '<p class="resume-intro">Software engineering student creating research and academic tools.</p>' in html
+    assert 'class="resume-section-intro"' in html
+    assert 'A closer look at projects shared by College Demo Student.' in html
     assert 'class="resume-project-grid"' in html
     assert 'class="resume-project-kicker">PROJECT 01</p>' in html
     assert html.count(">Machine Learning</li>")==1
     assert html.count(">Open Source</li>")==1
-    assert 'This portfolio is controlled by the student.' in html
-    assert 'Sign in to add projects, update skills and credentials, then publish changes' in html
+    assert 'Students manage this portfolio themselves.' in html
+    assert 'add or update projects, skills, credentials and links, then publish changes or make the page private' in html
     assert '<dt>Last updated</dt>' in html
     assert html.index('id="projects"') < html.index('id="about"')
     assert '<dt>Skills</dt><dd>3</dd>' in html
