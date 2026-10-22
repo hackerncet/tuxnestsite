@@ -83,7 +83,7 @@ def test_portfolio_sections_projects_and_public_links(client):
     assert 'Student sign in · Edit &amp; publish' in html
     assert '<p class="resume-intro">Software engineering student creating research and academic tools.</p>' in html
     assert 'class="resume-section-intro"' in html
-    assert 'A closer look at projects shared by College Demo Student.' in html
+    assert 'A closer look at projects shared by College Demo Student. Open the source or live project when a link is available.' in html
     assert 'class="resume-project-grid"' in html
     assert 'class="resume-project-kicker">PROJECT 01</p>' in html
     assert html.count(">Machine Learning</li>")==1
