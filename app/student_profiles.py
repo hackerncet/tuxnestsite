@@ -661,7 +661,7 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
 <link rel="icon" href="/static/ncet-brand.svg">
 <script type="application/ld+json">{json_ld}</script>
 <link rel="preload" as="image" href="/static/ncet-official-uhd.png?v=20261021-uhd-brand" fetchpriority="high">
-<link rel="stylesheet" href="/static/resume-profile.css?v=20261022-student-portfolio-publish">
+<link rel="stylesheet" href="/static/resume-profile.css?v=20261022-portfolio-selected-work">
 <link rel="stylesheet" href="/static/institutional-ui.css?v=20261021-clear-lockup-2">
 <script src="/static/student-profile-tabs.js?v=20261021-portfolio-onepage" defer></script>
 <script src="/static/student-profile-actions.js?v=20261021-portfolio-actions" defer></script>
@@ -687,10 +687,10 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
 <div class="resume-action-bar" aria-label="Portfolio actions">
 <button type="button" class="resume-action resume-share" id="resume-share" data-share-url="{escape(canonical,quote=True)}">Share portfolio</button>
 <button type="button" class="resume-action resume-print" id="resume-print">Save as PDF</button>
-<a class="resume-action resume-manage" href="/students/portal#portfolio">Student sign in · Add work &amp; publish</a>
+<a class="resume-action resume-manage" href="/students/portal#portfolio">Student sign in · Edit &amp; publish</a>
 <span class="resume-action-status" id="resume-action-status" role="status" aria-live="polite"></span>
 </div>
-<p class="resume-owner-prompt">This portfolio is controlled by the student. <a href="/students/portal#portfolio">Sign in to add projects, update skills and credentials, then publish changes</a> or make the portfolio private. Email, mobile and academic requests remain private.</p>
+<p class="resume-owner-prompt">Students manage this portfolio themselves. <a href="/students/portal#portfolio">Sign in to add or update projects, skills, credentials and links, then publish changes or make the page private</a>. Email, mobile and academic requests remain private.</p>
 <dl class="resume-highlights" aria-label="Portfolio overview">
 <div><dt>Skills</dt><dd>{len(info['skills'])}</dd></div>
 <div><dt>Projects</dt><dd>{len(info['projects'])}</dd></div>
@@ -702,7 +702,7 @@ def public_profile_html(usn:str,db:DbSession=Depends(get_db)):
 <a href="#certifications" id="profile-tab-certifications">Certifications</a>{interests_tab}<a href="#links" id="profile-tab-links">Links</a>
 </nav>
 <div class="resume-tab-stage" id="resume-tab-stage" aria-live="off">
-<section id="projects" class="resume-section"><h2>Projects</h2><div class="resume-project-grid">{project_html}</div></section>
+<section id="projects" class="resume-section"><h2>Selected projects</h2><p class="resume-section-intro">A closer look at projects shared by {name}. Open the source or live project when a link is available.</p><div class="resume-project-grid">{project_html}</div></section>
 <section id="about" class="resume-section"><h2>About</h2>
 <p class="resume-about">{escape(info['about']) or 'This student has not yet added a summary.'}</p></section>
 <section id="skills" class="resume-section"><h2>Technical skills</h2>{skill_section}</section>

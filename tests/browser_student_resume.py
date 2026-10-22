@@ -81,14 +81,17 @@ with sync_playwright() as p:
         assert page.locator('.resume-anchors[role="tablist"]').count()==0
         assert page.locator('.resume-section:not([hidden])').count()==6
         assert page.locator('#projects').is_visible()
+        intro_copy=page.locator('.resume-section-intro').inner_text()
+        assert intro_copy.startswith('A closer look at projects shared by ')
+        assert intro_copy.endswith('Open the source or live project when a link is available.')
         assert page.locator('.resume-project-grid .resume-project').count()==3
         card_columns=page.locator('.resume-project-grid').evaluate("el => getComputedStyle(el).gridTemplateColumns.split(' ').length")
         assert card_columns==(2 if width>=1024 else 1),(width,card_columns)
-        assert page.get_by_role('link',name='Student sign in · Add work & publish').get_attribute('href')=='/students/portal#portfolio'
+        assert page.get_by_role('link',name='Student sign in · Edit & publish').get_attribute('href')=='/students/portal#portfolio'
         assert page.locator('.resume-intro').inner_text()=='Building useful campus tools and learning responsible engineering.'
         owner_copy=page.locator('.resume-owner-prompt').inner_text()
-        assert 'This portfolio is controlled by the student.' in owner_copy
-        assert 'Sign in to add projects, update skills and credentials, then publish changes' in owner_copy
+        assert 'Students manage this portfolio themselves.' in owner_copy
+        assert 'add or update projects, skills, credentials and links, then publish changes or make the page private' in owner_copy
         page.get_by_role('button',name='Share portfolio').click()
         page.wait_for_function("document.querySelector('#resume-action-status').textContent.includes('copied')")
         assert page.evaluate('window.__copiedProfile')=='https://ncet-verifyflow.onrender.com/students/profile/1NC24CS150'
